@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,42 +16,21 @@
 
 package org.optaplanner.examples.nqueens.app;
 
-import java.io.File;
-import java.util.Collection;
+import org.optaplanner.core.impl.score.director.easy.EasyScoreCalculator;
+import org.optaplanner.examples.common.app.CommonApp;
+import org.optaplanner.examples.common.app.UnsolvedDirSolveAllTurtleTest;
+import org.optaplanner.examples.nqueens.domain.NQueens;
+import org.optaplanner.examples.nqueens.solver.score.NQueensEasyScoreCalculator;
 
-import org.junit.runners.Parameterized;
-import org.optaplanner.core.config.score.director.ScoreDirectorFactoryConfig;
-import org.optaplanner.examples.common.app.SolveAllTurtleTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.nqueens.persistence.NQueensDao;
-import org.optaplanner.examples.nqueens.solver.score.NQueensSimpleScoreCalculator;
+public class NQueensSolveAllTurtleTest extends UnsolvedDirSolveAllTurtleTest<NQueens> {
 
-public class NQueensSolveAllTurtleTest extends SolveAllTurtleTest {
-
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<Object[]> getSolutionFilesAsParameters() {
-        return getUnsolvedDataFilesAsParameters(new NQueensDao());
-    }
-
-    public NQueensSolveAllTurtleTest(File unsolvedDataFile) {
-        super(unsolvedDataFile);
+    @Override
+    protected CommonApp<NQueens> createCommonApp() {
+        return new NQueensApp();
     }
 
     @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/nqueens/solver/nqueensSolverConfig.xml";
+    protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass() {
+        return NQueensEasyScoreCalculator.class;
     }
-
-    @Override
-    protected ScoreDirectorFactoryConfig createOverwritingAssertionScoreDirectorFactory() {
-        ScoreDirectorFactoryConfig assertionScoreDirectorFactoryConfig = new ScoreDirectorFactoryConfig();
-        assertionScoreDirectorFactoryConfig.setSimpleScoreCalculatorClass(NQueensSimpleScoreCalculator.class);
-        return assertionScoreDirectorFactoryConfig;
-    }
-
-    @Override
-    protected SolutionDao createSolutionDao() {
-        return new NQueensDao();
-    }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,58 +22,59 @@ import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+
 import javax.swing.JPanel;
 
 import org.optaplanner.examples.common.swingui.latitudelongitude.LatitudeLongitudeTranslator;
-import org.optaplanner.examples.vehiclerouting.domain.VrpSchedule;
+import org.optaplanner.examples.vehiclerouting.domain.VehicleRoutingSolution;
 
-/**
- * TODO this code is highly unoptimized
- */
 public class VehicleRoutingWorldPanel extends JPanel {
+
     private final VehicleRoutingPanel vehicleRoutingPanel;
 
-    private VehicleRoutingSchedulePainter schedulePainter = new VehicleRoutingSchedulePainter();
+    private VehicleRoutingSolutionPainter solutionPainter = new VehicleRoutingSolutionPainter();
 
     public VehicleRoutingWorldPanel(VehicleRoutingPanel vehicleRoutingPanel) {
         this.vehicleRoutingPanel = vehicleRoutingPanel;
-        schedulePainter = new VehicleRoutingSchedulePainter();
+        solutionPainter = new VehicleRoutingSolutionPainter();
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
                 // TODO Not thread-safe during solving
-                VrpSchedule schedule = VehicleRoutingWorldPanel.this.vehicleRoutingPanel.getSchedule();
-                if (schedule != null) {
-                    resetPanel(schedule);
+                VehicleRoutingSolution solution = VehicleRoutingWorldPanel.this.vehicleRoutingPanel.getSolution();
+                if (solution != null) {
+                    resetPanel(solution);
                 }
             }
         });
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                LatitudeLongitudeTranslator translator = schedulePainter.getTranslator();
-                if (translator != null) {
-                    double longitude = translator.translateXToLongitude(e.getX());
-                    double latitude = translator.translateYToLatitude(e.getY());
-                    VehicleRoutingWorldPanel.this.vehicleRoutingPanel.insertLocationAndCustomer(longitude, latitude);
+                if (e.getButton() == MouseEvent.BUTTON2 || e.getButton() == MouseEvent.BUTTON3) {
+                    LatitudeLongitudeTranslator translator = solutionPainter.getTranslator();
+                    if (translator != null) {
+                        double longitude = translator.translateXToLongitude(e.getX());
+                        double latitude = translator.translateYToLatitude(e.getY());
+                        VehicleRoutingWorldPanel.this.vehicleRoutingPanel.insertLocationAndCustomer(longitude, latitude);
+                    }
                 }
             }
         });
     }
 
-    public void resetPanel(VrpSchedule schedule) {
-        schedulePainter.reset(schedule, getSize(), this);
+    public void resetPanel(VehicleRoutingSolution solution) {
+        solutionPainter.reset(solution, getSize(), this);
         repaint();
     }
 
-    public void updatePanel(VrpSchedule schedule) {
-        resetPanel(schedule);
+    public void updatePanel(VehicleRoutingSolution solution) {
+        resetPanel(solution);
     }
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        BufferedImage canvas = schedulePainter.getCanvas();
+        BufferedImage canvas = solutionPainter.getCanvas();
         if (canvas != null) {
             g.drawImage(canvas, 0, 0, this);
         }

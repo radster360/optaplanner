@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,21 +18,27 @@ package org.optaplanner.core.impl.heuristic.selector.move.generic.chained;
 
 import java.util.Iterator;
 
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableDemand;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
+import org.optaplanner.core.impl.domain.variable.supply.SupplyManager;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractOriginalSwapIterator;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractRandomSwapIterator;
 import org.optaplanner.core.impl.heuristic.selector.move.generic.GenericMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChain;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChainSelector;
-import org.optaplanner.core.impl.move.Move;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public class SubChainSwapMoveSelector extends GenericMoveSelector {
 
     protected final SubChainSelector leftSubChainSelector;
     protected final SubChainSelector rightSubChainSelector;
-    protected final PlanningVariableDescriptor variableDescriptor;
+    protected final GenuineVariableDescriptor variableDescriptor;
     protected final boolean randomSelection;
     protected final boolean selectReversingMoveToo;
+
+    protected SingletonInverseVariableSupply inverseVariableSupply = null;
 
     public SubChainSwapMoveSelector(SubChainSelector leftSubChainSelector, SubChainSelector rightSubChainSelector,
             boolean randomSelection, boolean selectReversingMoveToo) {
@@ -48,28 +54,45 @@ public class SubChainSwapMoveSelector extends GenericMoveSelector {
                     + ") which is not equal to the rightSubChainSelector's variableDescriptor ("
                     + rightSubChainSelector.getVariableDescriptor() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(leftSubChainSelector);
+        phaseLifecycleSupport.addEventListener(leftSubChainSelector);
         if (leftSubChainSelector != rightSubChainSelector) {
-            solverPhaseLifecycleSupport.addEventListener(rightSubChainSelector);
+            phaseLifecycleSupport.addEventListener(rightSubChainSelector);
         }
+    }
+
+    @Override
+    public void solvingStarted(SolverScope solverScope) {
+        super.solvingStarted(solverScope);
+        SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
+        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand(variableDescriptor));
+    }
+
+    @Override
+    public void solvingEnded(SolverScope solverScope) {
+        super.solvingEnded(solverScope);
+        inverseVariableSupply = null;
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return leftSubChainSelector.isContinuous() || rightSubChainSelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return leftSubChainSelector.isCountable() && rightSubChainSelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return randomSelection || leftSubChainSelector.isNeverEnding() || rightSubChainSelector.isNeverEnding();
     }
 
+    @Override
     public long getSize() {
         return AbstractOriginalSwapIterator.getSize(leftSubChainSelector, rightSubChainSelector);
     }
 
+    @Override
     public Iterator<Move> iterator() {
         if (!randomSelection) {
             return new AbstractOriginalSwapIterator<Move, SubChain>(leftSubChainSelector, rightSubChainSelector) {
@@ -89,19 +112,21 @@ public class SubChainSwapMoveSelector extends GenericMoveSelector {
                 protected Move newSwapSelection(SubChain leftSubSelection, SubChain rightSubSelection) {
                     if (selectReversingMoveToo) {
                         nextReversingSelection = new SubChainReversingSwapMove(
-                                variableDescriptor, leftSubSelection, rightSubSelection);
+                                variableDescriptor, inverseVariableSupply, leftSubSelection, rightSubSelection);
                     }
-                    return new SubChainSwapMove(variableDescriptor, leftSubSelection, rightSubSelection);
+                    return new SubChainSwapMove(variableDescriptor, inverseVariableSupply, leftSubSelection, rightSubSelection);
                 }
             };
         } else {
             return new AbstractRandomSwapIterator<Move, SubChain>(leftSubChainSelector, rightSubChainSelector) {
                 @Override
                 protected Move newSwapSelection(SubChain leftSubSelection, SubChain rightSubSelection) {
-                    boolean reversing = selectReversingMoveToo ? workingRandom.nextBoolean() : false;
+                    boolean reversing = selectReversingMoveToo && workingRandom.nextBoolean();
                     return reversing
-                            ? new SubChainReversingSwapMove(variableDescriptor, leftSubSelection, rightSubSelection)
-                            : new SubChainSwapMove(variableDescriptor, leftSubSelection, rightSubSelection);
+                            ? new SubChainReversingSwapMove(variableDescriptor, inverseVariableSupply, leftSubSelection,
+                                    rightSubSelection)
+                            : new SubChainSwapMove(variableDescriptor, inverseVariableSupply, leftSubSelection,
+                                    rightSubSelection);
                 }
             };
         }

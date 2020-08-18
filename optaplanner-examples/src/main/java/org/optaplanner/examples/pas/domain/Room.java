@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package org.optaplanner.examples.pas.domain;
 
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("Room")
 public class Room extends AbstractPersistable {
@@ -32,6 +33,7 @@ public class Room extends AbstractPersistable {
 
     private List<RoomSpecialism> roomSpecialismList;
     private List<RoomEquipment> roomEquipmentList;
+    private List<Bed> bedList;
 
     public String getName() {
         return name;
@@ -81,33 +83,19 @@ public class Room extends AbstractPersistable {
         this.roomEquipmentList = roomEquipmentList;
     }
 
-    @Override
-    public String toString() {
-        return department + "_" + name;
+    public List<Bed> getBedList() {
+        return bedList;
     }
 
-    public int countDisallowedAdmissionPart(AdmissionPart admissionPart) {
-        return department.countDisallowedAdmissionPart(admissionPart)
-                + countDisallowedPatientGender(admissionPart.getPatient())
-                + countMissingRequiredRoomProperties(admissionPart.getPatient())
-                + countMissingPreferredRoomProperties(admissionPart.getPatient());
+    public void setBedList(List<Bed> bedList) {
+        this.bedList = bedList;
+    }
+
+    public int countHardDisallowedAdmissionPart(AdmissionPart admissionPart) {
+        return countMissingRequiredRoomProperties(admissionPart.getPatient())
+                + department.countHardDisallowedAdmissionPart(admissionPart)
+                + countDisallowedPatientGender(admissionPart.getPatient());
         // TODO preferredMaximumRoomCapacity and specialism
-    }
-
-    public int countDisallowedPatientGender(Patient patient) {
-        switch (genderLimitation) {
-            case ANY_GENDER:
-                return 0;
-            case MALE_ONLY:
-                return patient.getGender() == Gender.MALE ? 0 : 50;
-            case FEMALE_ONLY:
-                return patient.getGender() == Gender.FEMALE ? 0 : 50;
-            case SAME_GENDER:
-                // scoreRules check this
-                return 25;
-            default:
-                throw new IllegalStateException("The genderLimitation (" + genderLimitation + ") is not implemented.");
-        }
     }
 
     public int countMissingRequiredRoomProperties(Patient patient) {
@@ -121,10 +109,31 @@ public class Room extends AbstractPersistable {
                 }
             }
             if (!hasRequiredEquipment) {
-                count += 50;
+                count += 100000;
             }
         }
         return count;
+    }
+
+    public int countDisallowedPatientGender(Patient patient) {
+        switch (genderLimitation) {
+            case ANY_GENDER:
+                return 0;
+            case MALE_ONLY:
+                return patient.getGender() == Gender.MALE ? 0 : 4;
+            case FEMALE_ONLY:
+                return patient.getGender() == Gender.FEMALE ? 0 : 4;
+            case SAME_GENDER:
+                // Constraints check this
+                return 1;
+            default:
+                throw new IllegalStateException("The genderLimitation (" + genderLimitation + ") is not implemented.");
+        }
+    }
+
+    public int countSoftDisallowedAdmissionPart(AdmissionPart admissionPart) {
+        return countMissingPreferredRoomProperties(admissionPart.getPatient());
+        // TODO preferredMaximumRoomCapacity and specialism
     }
 
     public int countMissingPreferredRoomProperties(Patient patient) {
@@ -142,6 +151,15 @@ public class Room extends AbstractPersistable {
             }
         }
         return count;
+    }
+
+    public String getLabel() {
+        return name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
     }
 
 }

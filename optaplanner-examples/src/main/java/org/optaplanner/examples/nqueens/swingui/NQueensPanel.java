@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.util.List;
+
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -32,19 +33,14 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.solution.Solution;
 import org.optaplanner.examples.common.swingui.SolutionPanel;
-import org.optaplanner.examples.common.swingui.TangoColorFactory;
+import org.optaplanner.examples.common.swingui.components.LabeledComboBoxRenderer;
 import org.optaplanner.examples.nqueens.domain.NQueens;
 import org.optaplanner.examples.nqueens.domain.Queen;
 import org.optaplanner.examples.nqueens.domain.Row;
-import org.optaplanner.examples.nqueens.solver.move.RowChangeMove;
+import org.optaplanner.swing.impl.TangoColorFactory;
 
-/**
- * TODO this code is highly unoptimized
- */
-public class NQueensPanel extends SolutionPanel {
+public class NQueensPanel extends SolutionPanel<NQueens> {
 
     public static final String LOGO_PATH = "/org/optaplanner/examples/nqueens/swingui/nqueensLogo.png";
     private static final String QUEEN_IMAGE_PATH = "/org/optaplanner/examples/nqueens/swingui/queenImage.png";
@@ -57,14 +53,10 @@ public class NQueensPanel extends SolutionPanel {
         queenImageIcon = new ImageIcon(getClass().getResource(QUEEN_IMAGE_PATH));
     }
 
-    private NQueens getNQueens() {
-        return (NQueens) solutionBusiness.getSolution();
-    }
-
-    public void resetPanel(Solution solution) {
+    @Override
+    public void resetPanel(NQueens nQueens) {
         removeAll();
         repaint(); // When GridLayout doesn't fill up all the space
-        NQueens nQueens = (NQueens) solution;
         int n = nQueens.getN();
         if (n > 100) {
             JLabel tooBigToShowLabel = new JLabel("The dataset is too big to show.");
@@ -80,12 +72,12 @@ public class NQueensPanel extends SolutionPanel {
                 if (queen.getColumn().getIndex() != column) {
                     throw new IllegalStateException("The queenList is not in the expected order.");
                 }
-                String toolTipText = "row " + row + ", column " + column;
+                String toolTip = "<html>Row " + row + "<br/>Column " + column + "</html>";
                 if (queen.getRow() != null && queen.getRow().getIndex() == row) {
                     JButton button = new JButton(new QueenAction(queen));
                     button.setMinimumSize(new Dimension(20, 20));
                     button.setPreferredSize(new Dimension(20, 20));
-                    button.setToolTipText(toolTipText);
+                    button.setToolTipText(toolTip);
                     add(button);
                 } else {
                     JPanel panel = new JPanel();
@@ -94,7 +86,7 @@ public class NQueensPanel extends SolutionPanel {
                             BorderFactory.createEmptyBorder(5, 5, 5, 5)));
                     Color background = (((row + column) % 2) == 0) ? Color.WHITE : TangoColorFactory.ALUMINIUM_3;
                     panel.setBackground(background);
-                    panel.setToolTipText(toolTipText);
+                    panel.setToolTipText(toolTip);
                     add(panel);
                 }
             }
@@ -110,11 +102,15 @@ public class NQueensPanel extends SolutionPanel {
             this.queen = queen;
         }
 
+        @Override
         public void actionPerformed(ActionEvent e) {
-            List<Row> rowList = getNQueens().getRowList();
             JPanel messagePanel = new JPanel(new BorderLayout());
             messagePanel.add(new JLabel("Move to row: "), BorderLayout.WEST);
-            JComboBox rowListField = new JComboBox(rowList.toArray());
+            List<Row> rowList = getSolution().getRowList();
+            // Add 1 to array size to add null, which makes the entity unassigned
+            JComboBox rowListField = new JComboBox(
+                    rowList.toArray(new Object[rowList.size() + 1]));
+            LabeledComboBoxRenderer.applyToComboBox(rowListField);
             rowListField.setSelectedItem(queen.getRow());
             messagePanel.add(rowListField, BorderLayout.CENTER);
             int result = JOptionPane.showConfirmDialog(NQueensPanel.this.getRootPane(), messagePanel,
@@ -122,8 +118,7 @@ public class NQueensPanel extends SolutionPanel {
                     JOptionPane.OK_CANCEL_OPTION);
             if (result == JOptionPane.OK_OPTION) {
                 Row toRow = (Row) rowListField.getSelectedItem();
-                Move move = new RowChangeMove(queen, toRow);
-                solutionBusiness.doMove(move);
+                solutionBusiness.doChangeMove(queen, "row", toRow);
                 solverAndPersistenceFrame.resetScreen();
             }
         }

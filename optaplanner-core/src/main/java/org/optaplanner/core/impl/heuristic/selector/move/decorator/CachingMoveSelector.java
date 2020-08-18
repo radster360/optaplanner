@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,16 @@ package org.optaplanner.core.impl.heuristic.selector.move.decorator;
 
 import java.util.Iterator;
 
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.CachedListRandomIterator;
 import org.optaplanner.core.impl.heuristic.selector.entity.decorator.CachingEntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.decorator.CachingValueSelector;
-import org.optaplanner.core.impl.move.Move;
 
 /**
  * A {@link MoveSelector} that caches the result of its child {@link MoveSelector}.
- * <p/>
+ * <p>
  * Keep this code in sync with {@link CachingEntitySelector} and {@link CachingValueSelector}.
  */
 public class CachingMoveSelector extends AbstractCachingMoveSelector {
@@ -43,16 +43,18 @@ public class CachingMoveSelector extends AbstractCachingMoveSelector {
     // Worker methods
     // ************************************************************************
 
+    @Override
     public boolean isNeverEnding() {
         // CachedListRandomIterator is neverEnding
         return randomSelection;
     }
 
+    @Override
     public Iterator<Move> iterator() {
         if (!randomSelection) {
             return cachedMoveList.iterator();
         } else {
-            return new CachedListRandomIterator<Move>(cachedMoveList, workingRandom);
+            return new CachedListRandomIterator<>(cachedMoveList, workingRandom);
         }
     }
 

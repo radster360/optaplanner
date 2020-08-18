@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,16 +21,16 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionProbabilityWeightFactory;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-import org.optaplanner.core.impl.util.RandomUtils;
+import org.optaplanner.core.impl.solver.random.RandomUtils;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public class ProbabilityMoveSelector extends AbstractMoveSelector implements SelectionCacheLifecycleListener {
 
@@ -51,12 +51,12 @@ public class ProbabilityMoveSelector extends AbstractMoveSelector implements Sel
                     + ") has a childMoveSelector (" + childMoveSelector
                     + ") with neverEnding (" + childMoveSelector.isNeverEnding() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(childMoveSelector);
+        phaseLifecycleSupport.addEventListener(childMoveSelector);
         if (cacheType.isNotCached()) {
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
     }
 
     @Override
@@ -68,8 +68,9 @@ public class ProbabilityMoveSelector extends AbstractMoveSelector implements Sel
     // Worker methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
-        cachedMoveMap = new TreeMap<Double, Move>();
+    @Override
+    public void constructCache(SolverScope solverScope) {
+        cachedMoveMap = new TreeMap<>();
         ScoreDirector scoreDirector = solverScope.getScoreDirector();
         double probabilityWeightOffset = 0L;
         for (Move entity : childMoveSelector) {
@@ -81,28 +82,35 @@ public class ProbabilityMoveSelector extends AbstractMoveSelector implements Sel
         probabilityWeightTotal = probabilityWeightOffset;
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         probabilityWeightTotal = -1.0;
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         return true;
     }
 
+    @Override
     public long getSize() {
         return cachedMoveMap.size();
     }
 
+    @Override
     public Iterator<Move> iterator() {
         return new Iterator<Move>() {
+            @Override
             public boolean hasNext() {
                 return true;
             }
 
+            @Override
             public Move next() {
                 double randomOffset = RandomUtils.nextDouble(workingRandom, probabilityWeightTotal);
                 Map.Entry<Double, Move> entry = cachedMoveMap.floorEntry(randomOffset);
@@ -110,6 +118,7 @@ public class ProbabilityMoveSelector extends AbstractMoveSelector implements Sel
                 return entry.getValue();
             }
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("The optional operation remove() is not supported.");
             }

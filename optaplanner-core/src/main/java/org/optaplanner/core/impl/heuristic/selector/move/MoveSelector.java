@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,18 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move;
 
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.IterableSelector;
-import org.optaplanner.core.impl.move.Move;
 
 /**
  * Generates {@link Move}s.
+ *
  * @see AbstractMoveSelector
  */
 public interface MoveSelector extends IterableSelector<Move> {
+
+    default boolean supportsPhaseAndSolverCaching() {
+        return false;
+    }
 
 }

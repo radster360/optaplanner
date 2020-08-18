@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,61 +17,58 @@
 package org.optaplanner.core.api.solver;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Future;
 
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.event.SolverEventListener;
-import org.optaplanner.core.impl.score.director.ScoreDirectorFactory;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.core.impl.solver.ProblemFactChange;
-import org.optaplanner.core.impl.termination.Termination;
+import org.optaplanner.core.api.solver.event.SolverEventListener;
+import org.optaplanner.core.impl.solver.termination.Termination;
 
 /**
- * A Solver solves planning problems.
- * <p/>
- * Most methods are not thread-safe and should be called from the same thread.
+ * A Solver solves a planning problem and returns the best solution found.
+ * It's recommended to create a new Solver instance for each dataset.
+ * <p>
+ * To create a Solver, use {@link SolverFactory#buildSolver()}.
+ * To solve a planning problem, call {@link #solve(Object)}.
+ * To solve a planning problem without blocking the current thread, use {@link SolverManager} instead.
+ * <p>
+ * These methods are not thread-safe and should be called from the same thread,
+ * except for the methods that are explicitly marked as thread-safe.
+ * Note that despite that {@link #solve} is not thread-safe for clients of this class,
+ * that method is free to do multithreading inside itself.
+ *
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
-public interface Solver {
+public interface Solver<Solution_> {
 
     /**
-     * @param planningProblem never null
-     */
-    void setPlanningProblem(Solution planningProblem);
-
-    /**
-     * @return never null, but it can return the original, uninitialized {@link Solution} with a {@link Score} null.
-     */
-    Solution getBestSolution();
-
-    /**
-     * TODO timeMillisSpend should not continue to increase after the solver has been terminated
-     * @return the amount of millis spend since this solver started
-     */
-    long getTimeMillisSpend();
-
-    /**
-     * Solves the planning problem.
-     * It can take minutes, even hours or days before this method returns,
-     * depending on the termination configuration.
+     * Solves the planning problem and returns the best solution encountered
+     * (which might or might not be optimal, feasible or even initialized).
+     * <p>
+     * It can take seconds, minutes, even hours or days before this method returns,
+     * depending on the {@link Termination} configuration.
      * To terminate a {@link Solver} early, call {@link #terminateEarly()}.
+     *
+     * @param problem never null, a {@link PlanningSolution}, usually its planning variables are uninitialized
+     * @return never null, but it can return the original, uninitialized {@link PlanningSolution} with a null {@link Score}.
      * @see #terminateEarly()
      */
-    void solve();
-
-    /**
-     * This method is thread-safe.
-     * @return true if the {@link #solve()} method is still running.
-     */
-    boolean isSolving();
+    Solution_ solve(Solution_ problem);
 
     /**
      * Notifies the solver that it should stop at its earliest convenience.
      * This method returns immediately, but it takes an undetermined time
-     * for the {@link #solve()} to actually return.
-     * <p/>
+     * for the {@link #solve} to actually return.
+     * <p>
+     * If the solver is running in daemon mode, this is the only way to terminate it normally.
+     * <p>
      * This method is thread-safe.
-     * @return true if successful
+     * It can only be called from a different thread
+     * because the original thread is still calling {@link #solve(Object)}.
+     *
+     * @return true if successful, false if was already terminating or terminated
      * @see #isTerminateEarly()
      * @see Future#cancel(boolean)
      */
@@ -79,29 +76,56 @@ public interface Solver {
 
     /**
      * This method is thread-safe.
-     * @return true if terminateEarly has been called since the {@Solver} started.
+     *
+     * @return true if the {@link #solve} method is still running.
+     */
+    boolean isSolving();
+
+    /**
+     * This method is thread-safe.
+     *
+     * @return true if terminateEarly has been called since the {@link Solver} started.
      * @see Future#isCancelled()
      */
     boolean isTerminateEarly();
 
     /**
      * Schedules a {@link ProblemFactChange} to be processed.
-     * <p/>
+     * <p>
      * As a side-effect, this restarts the {@link Solver}, effectively resetting all {@link Termination}s,
      * but not {@link #terminateEarly()}.
-     * <p/>
+     * <p>
      * This method is thread-safe.
      * Follows specifications of {@link BlockingQueue#add(Object)} with by default
      * a capacity of {@link Integer#MAX_VALUE}.
+     *
      * @param problemFactChange never null
      * @return true (as specified by {@link Collection#add})
+     * @see #addProblemFactChanges(List)
      */
-    boolean addProblemFactChange(ProblemFactChange problemFactChange);
+    boolean addProblemFactChange(ProblemFactChange<Solution_> problemFactChange);
+
+    /**
+     * Schedules multiple {@link ProblemFactChange}s to be processed.
+     * <p>
+     * As a side-effect, this restarts the {@link Solver}, effectively resetting all {@link Termination}s,
+     * but not {@link #terminateEarly()}.
+     * <p>
+     * This method is thread-safe.
+     * Follows specifications of {@link BlockingQueue#addAll(Collection)} with by default
+     * a capacity of {@link Integer#MAX_VALUE}.
+     *
+     * @param problemFactChangeList never null
+     * @return true (as specified by {@link Collection#add})
+     * @see #addProblemFactChange(ProblemFactChange)
+     */
+    boolean addProblemFactChanges(List<ProblemFactChange<Solution_>> problemFactChangeList);
 
     /**
      * Checks if all scheduled {@link ProblemFactChange}s have been processed.
-     * <p/>
+     * <p>
      * This method is thread-safe.
+     *
      * @return true if there are no {@link ProblemFactChange}s left to do
      */
     boolean isEveryProblemFactChangeProcessed();
@@ -109,16 +133,11 @@ public interface Solver {
     /**
      * @param eventListener never null
      */
-    void addEventListener(SolverEventListener eventListener);
+    void addEventListener(SolverEventListener<Solution_> eventListener);
 
     /**
      * @param eventListener never null
      */
-    void removeEventListener(SolverEventListener eventListener);
-
-    /**
-     * @return never null
-     */
-    ScoreDirectorFactory getScoreDirectorFactory();
+    void removeEventListener(SolverEventListener<Solution_> eventListener);
 
 }

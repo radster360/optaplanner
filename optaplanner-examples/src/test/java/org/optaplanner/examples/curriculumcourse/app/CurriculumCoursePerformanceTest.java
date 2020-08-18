@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,25 @@
 
 package org.optaplanner.examples.curriculumcourse.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseDao;
+import org.optaplanner.examples.curriculumcourse.domain.CourseSchedule;
 
-public class CurriculumCoursePerformanceTest extends SolverPerformanceTest {
+public class CurriculumCoursePerformanceTest extends SolverPerformanceTest<CourseSchedule> {
 
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/curriculumcourse/solver/curriculumCourseSolverConfig.xml";
-    }
+    private static final String UNSOLVED_DATA_FILE = "data/curriculumcourse/unsolved/comp01_initialized.xml";
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new CurriculumCourseDao();
+    protected CurriculumCourseApp createCommonApp() {
+        return new CurriculumCourseApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveComp01_initialized() {
-        File unsolvedDataFile = new File("data/curriculumcourse/unsolved/comp01_initialized.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-99soft");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(UNSOLVED_DATA_FILE, "0hard/-99soft", EnvironmentMode.REPRODUCIBLE),
+                testData(UNSOLVED_DATA_FILE, "0hard/-140soft", EnvironmentMode.FAST_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveComp01_initializedFastAssert() {
-        File unsolvedDataFile = new File("data/curriculumcourse/unsolved/comp01_initialized.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-140soft", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

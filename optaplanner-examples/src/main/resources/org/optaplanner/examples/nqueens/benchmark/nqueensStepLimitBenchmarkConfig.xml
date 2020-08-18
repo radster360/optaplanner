@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plannerBenchmark>
   <benchmarkDirectory>local/data/nqueens/stepLimit</benchmarkDirectory>
+  <warmUpSecondsSpentLimit>0</warmUpSecondsSpentLimit>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.nqueens.domain.NQueens</xstreamAnnotatedClass>
-      <inputSolutionFile>data/nqueens/unsolved/unsolvedNQueens256.xml</inputSolutionFile>
+      <solutionFileIOClass>org.optaplanner.examples.nqueens.persistence.NQueensXmlSolutionFileIO</solutionFileIOClass>
+      <inputSolutionFile>data/nqueens/unsolved/256queens.xml</inputSolutionFile>
     </problemBenchmarks>
     <solver>
       <solutionClass>org.optaplanner.examples.nqueens.domain.NQueens</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.nqueens.domain.Queen</planningEntityClass>
+      <entityClass>org.optaplanner.examples.nqueens.domain.Queen</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>SIMPLE</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/nqueens/solver/nQueensScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/nqueens/solver/nQueensConstraints.drl</scoreDrl>
+        <initializingScoreTrend>ONLY_DOWN</initializingScoreTrend>
       </scoreDirectorFactory>
     </solver>
   </inheritedSolverBenchmark>
@@ -22,13 +23,10 @@
     <solver>
       <constructionHeuristic>
         <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
-        <forager>
-          <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-        </forager>
       </constructionHeuristic>
       <localSearch>
         <termination>
-          <maximumStepCount>100</maximumStepCount>
+          <stepCountLimit>100</stepCountLimit>
         </termination>
         <changeMoveSelector>
           <selectionOrder>ORIGINAL</selectionOrder>

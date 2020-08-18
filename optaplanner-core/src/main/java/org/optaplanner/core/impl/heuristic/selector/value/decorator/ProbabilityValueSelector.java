@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +21,19 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionProbabilityWeightFactory;
 import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-import org.optaplanner.core.impl.util.RandomUtils;
+import org.optaplanner.core.impl.solver.random.RandomUtils;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public class ProbabilityValueSelector extends AbstractValueSelector
-        implements EntityIndependentValueSelector, SelectionCacheLifecycleListener  {
+        implements EntityIndependentValueSelector, SelectionCacheLifecycleListener {
 
     protected final EntityIndependentValueSelector childValueSelector;
     protected final SelectionCacheType cacheType;
@@ -52,12 +52,12 @@ public class ProbabilityValueSelector extends AbstractValueSelector
                     + ") has a childValueSelector (" + childValueSelector
                     + ") with neverEnding (" + childValueSelector.isNeverEnding() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(childValueSelector);
+        phaseLifecycleSupport.addEventListener(childValueSelector);
         if (cacheType.isNotCached()) {
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
     }
 
     @Override
@@ -69,8 +69,9 @@ public class ProbabilityValueSelector extends AbstractValueSelector
     // Worker methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
-        cachedEntityMap = new TreeMap<Double, Object>();
+    @Override
+    public void constructCache(SolverScope solverScope) {
+        cachedEntityMap = new TreeMap<>();
         ScoreDirector scoreDirector = solverScope.getScoreDirector();
         double probabilityWeightOffset = 0L;
         // TODO Fail-faster if a non FromSolutionPropertyValueSelector is used
@@ -83,40 +84,50 @@ public class ProbabilityValueSelector extends AbstractValueSelector
         probabilityWeightTotal = probabilityWeightOffset;
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         probabilityWeightTotal = -1.0;
     }
 
-    public PlanningVariableDescriptor getVariableDescriptor() {
+    @Override
+    public GenuineVariableDescriptor getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         return false;
     }
 
+    @Override
     public long getSize(Object entity) {
         return getSize();
     }
 
+    @Override
     public long getSize() {
         return cachedEntityMap.size();
     }
 
+    @Override
     public Iterator<Object> iterator(Object entity) {
         return iterator();
     }
 
+    @Override
     public Iterator<Object> iterator() {
         return new Iterator<Object>() {
+            @Override
             public boolean hasNext() {
                 return true;
             }
 
+            @Override
             public Object next() {
                 double randomOffset = RandomUtils.nextDouble(workingRandom, probabilityWeightTotal);
                 Map.Entry<Double, Object> entry = cachedEntityMap.floorEntry(randomOffset);
@@ -124,10 +135,16 @@ public class ProbabilityValueSelector extends AbstractValueSelector
                 return entry.getValue();
             }
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("The optional operation remove() is not supported.");
             }
         };
+    }
+
+    @Override
+    public Iterator<Object> endingIterator(Object entity) {
+        return childValueSelector.endingIterator(entity);
     }
 
     @Override

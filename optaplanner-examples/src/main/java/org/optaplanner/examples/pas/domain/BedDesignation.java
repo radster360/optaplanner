@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package org.optaplanner.examples.pas.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.pas.domain.solver.BedDesignationDifficultyWeightFactory;
 import org.optaplanner.examples.pas.domain.solver.BedStrengthComparator;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @PlanningEntity(difficultyWeightFactoryClass = BedDesignationDifficultyWeightFactory.class)
 @XStreamAlias("BedDesignation")
@@ -31,6 +30,20 @@ public class BedDesignation extends AbstractPersistable {
 
     private AdmissionPart admissionPart;
     private Bed bed;
+
+    public BedDesignation(long id, AdmissionPart admissionPart, Bed bed) {
+        super(id);
+        this.admissionPart = admissionPart;
+        this.bed = bed;
+    }
+
+    public BedDesignation() {
+    }
+
+    public BedDesignation(AdmissionPart admissionPart, Bed bed) {
+        this.admissionPart = admissionPart;
+        this.bed = bed;
+    }
 
     public AdmissionPart getAdmissionPart() {
         return admissionPart;
@@ -40,7 +53,8 @@ public class BedDesignation extends AbstractPersistable {
         this.admissionPart = admissionPart;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"bedRange"}, strengthComparatorClass = BedStrengthComparator.class)
+    @PlanningVariable(nullable = true, valueRangeProviderRefs = {
+            "bedRange" }, strengthComparatorClass = BedStrengthComparator.class)
     public Bed getBed() {
         return bed;
     }
@@ -71,6 +85,14 @@ public class BedDesignation extends AbstractPersistable {
 
     public Specialism getAdmissionPartSpecialism() {
         return admissionPart.getSpecialism();
+    }
+
+    public int getFirstNightIndex() {
+        return admissionPart.getFirstNight().getIndex();
+    }
+
+    public int getLastNightIndex() {
+        return admissionPart.getLastNight().getIndex();
     }
 
     public int getAdmissionPartNightCount() {
@@ -105,42 +127,9 @@ public class BedDesignation extends AbstractPersistable {
         return bed.getRoom().getGenderLimitation();
     }
 
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionHashCode()
-     */
-    public boolean solutionEquals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof BedDesignation) {
-            BedDesignation other = (BedDesignation) o;
-            return new EqualsBuilder()
-                    .append(id, other.id)
-                    .append(admissionPart, other.admissionPart)
-                    .append(bed, other.bed)
-                    .isEquals();
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionEquals(Object)
-     */
-    public int solutionHashCode() {
-        return new HashCodeBuilder()
-                .append(id)
-                .append(admissionPart)
-                .append(bed)
-                .toHashCode();
-    }
-
     @Override
     public String toString() {
-        return admissionPart + " @ " + bed;
+        return admissionPart.toString();
     }
 
 }

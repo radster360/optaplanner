@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package org.optaplanner.core.impl.heuristic.selector.common.iterator;
 
+import java.util.Collections;
 import java.util.ListIterator;
 
-import org.apache.commons.collections.IteratorUtils;
 import org.optaplanner.core.impl.heuristic.selector.ListIterableSelector;
 
 public abstract class AbstractOriginalSwapIterator<S, SubS> extends UpcomingSelectionIterator<S> {
@@ -47,7 +47,8 @@ public abstract class AbstractOriginalSwapIterator<S, SubS> extends UpcomingSele
         this.rightSubSelector = rightSubSelector;
         leftEqualsRight = (leftSubSelector == rightSubSelector);
         leftSubSelectionIterator = leftSubSelector.listIterator();
-        rightSubSelectionIterator = IteratorUtils.emptyListIterator();
+        rightSubSelectionIterator = Collections.<SubS> emptyList().listIterator();
+        // Don't do hasNext() in constructor (to avoid upcoming selections breaking mimic recording)
     }
 
     @Override

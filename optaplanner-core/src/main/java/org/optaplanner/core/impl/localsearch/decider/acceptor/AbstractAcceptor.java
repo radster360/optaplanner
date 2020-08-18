@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,16 @@
 
 package org.optaplanner.core.impl.localsearch.decider.acceptor;
 
-import org.optaplanner.core.impl.localsearch.event.LocalSearchSolverPhaseLifecycleListenerAdapter;
+import org.optaplanner.core.impl.localsearch.event.LocalSearchPhaseLifecycleListenerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Abstract superclass for {@link Acceptor}.
+ *
  * @see Acceptor
  */
-public abstract class AbstractAcceptor extends LocalSearchSolverPhaseLifecycleListenerAdapter implements Acceptor {
+public abstract class AbstractAcceptor extends LocalSearchPhaseLifecycleListenerAdapter implements Acceptor {
 
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 

@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plannerBenchmark>
   <benchmarkDirectory>local/data/pas</benchmarkDirectory>
-  <!--<parallelBenchmarkCount>AUTO</parallelBenchmarkCount>-->
-  <warmUpSecondsSpend>30</warmUpSecondsSpend>
+  <parallelBenchmarkCount>AUTO</parallelBenchmarkCount>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.pas.domain.PatientAdmissionSchedule</xstreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/pas/unsolved/testdata01.xml</inputSolutionFile>
       <inputSolutionFile>data/pas/unsolved/testdata02.xml</inputSolutionFile>
       <inputSolutionFile>data/pas/unsolved/testdata03.xml</inputSolutionFile>
@@ -20,76 +19,86 @@
       <inputSolutionFile>data/pas/unsolved/testdata11.xml</inputSolutionFile>
       <inputSolutionFile>data/pas/unsolved/testdata12.xml</inputSolutionFile>
       <inputSolutionFile>data/pas/unsolved/testdata13.xml</inputSolutionFile>
-      <problemStatisticType>BEST_SCORE</problemStatisticType>
+      <!--<problemStatisticType>BEST_SCORE</problemStatisticType>-->
+      <!--<problemStatisticType>STEP_SCORE</problemStatisticType>-->
+      <!--<problemStatisticType>SCORE_CALCULATION_SPEED</problemStatisticType>-->
+      <!--<problemStatisticType>BEST_SOLUTION_MUTATION</problemStatisticType>-->
+      <!--<problemStatisticType>MOVE_COUNT_PER_STEP</problemStatisticType>-->
+      <!--<problemStatisticType>MEMORY_USE</problemStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_BEST_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_STEP_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_BEST_SCORE_DIFF</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_STEP_SCORE_DIFF</singleStatisticType>-->
     </problemBenchmarks>
 
     <solver>
       <solutionClass>org.optaplanner.examples.pas.domain.PatientAdmissionSchedule</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.pas.domain.BedDesignation</planningEntityClass>
+      <entityClass>org.optaplanner.examples.pas.domain.BedDesignation</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/pas/solver/patientAdmissionScheduleBaseScoreRules.drl</scoreDrl>
-        <!-- TODO SameBedInSameNightScoreRule should only be checked for construction heuristics -->
-        <!--<scoreDrl>/org/optaplanner/examples/pas/solver/patientAdmissionScheduleSameBedInSameNightScoreRule.drl</scoreDrl>-->
+        <scoreDrl>org/optaplanner/examples/pas/solver/patientAdmissionScheduleConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <termination>
-        <!--
-           On Geoffrey De Smet's PC: 372 (short run), 3720 (long run).
-           On Peter Demeester's PC: 300 (short run), 3000 (long run).
-        -->
-        <maximumSecondsSpend>372</maximumSecondsSpend>
+        <secondsSpentLimit>300</secondsSpentLimit>
       </termination>
     </solver>
   </inheritedSolverBenchmark>
 
   <solverBenchmark>
-    <name>SolutionInitializer</name>
+    <name>First Fit Decreasing</name>
     <solver>
-      <customSolverPhase>
-        <customSolverPhaseCommandClass>org.optaplanner.examples.pas.solver.solution.initializer.PatientAdmissionScheduleSolutionInitializer</customSolverPhaseCommandClass>
-      </customSolverPhase>
+      <constructionHeuristic>
+        <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
+      </constructionHeuristic>
     </solver>
   </solverBenchmark>
 
   <solverBenchmark>
-    <name>undoMoveTabuSize3-random</name>
+    <name>Weakest Fit Decreasing</name>
     <solver>
-      <customSolverPhase>
-        <customSolverPhaseCommandClass>org.optaplanner.examples.pas.solver.solution.initializer.PatientAdmissionScheduleSolutionInitializer</customSolverPhaseCommandClass>
-      </customSolverPhase>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
+      </constructionHeuristic>
+    </solver>
+  </solverBenchmark>
+
+  <solverBenchmark>
+    <name>Tabu Search</name>
+    <solver>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
+      </constructionHeuristic>
       <localSearch>
-        <moveListFactory>
-          <selectionOrder>RANDOM</selectionOrder>
-          <moveListFactoryClass>org.optaplanner.examples.pas.solver.move.factory.BedDesignationPillarPartSwapMoveFactory</moveListFactoryClass>
-        </moveListFactory>
+        <unionMoveSelector>
+          <changeMoveSelector/>
+          <swapMoveSelector/>
+          <pillarSwapMoveSelector/>
+        </unionMoveSelector>
         <acceptor>
-          <solutionTabuSize>1000</solutionTabuSize>
-          <undoMoveTabuSize>3</undoMoveTabuSize>
+          <entityTabuSize>7</entityTabuSize>
         </acceptor>
         <forager>
-          <acceptedCountLimit>500</acceptedCountLimit><!-- TODO tweak me -->
+          <acceptedCountLimit>1000</acceptedCountLimit>
         </forager>
       </localSearch>
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>undoMoveTabuSize3-shuffled</name>
+    <name>Late Acceptance</name>
     <solver>
-      <customSolverPhase>
-        <customSolverPhaseCommandClass>org.optaplanner.examples.pas.solver.solution.initializer.PatientAdmissionScheduleSolutionInitializer</customSolverPhaseCommandClass>
-      </customSolverPhase>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
+      </constructionHeuristic>
       <localSearch>
-        <moveListFactory>
-          <cacheType>STEP</cacheType>
-          <selectionOrder>SHUFFLED</selectionOrder>
-          <moveListFactoryClass>org.optaplanner.examples.pas.solver.move.factory.BedDesignationPillarPartSwapMoveFactory</moveListFactoryClass>
-        </moveListFactory>
+        <unionMoveSelector>
+          <changeMoveSelector/>
+          <swapMoveSelector/>
+          <pillarSwapMoveSelector/>
+        </unionMoveSelector>
         <acceptor>
-          <solutionTabuSize>1000</solutionTabuSize>
-          <undoMoveTabuSize>3</undoMoveTabuSize>
+          <lateAcceptanceSize>200</lateAcceptanceSize>
         </acceptor>
         <forager>
-          <acceptedCountLimit>500</acceptedCountLimit><!-- TODO tweak me -->
+          <acceptedCountLimit>1</acceptedCountLimit>
         </forager>
       </localSearch>
     </solver>

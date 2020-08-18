@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,46 +16,58 @@
 
 package org.optaplanner.examples.tsp.app;
 
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.common.app.CommonApp;
+import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.common.swingui.SolutionPanel;
-import org.optaplanner.examples.tsp.persistence.TspDao;
-import org.optaplanner.examples.tsp.persistence.TspSolutionImporter;
+import org.optaplanner.examples.tsp.domain.TspSolution;
+import org.optaplanner.examples.tsp.persistence.TspExporter;
+import org.optaplanner.examples.tsp.persistence.TspImageStipplerImporter;
+import org.optaplanner.examples.tsp.persistence.TspImporter;
+import org.optaplanner.examples.tsp.persistence.TspXmlSolutionFileIO;
 import org.optaplanner.examples.tsp.swingui.TspPanel;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
-public class TspApp extends CommonApp {
+public class TspApp extends CommonApp<TspSolution> {
 
-    public static final String SOLVER_CONFIG
-            = "/org/optaplanner/examples/tsp/solver/tspSolverConfig.xml";
+    public static final String SOLVER_CONFIG = "org/optaplanner/examples/tsp/solver/tspSolverConfig.xml";
+
+    public static final String DATA_DIR_NAME = "tsp";
 
     public static void main(String[] args) {
-        fixateLookAndFeel();
+        prepareSwingEnvironment();
         new TspApp().init();
     }
 
-    @Override
-    protected Solver createSolver() {
-        XmlSolverFactory solverFactory = new XmlSolverFactory();
-        solverFactory.configure(SOLVER_CONFIG);
-        return solverFactory.buildSolver();
+    public TspApp() {
+        super("Traveling salesman",
+                "Official competition name: TSP - Traveling salesman problem\n\n" +
+                        "Determine the order in which to visit all cities.\n\n" +
+                        "Find the shortest route to visit all cities.",
+                SOLVER_CONFIG, DATA_DIR_NAME,
+                TspPanel.LOGO_PATH);
     }
 
     @Override
-    protected SolutionPanel createSolutionPanel() {
+    protected TspPanel createSolutionPanel() {
         return new TspPanel();
     }
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new TspDao();
+    public SolutionFileIO<TspSolution> createSolutionFileIO() {
+        return new TspXmlSolutionFileIO();
     }
 
     @Override
-    protected AbstractSolutionImporter createSolutionImporter() {
-        return new TspSolutionImporter();
+    protected AbstractSolutionImporter[] createSolutionImporters() {
+        return new AbstractSolutionImporter[] {
+                new TspImporter(),
+                new TspImageStipplerImporter()
+        };
+    }
+
+    @Override
+    protected AbstractSolutionExporter createSolutionExporter() {
+        return new TspExporter();
     }
 
 }

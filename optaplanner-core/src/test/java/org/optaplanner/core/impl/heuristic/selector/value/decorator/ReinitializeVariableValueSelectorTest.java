@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,32 @@
 
 package org.optaplanner.core.impl.heuristic.selector.value.decorator;
 
-import org.junit.Test;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atMost;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertAllCodesOfValueSelectorForEntity;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
+
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 import org.optaplanner.core.impl.testdata.domain.multivar.TestdataMultiVarEntity;
-
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
 
 public class ReinitializeVariableValueSelectorTest {
 
     @Test
     public void oneVariable() {
-        PlanningEntityDescriptor entityDescriptor = TestdataEntity.buildEntityDescriptor();
-        PlanningVariableDescriptor variableDescriptor = entityDescriptor.getVariableDescriptor("value");
+        EntityDescriptor entityDescriptor = TestdataEntity.buildEntityDescriptor();
+        GenuineVariableDescriptor variableDescriptor = entityDescriptor.getGenuineVariableDescriptor("value");
         TestdataEntity e1 = new TestdataEntity("e1");
         TestdataEntity e2 = new TestdataEntity("e2");
         TestdataValue v1 = new TestdataValue("v1");
@@ -47,10 +52,10 @@ public class ReinitializeVariableValueSelectorTest {
 
         ValueSelector valueSelector = new ReinitializeVariableValueSelector(childValueSelector);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         valueSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         valueSelector.phaseStarted(phaseScopeA);
 
@@ -69,7 +74,7 @@ public class ReinitializeVariableValueSelectorTest {
 
         valueSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         valueSelector.phaseStarted(phaseScopeB);
 
@@ -79,7 +84,6 @@ public class ReinitializeVariableValueSelectorTest {
         e2.setValue(null);
         assertAllCodesOfValueSelectorForEntity(valueSelector, e2, "v1", "v2", "v3");
         valueSelector.stepEnded(stepScopeB1);
-
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
@@ -92,15 +96,15 @@ public class ReinitializeVariableValueSelectorTest {
 
         valueSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(childValueSelector, 1, 2, 4);
+        verifyPhaseLifecycle(childValueSelector, 1, 2, 4);
         verify(childValueSelector, atMost(4)).iterator(any());
         verify(childValueSelector, atMost(4)).getSize(any());
     }
 
     @Test
     public void multiVariable() {
-        PlanningEntityDescriptor entityDescriptor = TestdataMultiVarEntity.buildEntityDescriptor();
-        PlanningVariableDescriptor variableDescriptor = entityDescriptor.getVariableDescriptor("secondaryValue");
+        EntityDescriptor entityDescriptor = TestdataMultiVarEntity.buildEntityDescriptor();
+        GenuineVariableDescriptor variableDescriptor = entityDescriptor.getGenuineVariableDescriptor("secondaryValue");
         TestdataMultiVarEntity e1 = new TestdataMultiVarEntity("e1");
         TestdataMultiVarEntity e2 = new TestdataMultiVarEntity("e2");
         TestdataValue p1 = new TestdataValue("p1");
@@ -112,10 +116,10 @@ public class ReinitializeVariableValueSelectorTest {
 
         ValueSelector valueSelector = new ReinitializeVariableValueSelector(childValueSelector);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         valueSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         valueSelector.phaseStarted(phaseScopeA);
 
@@ -135,7 +139,7 @@ public class ReinitializeVariableValueSelectorTest {
 
         valueSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         valueSelector.phaseStarted(phaseScopeB);
 
@@ -145,7 +149,6 @@ public class ReinitializeVariableValueSelectorTest {
         e2.setSecondaryValue(null);
         assertAllCodesOfValueSelectorForEntity(valueSelector, e2, "s1", "s2", "s3");
         valueSelector.stepEnded(stepScopeB1);
-
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
@@ -158,7 +161,7 @@ public class ReinitializeVariableValueSelectorTest {
 
         valueSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(childValueSelector, 1, 2, 4);
+        verifyPhaseLifecycle(childValueSelector, 1, 2, 4);
         verify(childValueSelector, atMost(4)).iterator(any());
         verify(childValueSelector, atMost(4)).getSize(any());
     }

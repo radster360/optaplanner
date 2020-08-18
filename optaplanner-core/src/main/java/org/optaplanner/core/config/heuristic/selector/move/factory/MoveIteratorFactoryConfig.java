@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,23 @@
 
 package org.optaplanner.core.config.heuristic.selector.move.factory;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
+import java.util.Map;
+
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+
 import org.optaplanner.core.config.heuristic.selector.move.MoveSelectorConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.factory.MoveIteratorFactory;
-import org.optaplanner.core.impl.heuristic.selector.move.factory.MoveIteratorFactoryToMoveSelectorBridge;
+import org.optaplanner.core.impl.io.jaxb.JaxbCustomPropertiesAdapter;
 
-@XStreamAlias("moveIteratorFactory")
-public class MoveIteratorFactoryConfig extends MoveSelectorConfig {
+public class MoveIteratorFactoryConfig extends MoveSelectorConfig<MoveIteratorFactoryConfig> {
+
+    public static final String XML_ELEMENT_NAME = "moveIteratorFactory";
 
     protected Class<? extends MoveIteratorFactory> moveIteratorFactoryClass = null;
+
+    @XmlJavaTypeAdapter(JaxbCustomPropertiesAdapter.class)
+    protected Map<String, String> moveIteratorFactoryCustomProperties = null;
 
     public Class<? extends MoveIteratorFactory> getMoveIteratorFactoryClass() {
         return moveIteratorFactoryClass;
@@ -38,21 +42,27 @@ public class MoveIteratorFactoryConfig extends MoveSelectorConfig {
         this.moveIteratorFactoryClass = moveIteratorFactoryClass;
     }
 
-    // ************************************************************************
-    // Builder methods
-    // ************************************************************************
-
-    public MoveSelector buildBaseMoveSelector(HeuristicConfigPolicy configPolicy,
-            SelectionCacheType minimumCacheType, boolean randomSelection) {
-        MoveIteratorFactory moveIteratorFactory = ConfigUtils.newInstance(this,
-                "moveIteratorFactoryClass", moveIteratorFactoryClass);
-        return new MoveIteratorFactoryToMoveSelectorBridge(moveIteratorFactory, randomSelection);
+    public Map<String, String> getMoveIteratorFactoryCustomProperties() {
+        return moveIteratorFactoryCustomProperties;
     }
 
-    public void inherit(MoveIteratorFactoryConfig inheritedConfig) {
+    public void setMoveIteratorFactoryCustomProperties(Map<String, String> moveIteratorFactoryCustomProperties) {
+        this.moveIteratorFactoryCustomProperties = moveIteratorFactoryCustomProperties;
+    }
+
+    @Override
+    public MoveIteratorFactoryConfig inherit(MoveIteratorFactoryConfig inheritedConfig) {
         super.inherit(inheritedConfig);
         moveIteratorFactoryClass = ConfigUtils.inheritOverwritableProperty(
                 moveIteratorFactoryClass, inheritedConfig.getMoveIteratorFactoryClass());
+        moveIteratorFactoryCustomProperties = ConfigUtils.inheritMergeableMapProperty(
+                moveIteratorFactoryCustomProperties, inheritedConfig.getMoveIteratorFactoryCustomProperties());
+        return this;
+    }
+
+    @Override
+    public MoveIteratorFactoryConfig copyConfig() {
+        return new MoveIteratorFactoryConfig().inherit(this);
     }
 
     @Override

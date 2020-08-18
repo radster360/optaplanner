@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,43 @@
 
 package org.optaplanner.examples.cloudbalancing.app;
 
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
-import org.optaplanner.examples.cloudbalancing.persistence.CloudBalancingDao;
+import org.optaplanner.examples.cloudbalancing.domain.CloudBalance;
+import org.optaplanner.examples.cloudbalancing.persistence.CloudBalanceXmlSolutionFileIO;
 import org.optaplanner.examples.cloudbalancing.swingui.CloudBalancingPanel;
 import org.optaplanner.examples.common.app.CommonApp;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.common.swingui.SolutionPanel;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
-public class CloudBalancingApp extends CommonApp {
+/**
+ * For an easy example, look at {@link CloudBalancingHelloWorld} instead.
+ */
+public class CloudBalancingApp extends CommonApp<CloudBalance> {
 
-    public static final String SOLVER_CONFIG
-            = "/org/optaplanner/examples/cloudbalancing/solver/cloudBalancingSolverConfig.xml";
+    public static final String SOLVER_CONFIG = "org/optaplanner/examples/cloudbalancing/solver/cloudBalancingSolverConfig.xml";
+
+    public static final String DATA_DIR_NAME = "cloudbalancing";
 
     public static void main(String[] args) {
-        fixateLookAndFeel();
+        prepareSwingEnvironment();
         new CloudBalancingApp().init();
     }
 
-    @Override
-    protected Solver createSolver() {
-        XmlSolverFactory solverFactory = new XmlSolverFactory();
-        solverFactory.configure(SOLVER_CONFIG);
-        return solverFactory.buildSolver();
+    public CloudBalancingApp() {
+        super("Cloud balancing",
+                "Assign processes to computers.\n\n" +
+                        "Each computer must have enough hardware to run all of its processes.\n" +
+                        "Each used computer inflicts a maintenance cost.",
+                SOLVER_CONFIG, DATA_DIR_NAME,
+                CloudBalancingPanel.LOGO_PATH);
     }
 
     @Override
-    protected SolutionPanel createSolutionPanel() {
+    protected CloudBalancingPanel createSolutionPanel() {
         return new CloudBalancingPanel();
     }
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new CloudBalancingDao();
+    public SolutionFileIO<CloudBalance> createSolutionFileIO() {
+        return new CloudBalanceXmlSolutionFileIO();
     }
 
 }

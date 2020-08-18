@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,73 +16,68 @@
 
 package org.optaplanner.examples.curriculumcourse.domain.solver;
 
-import java.io.Serializable;
+import java.util.Comparator;
+import java.util.Objects;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.optaplanner.examples.curriculumcourse.domain.Course;
 
 /**
  * Calculated during initialization, not modified during score calculation.
  */
-public class CourseConflict implements Serializable, Comparable<CourseConflict> {
+public class CourseConflict implements Comparable<CourseConflict> {
 
-    private Course leftCourse;
-    private Course rightCourse;
+    private static final Comparator<Course> COURSE_COMPARATOR = Comparator.comparingLong(Course::getId);
+    private static final Comparator<CourseConflict> COMPARATOR = Comparator
+            .comparing(CourseConflict::getLeftCourse, COURSE_COMPARATOR)
+            .thenComparing(CourseConflict::getRightCourse, COURSE_COMPARATOR);
 
-    public CourseConflict(Course leftCourse, Course rightCourse) {
+    private final Course leftCourse;
+    private final Course rightCourse;
+    private final int conflictCount;
+
+    public CourseConflict(Course leftCourse, Course rightCourse, int conflictCount) {
         this.leftCourse = leftCourse;
         this.rightCourse = rightCourse;
+        this.conflictCount = conflictCount;
     }
 
     public Course getLeftCourse() {
         return leftCourse;
     }
 
-    public void setLeftCourse(Course leftCourse) {
-        this.leftCourse = leftCourse;
-    }
-
     public Course getRightCourse() {
         return rightCourse;
     }
 
-    public void setRightCourse(Course rightCourse) {
-        this.rightCourse = rightCourse;
+    public int getConflictCount() {
+        return conflictCount;
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof CourseConflict) {
-            CourseConflict other = (CourseConflict) o;
-            return new EqualsBuilder()
-                    .append(leftCourse, other.leftCourse)
-                    .append(rightCourse, other.rightCourse)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final CourseConflict other = (CourseConflict) o;
+        return Objects.equals(leftCourse, other.leftCourse) &&
+                Objects.equals(rightCourse, other.rightCourse);
     }
 
+    @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(leftCourse)
-                .append(rightCourse)
-                .toHashCode();
+        return Objects.hash(leftCourse, rightCourse);
     }
 
+    @Override
     public int compareTo(CourseConflict other) {
-        return new CompareToBuilder()
-                .append(leftCourse, other.leftCourse)
-                .append(rightCourse, other.rightCourse)
-                .toComparison();
+        return COMPARATOR.compare(this, other);
     }
 
     @Override
     public String toString() {
         return leftCourse + " & " + rightCourse;
     }
-
 }

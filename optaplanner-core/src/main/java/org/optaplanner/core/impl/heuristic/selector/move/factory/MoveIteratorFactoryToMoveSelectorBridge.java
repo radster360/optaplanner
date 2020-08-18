@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,11 @@ package org.optaplanner.core.impl.heuristic.selector.move.factory;
 
 import java.util.Iterator;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 
 /**
  * Bridges a {@link MoveIteratorFactory} to a {@link MoveSelector}.
@@ -39,30 +39,38 @@ public class MoveIteratorFactoryToMoveSelectorBridge extends AbstractMoveSelecto
         this.randomSelection = randomSelection;
     }
 
+    @Override
+    public boolean supportsPhaseAndSolverCaching() {
+        return true;
+    }
+
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractSolverPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractSolverPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         return randomSelection;
     }
 
+    @Override
     public long getSize() {
         long size = moveIteratorFactory.getSize(scoreDirector);
         if (size < 0L) {
@@ -73,6 +81,7 @@ public class MoveIteratorFactoryToMoveSelectorBridge extends AbstractMoveSelecto
         return size;
     }
 
+    @Override
     public Iterator<Move> iterator() {
         if (!randomSelection) {
             return moveIteratorFactory.createOriginalMoveIterator(scoreDirector);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,51 +16,35 @@
 
 package org.optaplanner.core.impl.constructionheuristic.scope;
 
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.impl.heuristic.move.Move;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
 
-public class ConstructionHeuristicStepScope extends AbstractStepScope {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public class ConstructionHeuristicStepScope<Solution_> extends AbstractStepScope<Solution_> {
 
-    private final ConstructionHeuristicSolverPhaseScope phaseScope;
+    private final ConstructionHeuristicPhaseScope<Solution_> phaseScope;
 
     private Object entity = null;
-    private Move step = null;
+    private Move<Solution_> step = null;
     private String stepString = null;
-    private Move undoStep = null;
+    private Move<Solution_> undoStep = null;
     private Long selectedMoveCount = null;
 
-    public ConstructionHeuristicStepScope(ConstructionHeuristicSolverPhaseScope phaseScope) {
-        this(phaseScope, phaseScope.getLastCompletedStepScope().getStepIndex() + 1);
+    public ConstructionHeuristicStepScope(ConstructionHeuristicPhaseScope<Solution_> phaseScope) {
+        this(phaseScope, phaseScope.getNextStepIndex());
     }
 
-    public ConstructionHeuristicStepScope(ConstructionHeuristicSolverPhaseScope phaseScope, int stepIndex) {
+    public ConstructionHeuristicStepScope(ConstructionHeuristicPhaseScope<Solution_> phaseScope, int stepIndex) {
         super(stepIndex);
         this.phaseScope = phaseScope;
     }
 
     @Override
-    public ConstructionHeuristicSolverPhaseScope getPhaseScope() {
+    public ConstructionHeuristicPhaseScope<Solution_> getPhaseScope() {
         return phaseScope;
-    }
-
-    @Override
-    public boolean isBestSolutionCloningDelayed() {
-        return true;
-    }
-
-    /**
-     * Should not be called because {@link #isBestSolutionCloningDelayed} returns true
-     * @return throws exception
-     */
-    @Override
-    public int getUninitializedVariableCount() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean hasNoUninitializedVariables() {
-        // TODO might be true in the last step of a construction heuristic
-        return false;
     }
 
     public Object getEntity() {
@@ -71,11 +55,11 @@ public class ConstructionHeuristicStepScope extends AbstractStepScope {
         this.entity = entity;
     }
 
-    public Move getStep() {
+    public Move<Solution_> getStep() {
         return step;
     }
 
-    public void setStep(Move step) {
+    public void setStep(Move<Solution_> step) {
         this.step = step;
     }
 
@@ -90,11 +74,11 @@ public class ConstructionHeuristicStepScope extends AbstractStepScope {
         this.stepString = stepString;
     }
 
-    public Move getUndoStep() {
+    public Move<Solution_> getUndoStep() {
         return undoStep;
     }
 
-    public void setUndoStep(Move undoStep) {
+    public void setUndoStep(Move<Solution_> undoStep) {
         this.undoStep = undoStep;
     }
 

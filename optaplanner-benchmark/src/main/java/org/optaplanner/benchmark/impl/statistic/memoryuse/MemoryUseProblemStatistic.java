@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.optaplanner.benchmark.impl.statistic.memoryuse;
 import java.awt.BasicStroke;
 import java.io.File;
 import java.text.NumberFormat;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 
 import org.jfree.chart.JFreeChart;
@@ -29,110 +31,92 @@ import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-import org.optaplanner.benchmark.impl.DefaultPlannerBenchmark;
-import org.optaplanner.benchmark.impl.ProblemBenchmark;
-import org.optaplanner.benchmark.impl.SingleBenchmark;
-import org.optaplanner.benchmark.impl.statistic.AbstractProblemStatistic;
-import org.optaplanner.benchmark.impl.statistic.MillisecondsSpendNumberFormat;
-import org.optaplanner.benchmark.impl.statistic.ProblemStatisticType;
-import org.optaplanner.benchmark.impl.statistic.SingleStatistic;
+import org.optaplanner.benchmark.config.statistic.ProblemStatisticType;
+import org.optaplanner.benchmark.impl.report.BenchmarkReport;
+import org.optaplanner.benchmark.impl.result.ProblemBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SubSingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.statistic.ProblemStatistic;
+import org.optaplanner.benchmark.impl.statistic.SubSingleStatistic;
+import org.optaplanner.benchmark.impl.statistic.common.MillisecondsSpentNumberFormat;
 
-public class MemoryUseProblemStatistic extends AbstractProblemStatistic {
+public class MemoryUseProblemStatistic extends ProblemStatistic {
 
-    protected File graphStatisticFile = null;
+    protected File graphFile = null;
 
-    public MemoryUseProblemStatistic(ProblemBenchmark problemBenchmark) {
-        super(problemBenchmark, ProblemStatisticType.MEMORY_USE);
+    public MemoryUseProblemStatistic(ProblemBenchmarkResult problemBenchmarkResult) {
+        super(problemBenchmarkResult, ProblemStatisticType.MEMORY_USE);
     }
 
-    public SingleStatistic createSingleStatistic() {
-        return new MemoryUseSingleStatistic();
+    @Override
+    public SubSingleStatistic createSubSingleStatistic(SubSingleBenchmarkResult subSingleBenchmarkResult) {
+        return new MemoryUseSubSingleStatistic(subSingleBenchmarkResult);
     }
 
     /**
-     * @return never null, relative to the {@link DefaultPlannerBenchmark#benchmarkReportDirectory}
-     * (not {@link ProblemBenchmark#problemReportDirectory})
+     * @return never null
      */
-    public String getGraphFilePath() {
-        return toFilePath(graphStatisticFile);
+    @Override
+    public List<File> getGraphFileList() {
+        return Collections.singletonList(graphFile);
     }
 
     // ************************************************************************
     // Write methods
     // ************************************************************************
 
-    protected void writeCsvStatistic() {
-        ProblemStatisticCsv csv = new ProblemStatisticCsv();
-        for (SingleBenchmark singleBenchmark : problemBenchmark.getSingleBenchmarkList()) {
-            if (singleBenchmark.isSuccess()) {
-                MemoryUseSingleStatistic singleStatistic = (MemoryUseSingleStatistic)
-                        singleBenchmark.getSingleStatistic(problemStatisticType);
-                for (MemoryUseSingleStatisticPoint point : singleStatistic.getPointList()) {
-                    long timeMillisSpend = point.getTimeMillisSpend();
-                    MemoryUseMeasurement memoryUseMeasurement = point.getMemoryUseMeasurement();
-                    csv.addPoint(singleBenchmark, timeMillisSpend,
-                            Long.toString(memoryUseMeasurement.getUsedMemory())
-                            + "/" + Long.toString(memoryUseMeasurement.getMaxMemory()));
-                }
-            } else {
-                csv.addPoint(singleBenchmark, 0L, "Failed");
-            }
-        }
-        csvStatisticFile = new File(problemBenchmark.getProblemReportDirectory(),
-                problemBenchmark.getName() + "MemoryUseStatistic.csv");
-        csv.writeCsvStatisticFile();
-    }
-
-    protected void writeGraphStatistic() {
-        Locale locale = problemBenchmark.getPlannerBenchmark().getBenchmarkReport().getLocale();
-        NumberAxis xAxis = new NumberAxis("Time spend");
-        xAxis.setNumberFormatOverride(new MillisecondsSpendNumberFormat(locale));
-        NumberAxis yAxis = new NumberAxis("Memory");
+    @Override
+    public void writeGraphFiles(BenchmarkReport benchmarkReport) {
+        Locale locale = benchmarkReport.getLocale();
+        NumberAxis xAxis = new NumberAxis("Time spent");
+        xAxis.setNumberFormatOverride(new MillisecondsSpentNumberFormat(locale));
+        NumberAxis yAxis = new NumberAxis("Memory (bytes)");
         yAxis.setNumberFormatOverride(NumberFormat.getInstance(locale));
         XYPlot plot = new XYPlot(null, xAxis, yAxis, null);
         plot.setOrientation(PlotOrientation.VERTICAL);
         int seriesIndex = 0;
-        for (SingleBenchmark singleBenchmark : problemBenchmark.getSingleBenchmarkList()) {
+        for (SingleBenchmarkResult singleBenchmarkResult : problemBenchmarkResult.getSingleBenchmarkResultList()) {
             XYSeries usedSeries = new XYSeries(
-                    singleBenchmark.getSolverBenchmark().getNameWithFavoriteSuffix() + " used");
+                    singleBenchmarkResult.getSolverBenchmarkResult().getNameWithFavoriteSuffix() + " used");
             // TODO enable max memory, but in the same color as used memory, but with a dotted line instead
-//            XYSeries maxSeries = new XYSeries(
-//                    singleBenchmark.getSolverBenchmark().getNameWithFavoriteSuffix() + " max");
+            //            XYSeries maxSeries = new XYSeries(
+            //                    singleBenchmarkResult.getSolverBenchmarkResult().getNameWithFavoriteSuffix() + " max");
             XYItemRenderer renderer = new XYLineAndShapeRenderer();
-            if (singleBenchmark.isSuccess()) {
-                MemoryUseSingleStatistic singleStatistic = (MemoryUseSingleStatistic)
-                        singleBenchmark.getSingleStatistic(problemStatisticType);
-                for (MemoryUseSingleStatisticPoint point : singleStatistic.getPointList()) {
-                    long timeMillisSpend = point.getTimeMillisSpend();
+            if (singleBenchmarkResult.hasAllSuccess()) {
+                MemoryUseSubSingleStatistic subSingleStatistic = (MemoryUseSubSingleStatistic) singleBenchmarkResult
+                        .getSubSingleStatistic(problemStatisticType);
+                List<MemoryUseStatisticPoint> points = subSingleStatistic.getPointList();
+                for (MemoryUseStatisticPoint point : points) {
+                    long timeMillisSpent = point.getTimeMillisSpent();
                     MemoryUseMeasurement memoryUseMeasurement = point.getMemoryUseMeasurement();
-                    usedSeries.add(timeMillisSpend, memoryUseMeasurement.getUsedMemory());
-//                    maxSeries.add(timeMillisSpend, memoryUseMeasurement.getMaxMemory());
+                    usedSeries.add(timeMillisSpent, memoryUseMeasurement.getUsedMemory());
+                    //                    maxSeries.add(timeMillisSpent, memoryUseMeasurement.getMaxMemory());
                 }
             }
             XYSeriesCollection seriesCollection = new XYSeriesCollection();
             seriesCollection.addSeries(usedSeries);
-//            seriesCollection.addSeries(maxSeries);
+            //            seriesCollection.addSeries(maxSeries);
             plot.setDataset(seriesIndex, seriesCollection);
 
-            if (singleBenchmark.getSolverBenchmark().isFavorite()) {
+            if (singleBenchmarkResult.getSolverBenchmarkResult().isFavorite()) {
                 // Make the favorite more obvious
                 renderer.setSeriesStroke(0, new BasicStroke(2.0f));
-//                renderer.setSeriesStroke(1, new BasicStroke(2.0f));
+                //                renderer.setSeriesStroke(1, new BasicStroke(2.0f));
             }
             plot.setRenderer(seriesIndex, renderer);
             seriesIndex++;
         }
-        JFreeChart chart = new JFreeChart(problemBenchmark.getName() + " memory use statistic",
+        JFreeChart chart = new JFreeChart(problemBenchmarkResult.getName() + " memory use statistic",
                 JFreeChart.DEFAULT_TITLE_FONT, plot, true);
-        graphStatisticFile = writeChartToImageFile(chart, problemBenchmark.getName() + "MemoryUseStatistic");
+        graphFile = writeChartToImageFile(chart, problemBenchmarkResult.getName() + "MemoryUseStatistic");
     }
 
     @Override
     protected void fillWarningList() {
-        if (problemBenchmark.getPlannerBenchmark().hasMultipleParallelBenchmarks()) {
+        if (problemBenchmarkResult.getPlannerBenchmarkResult().hasMultipleParallelBenchmarks()) {
             warningList.add("This memory use statistic shows the sum of the memory of all benchmarks "
                     + "that ran in parallel, due to parallelBenchmarkCount ("
-                    + problemBenchmark.getPlannerBenchmark().getParallelBenchmarkCount() + ").");
+                    + problemBenchmarkResult.getPlannerBenchmarkResult().getParallelBenchmarkCount() + ").");
         }
     }
 

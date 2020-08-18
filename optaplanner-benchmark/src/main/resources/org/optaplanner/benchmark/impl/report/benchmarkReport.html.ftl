@@ -5,7 +5,7 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>${benchmarkReport.plannerBenchmark.name} Planner benchmark report</title>
+    <title>${benchmarkReport.plannerBenchmarkResult.name} Planner benchmark report</title>
     <link href="twitterbootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="twitterbootstrap/css/bootstrap-responsive.css" rel="stylesheet"/>
     <link href="twitterbootstrap/css/prettify.css" rel="stylesheet"/>
@@ -15,27 +15,39 @@
     <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
 </head>
-<#macro addSolverRankingBadge solverBenchmark>
-    <#if !solverBenchmark.ranking??>
-    <span class="badge badge-important">F</span>
-    <#elseif solverBenchmark.favorite>
-    <span class="badge badge-success">${solverBenchmark.ranking}</span>
-    <#else>
-    <span class="badge">${solverBenchmark.ranking}</span>
+<#macro addSolverBenchmarkBadges solverBenchmarkResult>
+    <#if solverBenchmarkResult.favorite>
+        <span class="badge badge-success">${solverBenchmarkResult.ranking}</span>
+    <#elseif solverBenchmarkResult.ranking??>
+        <span class="badge">${solverBenchmarkResult.ranking}</span>
+    </#if>
+
+    <#if solverBenchmarkResult.hasAnyFailure()>
+        <span class="badge badge-important" data-toggle="tooltip" title="Failed benchmark">F</span>
+    <#elseif solverBenchmarkResult.hasAnyUninitializedSolution()>
+        <span class="badge badge-important" data-toggle="tooltip" title="Has an uninitialized solution">!</span>
+    <#elseif solverBenchmarkResult.hasAnyInfeasibleScore()>
+        <span class="badge badge-warning" data-toggle="tooltip" title="Has an infeasible score">!</span>
     </#if>
 </#macro>
-<#macro addSingleRankingBadge singleBenchmark>
-    <#if !singleBenchmark.ranking??>
-    <span class="badge badge-important">F</span>
-    <#else>
-        <#if singleBenchmark.winner>
-        <span class="badge badge-success">${singleBenchmark.ranking}</span>
-        <#else>
-        <span class="badge">${singleBenchmark.ranking}</span>
-        </#if>
-        <#if !singleBenchmark.scoreFeasible>
-        <span class="badge badge-warning">!</span>
-        </#if>
+<#macro addProlblemBenchmarkBadges problemBenchmarkResult>
+    <#if problemBenchmarkResult.hasAnyFailure()>
+        <span class="badge badge-important" data-toggle="tooltip" title="Failed benchmark">F</span>
+    </#if>
+</#macro>
+<#macro addSolverProblemBenchmarkResultBadges solverProblemBenchmarkResult>
+    <#if solverProblemBenchmarkResult.winner>
+        <span class="badge badge-success">${solverProblemBenchmarkResult.ranking}</span>
+    <#elseif solverProblemBenchmarkResult.ranking??>
+        <span class="badge">${solverProblemBenchmarkResult.ranking}</span>
+    </#if>
+
+    <#if solverProblemBenchmarkResult.hasAnyFailure()>
+        <span class="badge badge-important" data-toggle="tooltip" title="Failed benchmark">F</span>
+    <#elseif !solverProblemBenchmarkResult.initialized>
+        <span class="badge badge-important" data-toggle="tooltip" title="Uninitialized solution">!</span>
+    <#elseif !solverProblemBenchmarkResult.scoreFeasible>
+        <span class="badge badge-warning" data-toggle="tooltip" title="Infeasible score">!</span>
     </#if>
 </#macro>
 <#macro addScoreLevelChartList chartFileList idPrefix>
@@ -44,7 +56,7 @@
         <#assign scoreLevelIndex = 0>
         <#list chartFileList as chartFile>
             <li<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> class="active"</#if>>
-                <a href="#${idPrefix}_chart_${scoreLevelIndex}" data-toggle="tab">Score level ${scoreLevelIndex}</a>
+                <a href="#${idPrefix}_chart_${scoreLevelIndex}" data-toggle="tab">${reportHelper.capitalize(benchmarkReport.plannerBenchmarkResult.findScoreLevelLabel(scoreLevelIndex))}</a>
             </li>
             <#assign scoreLevelIndex = scoreLevelIndex + 1>
         </#list>
@@ -68,36 +80,42 @@
     <div class="row-fluid">
         <div class="span2">
             <div class="benchmark-report-nav">
-                <a href="http://www.optaplanner.org"><img src="website/img/optaPlannerLogo.png" alt="OptaPlanner"/></a>
-                <ul class="nav nav-list">
-                    <li><a href="#summary">Summary</a></li>
-                    <li>
-                        <ul class="nav nav-list">
-                            <li><a href="#summary_result">Result</a></li>
-                            <li><a href="#summary_performance">Performance</a></li>
-                        </ul>
-                    </li>
-                    <li class="divider"></li>
-                    <li><a href="#problemBenchmark">Problem benchmarks</a></li>
-                    <li>
-                        <ul class="nav nav-list">
-                        <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                            <li><a href="#problemBenchmark_${problemBenchmark.name}">${problemBenchmark.name}</a></li>
-                        </#list>
-                        </ul>
-                    </li>
-                    <li class="divider"></li>
-                    <li><a href="#solverBenchmark">Solver benchmarks</a></li>
-                    <li>
-                        <ul class="nav nav-list">
-                        <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                            <li><a href="#solverBenchmark_${solverBenchmark.name}">${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></a></li>
-                        </#list>
-                        </ul>
-                    </li>
-                    <li class="divider"></li>
-                    <li><a href="#benchmarkInformation">Benchmark information</a></li>
-                </ul>
+                <div style="margin-top: 10px;">
+                    <a href="https://www.optaplanner.org">
+                        <img src="website/img/optaPlannerLogo.png" alt="OptaPlanner"/>
+                    </a>
+                </div>
+                <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <ul class="nav nav-list">
+                        <li><a href="#summary">Summary</a></li>
+                        <li>
+                            <ul class="nav nav-list">
+                                <li><a href="#summary_result">Result</a></li>
+                                <li><a href="#summary_performance">Performance</a></li>
+                            </ul>
+                        </li>
+                        <li class="divider"></li>
+                        <li><a href="#problemBenchmarkResult">Problem benchmarks</a></li>
+                        <li>
+                            <ul class="nav nav-list">
+                            <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                <li><a href="#problemBenchmark_${problemBenchmarkResult.anchorId}">${problemBenchmarkResult.name}&nbsp;<@addProlblemBenchmarkBadges problemBenchmarkResult=problemBenchmarkResult/></a></li>
+                            </#list>
+                            </ul>
+                        </li>
+                        <li class="divider"></li>
+                        <li><a href="#solverBenchmarkResult">Solver benchmarks</a></li>
+                        <li>
+                            <ul class="nav nav-list">
+                            <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                <li><a href="#solverBenchmark_${solverBenchmarkResult.anchorId}">${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></a></li>
+                            </#list>
+                            </ul>
+                        </li>
+                        <li class="divider"></li>
+                        <li><a href="#benchmarkInformation">Benchmark information</a></li>
+                    </ul>
+                </div>
             </div>
         </div>
         <div class="span10">
@@ -108,9 +126,9 @@
                 <div class="page-header">
                     <h1>Summary</h1>
                 </div>
-            <#if benchmarkReport.plannerBenchmark.hasAnyFailure()>
+            <#if benchmarkReport.plannerBenchmarkResult.hasAnyFailure()>
                 <div class="alert alert-error">
-                    <p>${benchmarkReport.plannerBenchmark.failureCount} benchmarks have failed!</p>
+                    <p>${benchmarkReport.plannerBenchmarkResult.failureCount} benchmarks have failed!</p>
                 </div>
             </#if>
             <#list benchmarkReport.warningList as warning>
@@ -130,6 +148,9 @@
                                 <a href="#summary_bestScoreScalability" data-toggle="tab">Best score scalability</a>
                             </li>
                             <li>
+                                <a href="#summary_bestScoreDistribution" data-toggle="tab">Best score distribution</a>
+                            </li>
+                            <li>
                                 <a href="#summary_winningScoreDifference" data-toggle="tab">Winning score difference</a>
                             </li>
                             <li>
@@ -143,32 +164,63 @@
                                 <@addScoreLevelChartList chartFileList=benchmarkReport.bestScoreSummaryChartFileList idPrefix="summary_bestScore" />
                                 <table class="benchmark-table table table-striped table-bordered">
                                     <tr>
-                                        <th>Solver</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <th>${problemBenchmark.name}</th>
-                                    </#list>
-                                        <th>Average</th>
-                                        <th>Standard Deviation</th>
-                                        <th>Ranking</th>
+                                        <th rowspan="2">Solver</th>
+                                        <th rowspan="2">Total</th>
+                                        <th rowspan="2">Average</th>
+                                        <th rowspan="2">Standard Deviation</th>
+                                        <th colspan="${benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList?size}">Problem</th>
                                     </tr>
-                                <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                                    <tr<#if solverBenchmark.favorite> class="favoriteSolverBenchmark"</#if>>
-                                        <th>${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></th>
-                                        <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                            <#if !solverBenchmark.findSingleBenchmark(problemBenchmark)??>
+                                    <tr>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <th>${problemBenchmarkResult.name}</th>
+                                    </#list>
+                                    </tr>
+                                <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                    <tr<#if solverBenchmarkResult.favorite> class="favoriteSolverBenchmark"</#if>>
+                                        <th>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></th>
+                                        <td>${solverBenchmarkResult.totalScore!""}</td>
+                                        <td>${solverBenchmarkResult.averageScore!""}</td>
+                                        <td>${solverBenchmarkResult.standardDeviationString!""}</td>
+                                        <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                            <#if !solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)??>
                                                 <td></td>
                                             <#else>
-                                                <#assign singleBenchmark = solverBenchmark.findSingleBenchmark(problemBenchmark)>
-                                                <#if !singleBenchmark.success>
+                                                <#assign singleBenchmarkResult = solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)>
+                                                <#if !singleBenchmarkResult.hasAllSuccess()>
                                                     <td><span class="label label-important">Failed</span></td>
                                                 <#else>
-                                                    <td>${singleBenchmark.score}&nbsp;<@addSingleRankingBadge singleBenchmark=singleBenchmark/></td>
+                                                    <#if solverBenchmarkResult.subSingleCount lte 1>
+                                                        <td>${singleBenchmarkResult.averageScore!""}&nbsp;<@addSolverProblemBenchmarkResultBadges solverProblemBenchmarkResult=singleBenchmarkResult/></td>
+                                                    <#else>
+                                                        <td><div class="dropdown">
+                                                            <span class="nav nav-pills dropdown-toggle" id="dLabel" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                                ${singleBenchmarkResult.averageScore!""}&nbsp;<@addSolverProblemBenchmarkResultBadges solverProblemBenchmarkResult=singleBenchmarkResult/>
+                                                                <span class="caret"></span>
+                                                            </span>
+                                                            <ul class="dropdown-menu" aria-labelledby="dLabel">
+                                                                <li class="dropdown-header"><strong>Individual runs</strong></li>
+                                                                <li role="separator" class="divider"></li>
+                                                                <#list singleBenchmarkResult.subSingleBenchmarkResultList as subSingleBenchmarkResult>
+                                                                    <li class="dropdown-header"><strong>Run #${subSingleBenchmarkResult.getSubSingleBenchmarkIndex()}</strong></li>
+                                                                    <li>${subSingleBenchmarkResult.score!""}&nbsp;<@addSolverProblemBenchmarkResultBadges solverProblemBenchmarkResult=subSingleBenchmarkResult/></li>
+                                                                </#list>
+                                                                <li role="separator" class="divider"></li>
+                                                                <li class="dropdown-header"><strong>Average</strong></li>
+                                                                <li>${singleBenchmarkResult.averageScore!""}</li>
+                                                                <li class="dropdown-header"><strong>Standard Deviation</strong></li>
+                                                                <li>${singleBenchmarkResult.standardDeviationString!""}</li>
+                                                                <li class="dropdown-header"><strong>Best</strong></li>
+                                                                <li>${singleBenchmarkResult.best.score!""}</li>
+                                                                <li class="dropdown-header"><strong>Worst</strong></li>
+                                                                <li>${singleBenchmarkResult.worst.score!""}</li>
+                                                                <li class="dropdown-header"><strong>Median</strong></li>
+                                                                <li>${singleBenchmarkResult.median.score!""}</li>
+                                                            </ul>
+                                                        </div></td>
+                                                    </#if>
                                                 </#if>
                                             </#if>
                                         </#list>
-                                        <td>${solverBenchmark.averageScore!""}</td>
-                                        <td>${solverBenchmark.standardDeviationString!""}</td>
-                                        <td><@addSolverRankingBadge solverBenchmark=solverBenchmark/></td>
                                     </tr>
                                 </#list>
                                 </table>
@@ -178,34 +230,51 @@
                                 <p>Useful for visualizing the scalability of each solver configuration.</p>
                                 <@addScoreLevelChartList chartFileList=benchmarkReport.bestScoreScalabilitySummaryChartFileList idPrefix="summary_bestScoreScalability" />
                             </div>
+                            <div class="tab-pane" id="summary_bestScoreDistribution">
+                                <h3>Best score distribution summary</h3>
+                                <p>Useful for visualizing the reliability of each solver configuration.</p>
+                                <#assign maximumSubSingleCount = benchmarkReport.plannerBenchmarkResult.getMaximumSubSingleCount()>
+                                <p>Maximum subSingle count: ${maximumSubSingleCount!""}<br/></p>
+                                <#if maximumSubSingleCount lte 1>
+                                    <div class="alert alert-error">
+                                        <p>The benchmarker did not run multiple subSingles, so there is no distribution and therefore no reliability indication.</p>
+                                    </div>
+                                </#if>
+                                <@addScoreLevelChartList chartFileList=benchmarkReport.bestScoreDistributionSummaryChartFileList idPrefix="summary_bestScoreDistribution" />
+                            </div>
                             <div class="tab-pane" id="summary_winningScoreDifference">
                                 <h3>Winning score difference summary</h3>
                                 <p>Useful for zooming in on the results of the best score summary.</p>
                                 <@addScoreLevelChartList chartFileList=benchmarkReport.winningScoreDifferenceSummaryChartFileList idPrefix="summary_winningScoreDifference" />
                                 <table class="benchmark-table table table-striped table-bordered">
                                     <tr>
-                                        <th>Solver</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <th>${problemBenchmark.name}</th>
-                                    </#list>
-                                        <th>Average</th>
+                                        <th rowspan="2">Solver</th>
+                                        <th rowspan="2">Total</th>
+                                        <th rowspan="2">Average</th>
+                                        <th colspan="${benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList?size}">Problem</th>
                                     </tr>
-                                <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                                    <tr<#if solverBenchmark.favorite> class="favoriteSolverBenchmark"</#if>>
-                                        <th>${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></th>
-                                        <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                            <#if !solverBenchmark.findSingleBenchmark(problemBenchmark)??>
+                                    <tr>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <th>${problemBenchmarkResult.name}</th>
+                                    </#list>
+                                    </tr>
+                                <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                    <tr<#if solverBenchmarkResult.favorite> class="favoriteSolverBenchmark"</#if>>
+                                        <th>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></th>
+                                        <td>${solverBenchmarkResult.totalWinningScoreDifference!""}</td>
+                                        <td>${solverBenchmarkResult.averageWinningScoreDifference!""}</td>
+                                        <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                            <#if !solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)??>
                                                 <td></td>
                                             <#else>
-                                                <#assign singleBenchmark = solverBenchmark.findSingleBenchmark(problemBenchmark)>
-                                                <#if !singleBenchmark.success>
+                                                <#assign singleBenchmarkResult = solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)>
+                                                <#if !singleBenchmarkResult.hasAllSuccess()>
                                                     <td><span class="label label-important">Failed</span></td>
                                                 <#else>
-                                                    <td>${singleBenchmark.winningScoreDifference}&nbsp;<@addSingleRankingBadge singleBenchmark=singleBenchmark/></td>
+                                                    <td>${singleBenchmarkResult.winningScoreDifference}&nbsp;<@addSolverProblemBenchmarkResultBadges solverProblemBenchmarkResult=singleBenchmarkResult/></td>
                                                 </#if>
                                             </#if>
                                         </#list>
-                                        <td>${solverBenchmark.averageWinningScoreDifference!""}</td>
                                     </tr>
                                 </#list>
                                 </table>
@@ -216,52 +285,40 @@
                                 <@addScoreLevelChartList chartFileList=benchmarkReport.worstScoreDifferencePercentageSummaryChartFileList idPrefix="summary_worstScoreDifferencePercentage" />
                                 <table class="benchmark-table table table-striped table-bordered">
                                     <tr>
-                                        <th>Solver</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <th>${problemBenchmark.name}</th>
-                                    </#list>
-                                        <th>Average</th>
+                                        <th rowspan="2">Solver</th>
+                                        <th rowspan="2">Average</th>
+                                        <th colspan="${benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList?size}">Problem</th>
                                     </tr>
-                                <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                                    <tr<#if solverBenchmark.favorite> class="favoriteSolverBenchmark"</#if>>
-                                        <th>${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></th>
-                                        <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                            <#if !solverBenchmark.findSingleBenchmark(problemBenchmark)??>
+                                    <tr>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <th>${problemBenchmarkResult.name}</th>
+                                    </#list>
+                                    </tr>
+                                <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                    <tr<#if solverBenchmarkResult.favorite> class="favoriteSolverBenchmark"</#if>>
+                                        <th>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></th>
+                                        <#if !solverBenchmarkResult.averageWorstScoreDifferencePercentage??>
+                                            <td></td>
+                                        <#else>
+                                            <td>${solverBenchmarkResult.averageWorstScoreDifferencePercentage.toString(.locale)}</td>
+                                        </#if>
+                                        <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                            <#if !solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)??>
                                                 <td></td>
                                             <#else>
-                                                <#assign singleBenchmark = solverBenchmark.findSingleBenchmark(problemBenchmark)>
-                                                <#if !singleBenchmark.success>
+                                                <#assign singleBenchmarkResult = solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)>
+                                                <#if !singleBenchmarkResult.hasAllSuccess()>
                                                     <td><span class="label label-important">Failed</span></td>
                                                 <#else>
-                                                    <td>${singleBenchmark.worstScoreDifferencePercentage.toString(.locale)}&nbsp;<@addSingleRankingBadge singleBenchmark=singleBenchmark/></td>
+                                                    <td>${singleBenchmarkResult.worstScoreDifferencePercentage.toString(.locale)}&nbsp;<@addSolverProblemBenchmarkResultBadges solverProblemBenchmarkResult=singleBenchmarkResult/></td>
                                                 </#if>
                                             </#if>
                                         </#list>
-                                    <#if !solverBenchmark.averageWorstScoreDifferencePercentage??>
-                                        <td></td>
-                                    <#else>
-                                        <td>${solverBenchmark.averageWorstScoreDifferencePercentage.toString(.locale)}</td>
-                                    </#if>
                                     </tr>
                                 </#list>
                                 </table>
                             </div>
                         </div>
-                        <!-- HACK Duplication to show the navigation tabs in the same viewport as the tables -->
-                        <ul class="nav nav-pills">
-                            <li class="active">
-                                <a href="#summary_bestScore" data-toggle="tab">Best score</a>
-                            </li>
-                            <li>
-                                <a href="#summary_bestScoreScalability" data-toggle="tab">Best score scalability</a>
-                            </li>
-                            <li>
-                                <a href="#summary_winningScoreDifference" data-toggle="tab">Winning score difference</a>
-                            </li>
-                            <li>
-                                <a href="#summary_worstScoreDifferencePercentage" data-toggle="tab">Worst score difference percentage (ROI)</a>
-                            </li>
-                        </ul>
                     </div>
                 </section>
 
@@ -270,95 +327,186 @@
                     <div class="tabbable">
                         <ul class="nav nav-pills">
                             <li class="active">
-                                <a href="#summary_averageCalculateCount" data-toggle="tab">Average calculation count</a>
+                                <a href="#summary_scoreCalculationSpeed" data-toggle="tab">Score calculation speed</a>
                             </li>
                             <li>
-                                <a href="#summary_timeSpend" data-toggle="tab">Time spend</a>
+                                <a href="#summary_worstScoreCalculationSpeedDifferencePercentage" data-toggle="tab">Worst score calculation speed difference percentage</a>
                             </li>
                             <li>
-                                <a href="#summary_timeSpendScalability" data-toggle="tab">Time spend scalability</a>
+                                <a href="#summary_timeSpent" data-toggle="tab">Time spent</a>
                             </li>
                             <li>
-                                <a href="#summary_bestScorePerTimeSpend" data-toggle="tab">Best score per time spend</a>
+                                <a href="#summary_timeSpentScalability" data-toggle="tab">Time spent scalability</a>
+                            </li>
+                            <li>
+                                <a href="#summary_bestScorePerTimeSpent" data-toggle="tab">Best score per time spent</a>
                             </li>
                         </ul>
                         <div class="tab-content">
-                            <div class="tab-pane active" id="summary_averageCalculateCount">
-                                <h3>Average calculate count summary</h3>
+                            <div class="tab-pane active" id="summary_scoreCalculationSpeed">
+                                <h3>Score calculation speed summary</h3>
                                 <p>
-                                    Useful for comparing different score calculators and/or score rule implementations
+                                    Useful for comparing different score calculators and/or constraint implementations
                                     (presuming that the solver configurations do not differ otherwise).
                                     Also useful to measure the scalability cost of an extra constraint.
                                 </p>
                                 <div class="benchmark-chart">
-                                    <img src="summary/${benchmarkReport.averageCalculateCountSummaryChartFile.name}"/>
+                                    <img src="summary/${benchmarkReport.scoreCalculationSpeedSummaryChartFile.name}"/>
                                 </div>
                                 <table class="benchmark-table table table-striped table-bordered">
                                     <tr>
-                                        <th>Solver</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <th>${problemBenchmark.name}</th>
+                                        <th rowspan="2">Solver</th>
+                                        <th rowspan="2">Average</th>
+                                        <th colspan="${benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList?size}">Problem</th>
+                                    </tr>
+                                    <tr>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <th>${problemBenchmarkResult.name}</th>
                                     </#list>
-                                        <th>Average</th>
                                     </tr>
                                     <tr>
                                         <th class="problemScale">Problem scale</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <td class="problemScale">${problemBenchmark.problemScale!""}</td>
+                                        <td class="problemScale">${benchmarkReport.plannerBenchmarkResult.averageProblemScale!""}</td>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <td class="problemScale">${problemBenchmarkResult.problemScale!""}</td>
                                     </#list>
-                                        <td class="problemScale">${benchmarkReport.plannerBenchmark.averageProblemScale!""}</td>
                                     </tr>
-                                <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                                    <tr<#if solverBenchmark.favorite> class="favoriteSolverBenchmark"</#if>>
-                                        <th>${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></th>
-                                        <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                            <#if !solverBenchmark.findSingleBenchmark(problemBenchmark)??>
+                                <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                    <tr<#if solverBenchmarkResult.favorite> class="favoriteSolverBenchmark"</#if>>
+                                        <th>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></th>
+                                        <td>${solverBenchmarkResult.averageScoreCalculationSpeed!""}/s</td>
+                                        <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                            <#if !solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)??>
                                                 <td></td>
                                             <#else>
-                                                <#assign singleBenchmark = solverBenchmark.findSingleBenchmark(problemBenchmark)>
-                                                <#if !singleBenchmark.success>
+                                                <#assign singleBenchmarkResult = solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)>
+                                                <#if !singleBenchmarkResult.hasAllSuccess()>
                                                     <td><span class="label label-important">Failed</span></td>
                                                 <#else>
-                                                    <td>${singleBenchmark.averageCalculateCountPerSecond}/s</td>
+                                                    <#if solverBenchmarkResult.subSingleCount lte 1>
+                                                        <td>${singleBenchmarkResult.scoreCalculationSpeed}/s</td>
+                                                    <#else>
+                                                        <td><div class="dropdown">
+                                                            <span class="nav nav-pills dropdown-toggle" id="dLabel" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                                ${singleBenchmarkResult.scoreCalculationSpeed!""}/s
+                                                                <span class="caret"></span>
+                                                            </span>
+                                                        <ul class="dropdown-menu" aria-labelledby="dLabel">
+                                                            <li class="dropdown-header"><strong>Individual runs</strong></li>
+                                                            <li role="separator" class="divider"></li>
+                                                            <#list singleBenchmarkResult.subSingleBenchmarkResultList as subSingleBenchmarkResult>
+                                                                <li class="dropdown-header"><strong>Run #${subSingleBenchmarkResult.getSubSingleBenchmarkIndex()}</strong></li>
+                                                                <li>${subSingleBenchmarkResult.scoreCalculationSpeed!""}/s</li>
+                                                            </#list>
+                                                        </ul>
+                                                      </div></td>
+                                                    </#if>
                                                 </#if>
                                             </#if>
                                         </#list>
-                                        <td>${solverBenchmark.averageAverageCalculateCountPerSecond!""}/s</td>
                                     </tr>
                                 </#list>
                                 </table>
                             </div>
-                            <div class="tab-pane" id="summary_timeSpend">
-                                <h3>Time spend summary</h3>
+                            <div class="tab-pane" id="summary_worstScoreCalculationSpeedDifferencePercentage">
+                                <h3>Worst score calculation speed difference percentage</h3>
+                                <p>
+                                    Useful for comparing different score calculators and/or constraint implementations
+                                    (presuming that the solver configurations do not differ otherwise).
+                                    Also useful to measure the scalability cost of an extra constraint.
+                                </p>
+                                <div class="benchmark-chart">
+                                    <img src="summary/${benchmarkReport.worstScoreCalculationSpeedDifferencePercentageSummaryChartFile.name}"/>
+                                </div>
+                                <table class="benchmark-table table table-striped table-bordered">
+                                    <tr>
+                                        <th rowspan="2">Solver</th>
+                                        <th rowspan="2">Average</th>
+                                        <th colspan="${benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList?size}">Problem</th>
+                                    </tr>
+                                    <tr>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <th>${problemBenchmarkResult.name}</th>
+                                    </#list>
+                                    </tr>
+                                <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                    <tr<#if solverBenchmarkResult.favorite> class="favoriteSolverBenchmark"</#if>>
+                                        <th>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></th>
+                                        <#if solverBenchmarkResult.averageWorstScoreCalculationSpeedDifferencePercentage??>
+                                            <td>${solverBenchmarkResult.averageWorstScoreCalculationSpeedDifferencePercentage?string["0.00%"]!""}</td>
+                                        <#else>
+                                            <td></td>
+                                        </#if>
+                                        <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                            <#if !solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)??>
+                                                <td></td>
+                                            <#else>
+                                                <#assign singleBenchmarkResult = solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)>
+                                                <#if !singleBenchmarkResult.hasAllSuccess()>
+                                                    <td><span class="label label-important">Failed</span></td>
+                                                <#else>
+                                                    <td>${singleBenchmarkResult.worstScoreCalculationSpeedDifferencePercentage?string["0.00%"]!""}</td>
+                                                </#if>
+                                            </#if>
+                                        </#list>
+                                    </tr>
+                                </#list>
+                                </table>
+                            </div>
+                            <div class="tab-pane" id="summary_timeSpent">
+                                <h3>Time spent summary</h3>
                                 <p>Useful for visualizing the performance of construction heuristics (presuming that no other solver phases are configured).</p>
                                 <div class="benchmark-chart">
-                                    <img src="summary/${benchmarkReport.timeSpendSummaryChartFile.name}"/>
+                                    <img src="summary/${benchmarkReport.timeSpentSummaryChartFile.name}"/>
                                 </div>
                                 <table class="benchmark-table table table-striped table-bordered">
                                     <tr>
-                                        <th>Solver</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <th>${problemBenchmark.name}</th>
+                                        <th rowspan="2">Solver</th>
+                                        <th rowspan="2">Average</th>
+                                        <th colspan="${benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList?size}">Problem</th>
+                                    </tr>
+                                    <tr>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <th>${problemBenchmarkResult.name}</th>
                                     </#list>
                                     </tr>
                                     <tr>
                                         <th class="problemScale">Problem scale</th>
-                                    <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                        <td class="problemScale">${problemBenchmark.problemScale!""}</td>
+                                        <td class="problemScale">${benchmarkReport.plannerBenchmarkResult.averageProblemScale!""}</td>
+                                    <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                        <td class="problemScale">${problemBenchmarkResult.problemScale!""}</td>
                                     </#list>
                                     </tr>
-                                <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                                    <tr<#if solverBenchmark.favorite> class="favoriteSolverBenchmark"</#if>>
-                                        <th>${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></th>
-                                        <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                                            <#if !solverBenchmark.findSingleBenchmark(problemBenchmark)??>
+                                <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                                    <tr<#if solverBenchmarkResult.favorite> class="favoriteSolverBenchmark"</#if>>
+                                        <th>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></th>
+                                        <td>${solverBenchmarkResult.averageTimeMillisSpent!""}</td>
+                                        <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                                            <#if !solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)??>
                                                 <td></td>
                                             <#else>
-                                                <#assign singleBenchmark = solverBenchmark.findSingleBenchmark(problemBenchmark)>
-                                                <#if !singleBenchmark.success>
+                                                <#assign singleBenchmarkResult = solverBenchmarkResult.findSingleBenchmark(problemBenchmarkResult)>
+                                                <#if !singleBenchmarkResult.hasAllSuccess()>
                                                     <td><span class="label label-important">Failed</span></td>
                                                 <#else>
-                                                    <td>${singleBenchmark.timeMillisSpend}</td>
+                                                    <#if solverBenchmarkResult.subSingleCount lte 1>
+                                                        <td>${singleBenchmarkResult.timeMillisSpent}</td>
+                                                    <#else>
+                                                        <td><div class="dropdown">
+                                                            <span class="nav nav-pills dropdown-toggle" id="dLabel" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                                ${singleBenchmarkResult.timeMillisSpent!""}
+                                                                <span class="caret"></span>
+                                                            </span>
+                                                            <ul class="dropdown-menu" aria-labelledby="dLabel">
+                                                                <li class="dropdown-header"><strong>Individual runs</strong></li>
+                                                                <li role="separator" class="divider"></li>
+                                                                <#list singleBenchmarkResult.subSingleBenchmarkResultList as subSingleBenchmarkResult>
+                                                                    <li class="dropdown-header"><strong>Run #${subSingleBenchmarkResult.getSubSingleBenchmarkIndex()}</strong></li>
+                                                                    <li>${subSingleBenchmarkResult.timeMillisSpent!""}</li>
+                                                                </#list>
+                                                            </ul>
+                                                        </div></td>
+                                                    </#if>
                                                 </#if>
                                             </#if>
                                         </#list>
@@ -366,129 +514,167 @@
                                 </#list>
                                 </table>
                             </div>
-                            <div class="tab-pane" id="summary_timeSpendScalability">
-                                <h3>Time spend scalability summary</h3>
+                            <div class="tab-pane" id="summary_timeSpentScalability">
+                                <h3>Time spent scalability summary</h3>
                                 <p>Useful for extrapolating the scalability of construction heuristics (presuming that no other solver phases are configured).</p>
                                 <div class="benchmark-chart">
-                                    <img src="summary/${benchmarkReport.timeSpendScalabilitySummaryChartFile.name}"/>
+                                    <img src="summary/${benchmarkReport.timeSpentScalabilitySummaryChartFile.name}"/>
                                 </div>
                             </div>
-                            <div class="tab-pane" id="summary_bestScorePerTimeSpend">
-                                <h3>Best score per time spend summary</h3>
-                                <p>Useful for visualizing trade-off between the best score versus the time spend for construction heuristics (presuming that no other solver phases are configured).</p>
-                                <@addScoreLevelChartList chartFileList=benchmarkReport.bestScorePerTimeSpendSummaryChartFileList idPrefix="summary_bestScorePerTimeSpend" />
+                            <div class="tab-pane" id="summary_bestScorePerTimeSpent">
+                                <h3>Best score per time spent summary</h3>
+                                <p>Useful for visualizing trade-off between the best score versus the time spent for construction heuristics (presuming that no other solver phases are configured).</p>
+                                <@addScoreLevelChartList chartFileList=benchmarkReport.bestScorePerTimeSpentSummaryChartFileList idPrefix="summary_bestScorePerTimeSpent" />
                             </div>
                         </div>
-                        <!-- HACK Duplication to show the navigation tabs in the same viewport as the tables -->
-                        <ul class="nav nav-pills">
-                            <li class="active">
-                                <a href="#summary_averageCalculateCount" data-toggle="tab">Average calculation count</a>
-                            </li>
-                            <li>
-                                <a href="#summary_timeSpend" data-toggle="tab">Time spend</a>
-                            </li>
-                            <li>
-                                <a href="#summary_timeSpendScalability" data-toggle="tab">Time spend scalability</a>
-                            </li>
-                            <li>
-                                <a href="#summary_bestScorePerTimeSpend" data-toggle="tab">Best score per time spend</a>
-                            </li>
-                        </ul>
                     </div>
                 </section>
             </section>
 
-            <section id="problemBenchmark">
+            <section id="problemBenchmarkResult">
                 <div class="page-header">
                     <h1>Problem benchmarks</h1>
                 </div>
-            <#list benchmarkReport.plannerBenchmark.unifiedProblemBenchmarkList as problemBenchmark>
-                <section id="problemBenchmark_${problemBenchmark.name}">
-                    <h2>${problemBenchmark.name}</h2>
-                    <#if problemBenchmark.hasAnyFailure()>
+            <#list benchmarkReport.plannerBenchmarkResult.unifiedProblemBenchmarkResultList as problemBenchmarkResult>
+                <section id="problemBenchmark_${problemBenchmarkResult.anchorId}">
+                    <h2>${problemBenchmarkResult.name}</h2>
+                    <#if problemBenchmarkResult.hasAnyFailure()>
                         <div class="alert alert-error">
-                            <p>${problemBenchmark.failureCount} benchmarks have failed!</p>
+                            <p>${problemBenchmarkResult.failureCount} benchmarks have failed!</p>
                         </div>
                     </#if>
-                    <#if problemBenchmark.averageUsedMemoryAfterInputSolution??>
-                        <p>Memory usage after loading the inputSolution (before creating the Solver): ${problemBenchmark.averageUsedMemoryAfterInputSolution?string.number} bytes on average.</p>
-                    </#if>
-                    <#if problemBenchmark.hasAnySuccess() && problemBenchmark.hasAnyProblemStatistic()>
+                    <p>
+                        Entity count: ${problemBenchmarkResult.entityCount!""}<br/>
+                        Variable count: ${problemBenchmarkResult.variableCount!""}<br/>
+                        Maximum value count: ${problemBenchmarkResult.maximumValueCount!""}<br/>
+                        Problem scale: ${problemBenchmarkResult.problemScale!""}
+                        <#if problemBenchmarkResult.inputSolutionLoadingTimeMillisSpent??>
+                            <br/>Time spent to load the inputSolution:&nbsp;
+                            <#if problemBenchmarkResult.inputSolutionLoadingTimeMillisSpent lt 1>
+                                &lt; 1 ms
+                            <#else>
+                                ${problemBenchmarkResult.inputSolutionLoadingTimeMillisSpent} ms
+                            </#if>
+                        </#if>
+                        <#if problemBenchmarkResult.averageUsedMemoryAfterInputSolution??>
+                            <br/>Memory usage after loading the inputSolution (before creating the Solver): ${problemBenchmarkResult.averageUsedMemoryAfterInputSolution?string.number} bytes on average.
+                        </#if>
+                    </p>
+                    <#if problemBenchmarkResult.hasAnySuccess() && problemBenchmarkResult.hasAnyStatistic()>
+                        <#if problemBenchmarkResult.getMaximumSubSingleCount() gt 1 >
+                             <p>Only the median sub single run of each solver is shown in the statistics below.</p>
+                        </#if>
                         <div class="tabbable">
                             <ul class="nav nav-tabs">
                                 <#assign firstRow = true>
-                                <#list problemBenchmark.problemStatisticList as problemStatistic>
+                                <#list problemBenchmarkResult.problemStatisticList as problemStatistic>
                                     <li<#if firstRow> class="active"</#if>>
-                                        <a href="#problemStatistic_${problemStatistic.anchorId}" data-toggle="tab">${problemStatistic.problemStatisticType}</a>
+                                        <a href="#problemStatistic_${problemStatistic.anchorId}" data-toggle="tab">${problemStatistic.problemStatisticType.label}</a>
+                                    </li>
+                                    <#assign firstRow = false>
+                                </#list>
+                                <#list problemBenchmarkResult.extractSingleStatisticTypeList() as singleStatisticType>
+                                    <li<#if firstRow> class="active"</#if>>
+                                        <a href="#singleStatistic_${problemBenchmarkResult.anchorId}_${singleStatisticType.anchorId}" data-toggle="tab">${singleStatisticType.label}</a>
                                     </li>
                                     <#assign firstRow = false>
                                 </#list>
                             </ul>
                             <div class="tab-content">
                                 <#assign firstRow = true>
-                                <#list problemBenchmark.problemStatisticList as problemStatistic>
+                                <#list problemBenchmarkResult.problemStatisticList as problemStatistic>
                                     <div class="tab-pane<#if firstRow> active</#if>" id="problemStatistic_${problemStatistic.anchorId}">
                                         <#list problemStatistic.warningList as warning>
                                             <div class="alert alert-error">
                                                 <p>${warning}</p>
                                             </div>
                                         </#list>
-                                        <#if problemStatistic.problemStatisticType.name() == "BEST_SCORE" || problemStatistic.problemStatisticType.name() == "STEP_SCORE" >
-                                            <div class="tabbable tabs-right">
-                                                <ul class="nav nav-tabs">
-                                                    <#assign scoreLevelIndex = 0>
-                                                    <#list problemStatistic.graphFilePathList as graphFilePath>
-                                                        <li<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> class="active"</#if>>
-                                                            <a href="#problemStatistic_${problemStatistic.anchorId}_${scoreLevelIndex}" data-toggle="tab">Score level ${scoreLevelIndex}</a>
-                                                        </li>
-                                                        <#assign scoreLevelIndex = scoreLevelIndex + 1>
-                                                    </#list>
-                                                </ul>
-                                                <div class="tab-content">
-                                                    <#assign scoreLevelIndex = 0>
-                                                    <#list problemStatistic.graphFilePathList as graphFilePath>
-                                                        <div class="tab-pane<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> active</#if>" id="problemStatistic_${problemStatistic.anchorId}_${scoreLevelIndex}">
-                                                            <div class="benchmark-chart">
-                                                                <img src="${graphFilePath}"/>
+                                        <#if problemStatistic.graphFileList?? && problemStatistic.graphFileList?size != 0>
+                                            <#if problemStatistic.problemStatisticType.hasScoreLevels()>
+                                                <div class="tabbable tabs-right">
+                                                    <ul class="nav nav-tabs">
+                                                        <#assign scoreLevelIndex = 0>
+                                                        <#list problemStatistic.graphFileList as graphFile>
+                                                            <li<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> class="active"</#if>>
+                                                                <a href="#problemStatistic_${problemStatistic.anchorId}_${scoreLevelIndex}" data-toggle="tab">${reportHelper.capitalize(problemBenchmarkResult.findScoreLevelLabel(scoreLevelIndex))}</a>
+                                                            </li>
+                                                            <#assign scoreLevelIndex = scoreLevelIndex + 1>
+                                                        </#list>
+                                                    </ul>
+                                                    <div class="tab-content">
+                                                        <#assign scoreLevelIndex = 0>
+                                                        <#list problemStatistic.graphFileList as graphFile>
+                                                            <div class="tab-pane<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> active</#if>" id="problemStatistic_${problemStatistic.anchorId}_${scoreLevelIndex}">
+                                                                <div class="benchmark-chart">
+                                                                    <img src="${benchmarkReport.getRelativePathToBenchmarkReportDirectory(graphFile)}"/>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        <#assign scoreLevelIndex = scoreLevelIndex + 1>
-                                                    </#list>
+                                                            <#assign scoreLevelIndex = scoreLevelIndex + 1>
+                                                        </#list>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        <#elseif problemStatistic.problemStatisticType.name() == "IMPROVING_STEP_PERCENTAGE">
-                                            <div class="tabbable tabs-right">
-                                                <ul class="nav nav-tabs">
-                                                    <#assign itemIndex = 0>
-                                                    <#list problemStatistic.moveClasses as moveClass>
-                                                        <li<#if itemIndex == 0> class="active"</#if>>
-                                                            <a href="#problemStatistic_${problemStatistic.anchorId}_${reportHelper.escapeHtmlId(moveClass.canonicalName)}" data-toggle="tab">${moveClass.getSimpleName()}</a>
-                                                        </li>
-                                                        <#assign itemIndex = itemIndex + 1>
-                                                    </#list>
-                                                </ul>
-                                                <div class="tab-content">
-                                                    <#assign itemIndex = 0>
-                                                    <#list problemStatistic.moveClasses as moveClass>
-                                                        <div class="tab-pane<#if itemIndex == 0> active</#if>" id="problemStatistic_${problemStatistic.anchorId}_${reportHelper.escapeHtmlId(moveClass.canonicalName)}">
-                                                            <div class="benchmark-chart">
-                                                                <img src="${problemStatistic.getGraphFilePath(moveClass)}"/>
-                                                            </div>
-                                                        </div>
-                                                        <#assign itemIndex = itemIndex + 1>
-                                                    </#list>
+                                            <#else>
+                                                <div class="benchmark-chart">
+                                                    <img src="${benchmarkReport.getRelativePathToBenchmarkReportDirectory(problemStatistic.graphFile)}"/>
                                                 </div>
-                                            </div>
+                                            </#if>
                                         <#else>
-                                            <div class="benchmark-chart">
-                                                <img src="${problemStatistic.graphFilePath}"/>
-                                            </div>
+                                            <p>Graph unavailable (statistic unavailable for this solver configuration or benchmark failed).</p>
                                         </#if>
-                                        <#if problemStatistic.problemStatisticType.name() != "IMPROVING_STEP_PERCENTAGE">
+                                        <#if !benchmarkReport.plannerBenchmarkResult.aggregation>
+                                            <span>CSV files per solver:</span>
                                             <div class="btn-group download-btn-group">
-                                                <button class="btn" onclick="window.location.href='${problemStatistic.csvFilePath}'"><i class="icon-download"></i> CSV file</button>
+                                            <#list problemStatistic.subSingleStatisticList as subSingleStatistic>
+                                                <button class="btn" onclick="window.location.href='${subSingleStatistic.relativeCsvFilePath}'"><i class="icon-download"></i></button>
+                                            </#list>
                                             </div>
                                         </#if>
+                                    </div>
+                                    <#assign firstRow = false>
+                                </#list>
+                                <#list problemBenchmarkResult.extractSingleStatisticTypeList() as singleStatisticType>
+                                    <div class="tab-pane<#if firstRow> active</#if>" id="singleStatistic_${problemBenchmarkResult.anchorId}_${singleStatisticType.anchorId}">
+                                        <#list problemBenchmarkResult.extractPureSubSingleStatisticList(singleStatisticType) as pureSubSingleStatistic>
+                                            <h3>${pureSubSingleStatistic.subSingleBenchmarkResult.singleBenchmarkResult.solverBenchmarkResult.name}</h3>
+                                            <#if pureSubSingleStatistic.graphFileList?? && pureSubSingleStatistic.graphFileList?size != 0>
+                                                <#if singleStatisticType.hasScoreLevels()>
+                                                    <div class="tabbable tabs-right">
+                                                        <ul class="nav nav-tabs">
+                                                            <#assign scoreLevelIndex = 0>
+                                                            <#list pureSubSingleStatistic.graphFileList as graphFile>
+                                                                <li<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> class="active"</#if>>
+                                                                    <a href="#subSingleStatistic_${pureSubSingleStatistic.anchorId}_${scoreLevelIndex}" data-toggle="tab">${reportHelper.capitalize(problemBenchmarkResult.findScoreLevelLabel(scoreLevelIndex))}</a>
+                                                                </li>
+                                                                <#assign scoreLevelIndex = scoreLevelIndex + 1>
+                                                            </#list>
+                                                        </ul>
+                                                        <div class="tab-content">
+                                                            <#assign scoreLevelIndex = 0>
+                                                            <#list pureSubSingleStatistic.graphFileList as graphFile>
+                                                                <div class="tab-pane<#if scoreLevelIndex == benchmarkReport.defaultShownScoreLevelIndex> active</#if>" id="subSingleStatistic_${pureSubSingleStatistic.anchorId}_${scoreLevelIndex}">
+                                                                    <div class="benchmark-chart">
+                                                                        <img src="${benchmarkReport.getRelativePathToBenchmarkReportDirectory(graphFile)}"/>
+                                                                    </div>
+                                                                </div>
+                                                                <#assign scoreLevelIndex = scoreLevelIndex + 1>
+                                                            </#list>
+                                                        </div>
+                                                    </div>
+                                                <#else>
+                                                    <div class="benchmark-chart">
+                                                        <img src="${benchmarkReport.getRelativePathToBenchmarkReportDirectory(pureSubSingleStatistic.graphFile)}"/>
+                                                    </div>
+                                                </#if>
+                                            <#else>
+                                                <p>Graph unavailable (statistic unavailable for this solver configuration or benchmark failed).</p>
+                                            </#if>
+                                            <#if !benchmarkReport.plannerBenchmarkResult.aggregation>
+                                                <span>CSV file:</span>
+                                                <div class="btn-group download-btn-group">
+                                                    <button class="btn" onclick="window.location.href='${pureSubSingleStatistic.relativeCsvFilePath}'"><i class="icon-download"></i></button>
+                                                </div>
+                                            </#if>
+                                        </#list>
                                     </div>
                                     <#assign firstRow = false>
                                 </#list>
@@ -499,23 +685,23 @@
             </#list>
             </section>
 
-            <section id="solverBenchmark">
+            <section id="solverBenchmarkResult">
                 <div class="page-header">
                     <h1>Solver benchmarks</h1>
                 </div>
-            <#list benchmarkReport.plannerBenchmark.solverBenchmarkList as solverBenchmark>
-                <section id="solverBenchmark_${solverBenchmark.name}">
-                    <h2>${solverBenchmark.name}&nbsp;<@addSolverRankingBadge solverBenchmark=solverBenchmark/></h2>
-                    <#if solverBenchmark.hasAnyFailure()>
+            <#list benchmarkReport.plannerBenchmarkResult.solverBenchmarkResultList as solverBenchmarkResult>
+                <section id="solverBenchmark_${solverBenchmarkResult.anchorId}">
+                    <h2>${solverBenchmarkResult.name}&nbsp;<@addSolverBenchmarkBadges solverBenchmarkResult=solverBenchmarkResult/></h2>
+                    <#if solverBenchmarkResult.hasAnyFailure()>
                         <div class="alert alert-error">
-                            <p>${solverBenchmark.failureCount} benchmarks have failed!</p>
+                            <p>${solverBenchmarkResult.failureCount} benchmarks have failed!</p>
                         </div>
                     </#if>
-                    <button class="btn showSolverConfiguration" data-toggle="collapse" data-target="#solverBenchmark_${solverBenchmark.name}_config">
+                    <button class="btn showSolverConfiguration" data-toggle="collapse" data-target="#solverBenchmark_${solverBenchmarkResult.anchorId}_config">
                         Show/hide Solver configuration
                     </button>
-                    <div id="solverBenchmark_${solverBenchmark.name}_config" class="collapse in">
-                        <pre class="prettyprint lang-xml">${solverBenchmark.solverConfigAsHtmlEscapedXml}</pre>
+                    <div id="solverBenchmark_${solverBenchmarkResult.anchorId}_config" class="collapse in">
+                        <pre class="prettyprint lang-xml">${solverBenchmarkResult.solverConfigAsHtmlEscapedXml}</pre>
                     </div>
                 </section>
             </#list>
@@ -527,52 +713,96 @@
                 </div>
                 <table class="benchmark-table table table-striped">
                     <tr>
-                        <th>name</th>
-                        <td>${benchmarkReport.plannerBenchmark.name}</td>
+                        <th>Name</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.name}</td>
                     </tr>
                     <tr>
-                        <th>startingTimestamp</th>
-                        <td>${benchmarkReport.plannerBenchmark.startingTimestamp?datetime}</td>
+                        <th>Aggregation</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.aggregation?string}</td>
                     </tr>
                     <tr>
-                        <th>warmUpTimeMillisSpend</th>
-                        <td>${benchmarkReport.plannerBenchmark.warmUpTimeMillisSpend} ms</td>
+                        <th>Failure count</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.failureCount}</td>
                     </tr>
                     <tr>
-                        <th>parallelBenchmarkCount / availableProcessors</th>
-                        <td>${benchmarkReport.plannerBenchmark.parallelBenchmarkCount} / ${benchmarkReport.availableProcessors}</td>
+                        <th>Starting timestamp</th>
+                        <td>${(benchmarkReport.plannerBenchmarkResult.startingTimestampAsMediumString)!"Differs"}</td>
                     </tr>
                     <tr>
-                        <th>benchmarkTimeMillisSpend</th>
-                        <td>${benchmarkReport.plannerBenchmark.benchmarkTimeMillisSpend} ms</td>
+                        <th>Warm up time spent</th>
+                        <#if benchmarkReport.plannerBenchmarkResult.warmUpTimeMillisSpentLimit??>
+                            <td>${benchmarkReport.plannerBenchmarkResult.warmUpTimeMillisSpentLimit} ms</td>
+                        <#else>
+                            <td>Differs</td>
+                        </#if>
                     </tr>
                     <tr>
-                        <th>failureCount</th>
-                        <td>${benchmarkReport.plannerBenchmark.failureCount}</td>
+                        <th>Parallel benchmark count / available processors</th>
+                        <#if benchmarkReport.plannerBenchmarkResult.parallelBenchmarkCount?? && benchmarkReport.plannerBenchmarkResult.availableProcessors??>
+                            <td>${benchmarkReport.plannerBenchmarkResult.parallelBenchmarkCount} / ${benchmarkReport.plannerBenchmarkResult.availableProcessors}</td>
+                        <#else>
+                            <td>Differs</td>
+                        </#if>
+                    </tr>
+                    <tr>
+                        <th>Benchmark time spent</th>
+                        <#if benchmarkReport.plannerBenchmarkResult.benchmarkTimeMillisSpent??>
+                            <td>${benchmarkReport.plannerBenchmarkResult.benchmarkTimeMillisSpent} ms</td>
+                        <#else>
+                            <td>Differs</td>
+                        </#if>
+                    </tr>
+                    <tr>
+                        <th>Environment mode</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.environmentMode!"Differs"}</td>
+                    </tr>
+                    <tr>
+                        <th>Logging level org.optaplanner.core</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.loggingLevelOptaPlannerCore!"Differs"}</td>
+                    </tr>
+                    <tr>
+                        <th>Logging level org.drools.core</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.loggingLevelDroolsCore!"Differs"}</td>
+                    </tr>
+                    <tr>
+                        <th>Solver ranking class</th>
+                        <td>
+                            <span data-toggle="tooltip" title="${benchmarkReport.solverRankingClassFullName!"Unknown"}">
+                                ${benchmarkReport.solverRankingClassSimpleName!"Unknown"}
+                            </span>
+                        </td>
                     </tr>
                     <tr>
                         <th>VM max memory (as in -Xmx but lower)</th>
-                        <td>${benchmarkReport.maxMemory?string.number} bytes</td>
+                        <#if (benchmarkReport.plannerBenchmarkResult.maxMemory?string.number)??>
+                            <td>${benchmarkReport.plannerBenchmarkResult.maxMemory?string.number} bytes</td>
+                        <#else>
+                            <td>Differs</td>
+                        </#if>
                     </tr>
                     <tr>
-                        <th>Operating system</th>
-                        <td>${benchmarkReport.operatingSystem}</td>
+                        <th>OptaPlanner version</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.optaPlannerVersion!"Differs"}</td>
                     </tr>
                     <tr>
                         <th>Java version</th>
-                        <td>${benchmarkReport.javaVersion}</td>
+                        <td>${benchmarkReport.plannerBenchmarkResult.javaVersion!"Differs"}</td>
                     </tr>
                     <tr>
                         <th>Java VM</th>
-                        <td>${benchmarkReport.javaVM}</td>
+                        <td>${benchmarkReport.plannerBenchmarkResult.javaVM!"Differs"}</td>
                     </tr>
                     <tr>
-                        <th>Planner version</th>
-                        <td>${benchmarkReport.plannerVersion!"Unjarred development snapshot"}</td>
+                        <th>Operating system</th>
+                        <td>${benchmarkReport.plannerBenchmarkResult.operatingSystem!"Differs"}</td>
                     </tr>
                     <tr>
                         <th>Report locale</th>
                         <td>${benchmarkReport.locale!"Unknown"}</td>
+                    </tr>
+                    <tr>
+                        <th>Report timezone</th>
+                        <td>${benchmarkReport.timezoneId!"Unknown"}</td>
                     </tr>
                 </table>
             </section>
@@ -583,5 +813,10 @@
 <script src="twitterbootstrap/js/jquery.js"></script>
 <script src="twitterbootstrap/js/bootstrap.js"></script>
 <script src="twitterbootstrap/js/prettify.js"></script>
+<script>
+$(function () {
+    $('[data-toggle="tooltip"]').tooltip()
+})
+</script>
 </body>
 </html>

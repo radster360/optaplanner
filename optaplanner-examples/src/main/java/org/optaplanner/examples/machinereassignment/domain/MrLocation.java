@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,17 @@
 
 package org.optaplanner.examples.machinereassignment.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("MrLocation")
 public class MrLocation extends AbstractPersistable {
 
+    public MrLocation() {
+    }
 
+    public MrLocation(long id) {
+        super(id);
+    }
 }

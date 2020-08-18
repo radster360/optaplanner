@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import java.util.List;
 
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.nqueens.domain.NQueens;
 import org.optaplanner.examples.nqueens.domain.Queen;
 import org.optaplanner.examples.nqueens.persistence.NQueensGenerator;
@@ -29,17 +28,15 @@ public class NQueensHelloWorld {
 
     public static void main(String[] args) {
         // Build the Solver
-        SolverFactory solverFactory = new XmlSolverFactory(
-                "/org/optaplanner/examples/nqueens/solver/nqueensSolverConfig.xml");
-        Solver solver = solverFactory.buildSolver();
+        SolverFactory<NQueens> solverFactory = SolverFactory.createFromXmlResource(
+                "org/optaplanner/examples/nqueens/solver/nqueensSolverConfig.xml");
+        Solver<NQueens> solver = solverFactory.buildSolver();
 
         // Load a problem with 8 queens
-        NQueens unsolved8Queens = new NQueensGenerator().createNQueens(8);
+        NQueens unsolved8Queens = new NQueensGenerator(true).createNQueens(8);
 
         // Solve the problem
-        solver.setPlanningProblem(unsolved8Queens);
-        solver.solve();
-        NQueens solved8Queens = (NQueens) solver.getBestSolution();
+        NQueens solved8Queens = solver.solve(unsolved8Queens);
 
         // Display the result
         System.out.println("\nSolved 8 queens:\n" + toDisplayString(solved8Queens));

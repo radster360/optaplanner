@@ -5,8 +5,9 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.optaplanner</groupId>
-    <artifactId>optaplanner</artifactId>
-    <version>6.1.0-SNAPSHOT</version>
+    <artifactId>optaplanner-build-parent</artifactId>
+    <version>8.0.0-SNAPSHOT</version>
+    <relativePath>../optaplanner-build-parent/pom.xml</relativePath>
   </parent>
 
   <artifactId>optaplanner-distribution</artifactId>
@@ -20,6 +21,7 @@
 
     This module builds the download zip.
   </description>
+  <url>https://www.optaplanner.org</url>
 
   <build>
     <plugins>
@@ -39,8 +41,17 @@
               <dependencySourceIncludes>
                 <dependencySourceInclude>org.optaplanner:optaplanner-core</dependencySourceInclude>
                 <dependencySourceInclude>org.optaplanner:optaplanner-benchmark</dependencySourceInclude>
+                <dependencySourceInclude>org.optaplanner:optaplanner-persistence-*</dependencySourceInclude>
+                <dependencySourceInclude>org.optaplanner:optaplanner-test</dependencySourceInclude>
                 <!-- TODO apparently optaplanner-examples gets included too somehow? -->
               </dependencySourceIncludes>
+              <additionalDependencies>
+                <additionalDependency>
+                  <groupId>org.hibernate</groupId>
+                  <artifactId>hibernate-core</artifactId>
+                  <version>${version.org.hibernate}</version>
+                </additionalDependency>
+              </additionalDependencies>
             </configuration>
           </execution>
         </executions>
@@ -86,6 +97,69 @@
       <artifactId>optaplanner-benchmark</artifactId>
       <classifier>sources</classifier>
     </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-common</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-common</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-xstream</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-xstream</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jaxb</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jaxb</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jackson</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jsonb</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jsonb</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-persistence-jpa</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-test</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.optaplanner</groupId>
+      <artifactId>optaplanner-test</artifactId>
+      <classifier>sources</classifier>
+    </dependency>
 
     <!-- Examples -->
     <dependency>
@@ -97,22 +171,12 @@
       <artifactId>optaplanner-examples</artifactId>
       <classifier>sources</classifier>
     </dependency>
-    <dependency>
-      <groupId>org.optaplanner</groupId>
-      <artifactId>optaplanner-webexamples</artifactId>
-      <type>war</type>
-    </dependency>
-    <dependency>
-      <groupId>org.optaplanner</groupId>
-      <artifactId>optaplanner-webexamples</artifactId>
-      <classifier>sources</classifier>
-    </dependency>
 
     <!-- Documentation -->
     <dependency>
       <groupId>org.optaplanner</groupId>
       <artifactId>optaplanner-docs</artifactId>
-      <type>jdocbook</type>
+      <type>zip</type>
     </dependency>
   </dependencies>
 

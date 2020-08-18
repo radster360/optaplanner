@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <solver>
-  <!--<environmentMode>FAST_ASSERT</environmentMode>-->
+  <!--<environmentMode>FULL_ASSERT</environmentMode>--><!-- To slowly prove there are no bugs in this code -->
+  <!--<moveThreadCount>AUTO</moveThreadCount>--><!-- To solve faster by saturating multiple CPU cores -->
+
   <solutionClass>org.optaplanner.examples.projectjobscheduling.domain.Schedule</solutionClass>
-  <planningEntityClass>org.optaplanner.examples.projectjobscheduling.domain.Allocation</planningEntityClass>
+  <entityClass>org.optaplanner.examples.projectjobscheduling.domain.Allocation</entityClass>
 
   <scoreDirectorFactory>
-    <scoreDefinitionType>BENDABLE</scoreDefinitionType>
-    <bendableHardLevelCount>1</bendableHardLevelCount>
-    <bendableSoftLevelCount>2</bendableSoftLevelCount>
     <incrementalScoreCalculatorClass>org.optaplanner.examples.projectjobscheduling.solver.score.ProjectJobSchedulingIncrementalScoreCalculator</incrementalScoreCalculatorClass>
+    <!--<scoreDrl>org/optaplanner/examples/projectjobscheduling/solver/projectJobSchedulingConstraints.drl</scoreDrl>-->
   </scoreDirectorFactory>
   <termination>
-    <maximumSecondsSpend>290</maximumSecondsSpend>
+    <minutesSpentLimit>5</minutesSpentLimit>
   </termination>
 
   <constructionHeuristic>
@@ -19,28 +19,16 @@
   </constructionHeuristic>
   <localSearch>
     <unionMoveSelector>
-      <!--<moveIteratorFactory>-->
-        <!--<moveIteratorFactoryClass>org.optaplanner.examples.projectjobschedulinging.solver.move.chainshift.ChainShiftMoveIteratorFactory</moveIteratorFactoryClass>-->
-        <!--<fixedProbabilityWeight>2.0</fixedProbabilityWeight>-->
-      <!--</moveIteratorFactory>-->
-      <!-- Moves that assign various valid values to the entities -->
       <changeMoveSelector>
-        <valueSelector>
-          <variableName>executionMode</variableName>
-        </valueSelector>
-        <!--<fixedProbabilityWeight>1.0</fixedProbabilityWeight>-->
+        <valueSelector variableName="executionMode"/>
       </changeMoveSelector>
       <changeMoveSelector>
-        <valueSelector>
-          <variableName>delay</variableName>
-        </valueSelector>
-        <!--<fixedProbabilityWeight>16.0</fixedProbabilityWeight>-->
+        <valueSelector variableName="delay"/>
       </changeMoveSelector>
     </unionMoveSelector>
     <acceptor>
       <entityTabuRatio>0.2</entityTabuRatio>
-      <fadingEntityTabuRatio>0.7</fadingEntityTabuRatio>
-      <lateAcceptanceSize>12000</lateAcceptanceSize>
+      <lateAcceptanceSize>500</lateAcceptanceSize>
     </acceptor>
     <forager>
       <acceptedCountLimit>4</acceptedCountLimit>

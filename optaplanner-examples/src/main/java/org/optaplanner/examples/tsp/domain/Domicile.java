@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,44 @@
 
 package org.optaplanner.examples.tsp.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.tsp.domain.location.Location;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("Domicile")
 public class Domicile extends AbstractPersistable implements Standstill {
 
-    private City city;
+    private Location location;
 
-    public City getCity() {
-        return city;
+    @Override
+    public Location getLocation() {
+        return location;
     }
 
-    public void setCity(City city) {
-        this.city = city;
+    public void setLocation(Location location) {
+        this.location = location;
     }
 
     // ************************************************************************
     // Complex methods
     // ************************************************************************
 
+    /**
+     * @param standstill never null
+     * @return a positive number, the distance multiplied by 1000 to avoid floating point arithmetic rounding errors
+     */
+    @Override
+    public long getDistanceTo(Standstill standstill) {
+        return location.getDistanceTo(standstill.getLocation());
+    }
+
     @Override
     public String toString() {
-        return city.toString();
+        if (location.getName() == null) {
+            return super.toString();
+        }
+        return location.getName();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,17 @@
 
 package org.optaplanner.core.config.heuristic.selector;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
+import org.optaplanner.core.config.AbstractConfig;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.config.heuristic.selector.common.SelectionOrder;
 import org.optaplanner.core.config.heuristic.selector.entity.EntitySelectorConfig;
 import org.optaplanner.core.config.heuristic.selector.move.MoveSelectorConfig;
 import org.optaplanner.core.config.heuristic.selector.value.ValueSelectorConfig;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 
 /**
  * General superclass for {@link MoveSelectorConfig}, {@link EntitySelectorConfig} and {@link ValueSelectorConfig}.
  */
-public abstract class SelectorConfig {
+public abstract class SelectorConfig<C extends SelectorConfig> extends AbstractConfig<C> {
 
     // ************************************************************************
     // Helper methods
@@ -63,97 +57,8 @@ public abstract class SelectorConfig {
         }
     }
 
-    protected PlanningEntityDescriptor deduceEntityDescriptor(SolutionDescriptor solutionDescriptor,
-            Class<?> entityClass) {
-        PlanningEntityDescriptor entityDescriptor;
-        if (entityClass != null) {
-            entityDescriptor = solutionDescriptor.getEntityDescriptorStrict(entityClass);
-            if (entityDescriptor == null) {
-                throw new IllegalArgumentException("The selectorConfig (" + this
-                        + ") has an entityClass (" + entityClass + ") that is not a known planning entity.\n"
-                        + "Check your solver configuration. If that class (" + entityClass.getSimpleName()
-                        + ") is not in the planningEntityClassSet (" + solutionDescriptor.getPlanningEntityClassSet()
-                        + "), check your Solution implementation's annotated methods too.");
-            }
-        } else {
-            Collection<PlanningEntityDescriptor> entityDescriptors = solutionDescriptor.getGenuineEntityDescriptors();
-            if (entityDescriptors.size() != 1) {
-                throw new IllegalArgumentException("The selectorConfig (" + this
-                        + ") has no entityClass (" + entityClass
-                        + ") configured and because there are multiple in the planningEntityClassSet ("
-                        + solutionDescriptor.getPlanningEntityClassSet()
-                        + "), it can not be deducted automatically.");
-            }
-            entityDescriptor = entityDescriptors.iterator().next();
-        }
-        return entityDescriptor;
-    }
-
-    protected PlanningVariableDescriptor deduceVariableDescriptor(
-            PlanningEntityDescriptor entityDescriptor, String variableName) {
-        PlanningVariableDescriptor variableDescriptor;
-        if (variableName != null) {
-            variableDescriptor = entityDescriptor.getVariableDescriptor(variableName);
-            if (variableDescriptor == null) {
-                throw new IllegalArgumentException("The selectorConfig (" + this
-                        + ") has a variableName (" + variableName
-                        + ") for planningEntityClass (" + entityDescriptor.getPlanningEntityClass()
-                        + ") that is not annotated as a planning variable.\n" +
-                        "Check your planning entity implementation's annotated methods.");
-            }
-        } else {
-            Collection<PlanningVariableDescriptor> variableDescriptors = entityDescriptor
-                    .getVariableDescriptors();
-            if (variableDescriptors.size() != 1) {
-                throw new IllegalArgumentException("The selectorConfig (" + this
-                        + ") has no configured variableName (" + variableName
-                        + ") for planningEntityClass (" + entityDescriptor.getPlanningEntityClass()
-                        + ") and because there are multiple in the variableNameSet ("
-                        + entityDescriptor.getPlanningVariableNameSet()
-                        + "), it can not be deducted automatically.");
-            }
-            variableDescriptor = variableDescriptors.iterator().next();
-        }
-        return variableDescriptor;
-    }
-
-    protected Collection<PlanningVariableDescriptor> deduceVariableDescriptors(
-            PlanningEntityDescriptor entityDescriptor, List<String> variableNameIncludeList) {
-        Collection<PlanningVariableDescriptor> variableDescriptors = entityDescriptor.getVariableDescriptors();
-        if (variableNameIncludeList == null) {
-            return variableDescriptors;
-        }
-        List<PlanningVariableDescriptor> resolvedVariableDescriptors
-                = new ArrayList<PlanningVariableDescriptor>(variableDescriptors.size());
-        for (String variableNameInclude : variableNameIncludeList) {
-            boolean found = false;
-            for (PlanningVariableDescriptor variableDescriptor : variableDescriptors) {
-                if (variableDescriptor.getVariableName().equals(variableNameInclude)) {
-                    resolvedVariableDescriptors.add(variableDescriptor);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                throw new IllegalStateException("The selectorConfig (" + this
-                        + ") has a variableNameInclude (" + variableNameInclude
-                        + ") which does not exist in the entity (" + entityDescriptor.getPlanningEntityClass()
-                        + ")'s variableDescriptors (" + variableDescriptors + ").");
-            }
-        }
-        return resolvedVariableDescriptors;
-    }
-
     // ************************************************************************
     // Builder methods
     // ************************************************************************
-
-    protected void inherit(SelectorConfig inheritedConfig) {
-    }
-
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + "()";
-    }
 
 }

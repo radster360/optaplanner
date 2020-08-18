@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,62 +16,56 @@
 
 package org.optaplanner.examples.common.persistence;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 
-public abstract class AbstractXmlSolutionImporter extends AbstractSolutionImporter {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public abstract class AbstractXmlSolutionImporter<Solution_> extends AbstractSolutionImporter<Solution_> {
 
-    private static final String DEFAULT_INPUT_FILE_SUFFIX = ".xml";
+    private static final String DEFAULT_INPUT_FILE_SUFFIX = "xml";
 
-    protected AbstractXmlSolutionImporter(SolutionDao solutionDao) {
-        super(solutionDao);
-    }
-
+    @Override
     public String getInputFileSuffix() {
         return DEFAULT_INPUT_FILE_SUFFIX;
     }
 
-    public abstract XmlInputBuilder createXmlInputBuilder();
+    public abstract XmlInputBuilder<Solution_> createXmlInputBuilder();
 
-    public Solution readSolution(File inputFile) {
-        Solution solution;
-        InputStream in = null;
-        try {
-            in = new FileInputStream(inputFile);
+    @Override
+    public Solution_ readSolution(File inputFile) {
+        try (InputStream in = new BufferedInputStream(new FileInputStream(inputFile))) {
             SAXBuilder builder = new SAXBuilder(false);
             Document document = builder.build(in);
-            XmlInputBuilder txtInputBuilder = createXmlInputBuilder();
-            txtInputBuilder.setInputFile(inputFile);
-            txtInputBuilder.setDocument(document);
+            XmlInputBuilder<Solution_> xmlInputBuilder = createXmlInputBuilder();
+            xmlInputBuilder.setInputFile(inputFile);
+            xmlInputBuilder.setDocument(document);
             try {
-                solution = txtInputBuilder.readSolution();
-            } catch (IllegalArgumentException e) {
+                Solution_ solution = xmlInputBuilder.readSolution();
+                logger.info("Imported: {}", inputFile);
+                return solution;
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 throw new IllegalArgumentException("Exception in inputFile (" + inputFile + ")", e);
-            } catch (IllegalStateException e) {
-                throw new IllegalStateException("Exception in inputFile (" + inputFile + ")", e);
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Could not read the file (" + inputFile.getName() + ").", e);
         } catch (JDOMException e) {
             throw new IllegalArgumentException("Could not parse the XML file (" + inputFile.getName() + ").", e);
-        } finally {
-            IOUtils.closeQuietly(in);
         }
-        logger.info("Imported: {}", inputFile);
-        return solution;
     }
 
-    public abstract class XmlInputBuilder {
+    public static abstract class XmlInputBuilder<Solution_> extends InputBuilder {
 
         protected File inputFile;
         protected Document document;
@@ -84,7 +78,7 @@ public abstract class AbstractXmlSolutionImporter extends AbstractSolutionImport
             this.document = document;
         }
 
-        public abstract Solution readSolution() throws IOException, JDOMException;
+        public abstract Solution_ readSolution() throws IOException, JDOMException;
 
         // ************************************************************************
         // Helper methods

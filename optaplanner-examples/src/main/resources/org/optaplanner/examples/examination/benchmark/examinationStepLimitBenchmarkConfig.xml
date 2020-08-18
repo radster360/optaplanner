@@ -1,46 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plannerBenchmark>
   <benchmarkDirectory>local/data/examination/stepLimit</benchmarkDirectory>
+  <warmUpSecondsSpentLimit>0</warmUpSecondsSpentLimit>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.examination.domain.Examination</xstreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.examination.persistence.ExaminationXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/examination/unsolved/exam_comp_set1_initialized.xml</inputSolutionFile>
     </problemBenchmarks>
 
     <solver>
-      <!--<environmentMode>FAST_ASSERT</environmentMode>-->
       <solutionClass>org.optaplanner.examples.examination.domain.Examination</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.examination.domain.Exam</planningEntityClass>
+      <entityClass>org.optaplanner.examples.examination.domain.Exam</entityClass>
+      <entityClass>org.optaplanner.examples.examination.domain.LeadingExam</entityClass>
+      <entityClass>org.optaplanner.examples.examination.domain.FollowingExam</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/examination/solver/examinationScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/examination/solver/examinationConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
     </solver>
   </inheritedSolverBenchmark>
 
   <solverBenchmark>
     <solver>
-      <!--<customSolverPhase>-->
-        <!--<customSolverPhaseCommandClass>org.optaplanner.examples.examination.solver.solution.initializer.ExaminationSolutionInitializer</customSolverPhaseCommandClass>-->
-      <!--</customSolverPhase>-->
       <localSearch>
         <termination>
-          <maximumStepCount>100</maximumStepCount>
+          <stepCountLimit>100</stepCountLimit>
         </termination>
         <unionMoveSelector>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.examination.solver.move.factory.PeriodChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.examination.solver.move.factory.RoomChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.examination.solver.move.factory.ExamSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
+          <cartesianProductMoveSelector>
+            <changeMoveSelector>
+              <entitySelector id="cartesianProductEntitySelector">
+                <entityClass>org.optaplanner.examples.examination.domain.Exam</entityClass>
+              </entitySelector>
+              <valueSelector variableName="room"/>
+            </changeMoveSelector>
+            <changeMoveSelector>
+              <entitySelector mimicSelectorRef="cartesianProductEntitySelector"/>
+              <valueSelector variableName="period">
+                <downcastEntityClass>org.optaplanner.examples.examination.domain.LeadingExam</downcastEntityClass>
+              </valueSelector>
+            </changeMoveSelector>
+          </cartesianProductMoveSelector>
+          <swapMoveSelector>
+            <entitySelector>
+              <entityClass>org.optaplanner.examples.examination.domain.LeadingExam</entityClass>
+            </entitySelector>
+          </swapMoveSelector>
         </unionMoveSelector>
         <acceptor>
           <entityTabuSize>10</entityTabuSize>

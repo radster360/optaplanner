@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 package org.optaplanner.core.impl.heuristic.selector.common;
 
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.event.SolverPhaseLifecycleListener;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.phase.event.PhaseLifecycleListener;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public class SelectionCacheLifecycleBridge implements SolverPhaseLifecycleListener {
+public class SelectionCacheLifecycleBridge implements PhaseLifecycleListener {
 
     protected final SelectionCacheType cacheType;
     protected final SelectionCacheLifecycleListener selectionCacheLifecycleListener;
@@ -37,37 +38,43 @@ public class SelectionCacheLifecycleBridge implements SolverPhaseLifecycleListen
         }
     }
 
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    @Override
+    public void solvingStarted(SolverScope solverScope) {
         if (cacheType == SelectionCacheType.SOLVER) {
             selectionCacheLifecycleListener.constructCache(solverScope);
         }
     }
 
-    public void phaseStarted(AbstractSolverPhaseScope phaseScope) {
+    @Override
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
         if (cacheType == SelectionCacheType.PHASE) {
             selectionCacheLifecycleListener.constructCache(phaseScope.getSolverScope());
         }
     }
 
+    @Override
     public void stepStarted(AbstractStepScope stepScope) {
         if (cacheType == SelectionCacheType.STEP) {
             selectionCacheLifecycleListener.constructCache(stepScope.getPhaseScope().getSolverScope());
         }
     }
 
+    @Override
     public void stepEnded(AbstractStepScope stepScope) {
         if (cacheType == SelectionCacheType.STEP) {
             selectionCacheLifecycleListener.disposeCache(stepScope.getPhaseScope().getSolverScope());
         }
     }
 
-    public void phaseEnded(AbstractSolverPhaseScope phaseScope) {
+    @Override
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
         if (cacheType == SelectionCacheType.PHASE) {
             selectionCacheLifecycleListener.disposeCache(phaseScope.getSolverScope());
         }
     }
 
-    public void solvingEnded(DefaultSolverScope solverScope) {
+    @Override
+    public void solvingEnded(SolverScope solverScope) {
         if (cacheType == SelectionCacheType.SOLVER) {
             selectionCacheLifecycleListener.disposeCache(solverScope);
         }

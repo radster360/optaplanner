@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,61 @@
 
 package org.optaplanner.examples.nurserostering.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("NurseRosterParametrization")
 public class NurseRosterParametrization extends AbstractPersistable {
 
-    private ShiftDate startShiftDate;
+    private ShiftDate firstShiftDate;
+    private ShiftDate lastShiftDate;
 
-    public ShiftDate getStartShiftDate() {
-        return startShiftDate;
+    private ShiftDate planningWindowStart;
+
+    public ShiftDate getFirstShiftDate() {
+        return firstShiftDate;
     }
 
-    public void setStartShiftDate(ShiftDate startShiftDate) {
-        this.startShiftDate = startShiftDate;
+    public void setFirstShiftDate(ShiftDate firstShiftDate) {
+        this.firstShiftDate = firstShiftDate;
+    }
+
+    public ShiftDate getLastShiftDate() {
+        return lastShiftDate;
+    }
+
+    public void setLastShiftDate(ShiftDate lastShiftDate) {
+        this.lastShiftDate = lastShiftDate;
+    }
+
+    public int getFirstShiftDateDayIndex() {
+        return firstShiftDate.getDayIndex();
+    }
+
+    public int getLastShiftDateDayIndex() {
+        return lastShiftDate.getDayIndex();
+    }
+
+    public ShiftDate getPlanningWindowStart() {
+        return planningWindowStart;
+    }
+
+    public void setPlanningWindowStart(ShiftDate planningWindowStart) {
+        this.planningWindowStart = planningWindowStart;
+    }
+
+    // ************************************************************************
+    // Worker methods
+    // ************************************************************************
+
+    public boolean isInPlanningWindow(ShiftDate shiftDate) {
+        return planningWindowStart.getDayIndex() <= shiftDate.getDayIndex();
+    }
+
+    @Override
+    public String toString() {
+        return firstShiftDate + " - " + lastShiftDate;
     }
 
 }

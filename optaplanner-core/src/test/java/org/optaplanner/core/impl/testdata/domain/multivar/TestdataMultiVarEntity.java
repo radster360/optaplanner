@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,23 +18,45 @@ package org.optaplanner.core.impl.testdata.domain.multivar;
 
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.testdata.domain.TestdataObject;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
 @PlanningEntity
 public class TestdataMultiVarEntity extends TestdataObject {
 
-    public static PlanningEntityDescriptor buildEntityDescriptor() {
-        SolutionDescriptor solutionDescriptor = TestdataMultiVarSolution.buildSolutionDescriptor();
-        return solutionDescriptor.getEntityDescriptor(TestdataMultiVarEntity.class);
+    public static EntityDescriptor<TestdataMultiVarSolution> buildEntityDescriptor() {
+        SolutionDescriptor<TestdataMultiVarSolution> solutionDescriptor = TestdataMultiVarSolution.buildSolutionDescriptor();
+        return solutionDescriptor.findEntityDescriptorOrFail(TestdataMultiVarEntity.class);
+    }
+
+    public static GenuineVariableDescriptor<TestdataMultiVarSolution> buildVariableDescriptorForPrimaryValue() {
+        SolutionDescriptor<TestdataMultiVarSolution> solutionDescriptor = TestdataMultiVarSolution.buildSolutionDescriptor();
+        EntityDescriptor<TestdataMultiVarSolution> entityDescriptor = solutionDescriptor
+                .findEntityDescriptorOrFail(TestdataMultiVarEntity.class);
+        return entityDescriptor.getGenuineVariableDescriptor("primaryValue");
+    }
+
+    public static GenuineVariableDescriptor<TestdataMultiVarSolution> buildVariableDescriptorForSecondaryValue() {
+        SolutionDescriptor<TestdataMultiVarSolution> solutionDescriptor = TestdataMultiVarSolution.buildSolutionDescriptor();
+        EntityDescriptor<TestdataMultiVarSolution> entityDescriptor = solutionDescriptor
+                .findEntityDescriptorOrFail(TestdataMultiVarEntity.class);
+        return entityDescriptor.getGenuineVariableDescriptor("secondaryValue");
+    }
+
+    public static GenuineVariableDescriptor<TestdataMultiVarSolution> buildVariableDescriptorForTertiaryNullableValue() {
+        SolutionDescriptor<TestdataMultiVarSolution> solutionDescriptor = TestdataMultiVarSolution.buildSolutionDescriptor();
+        EntityDescriptor<TestdataMultiVarSolution> entityDescriptor = solutionDescriptor
+                .findEntityDescriptorOrFail(TestdataMultiVarEntity.class);
+        return entityDescriptor.getGenuineVariableDescriptor("tertiaryNullableValue");
     }
 
     private TestdataValue primaryValue;
     private TestdataValue secondaryValue;
 
-    private TestdataOtherValue nullableOtherValue;
+    private TestdataOtherValue tertiaryNullableValue;
 
     public TestdataMultiVarEntity() {
     }
@@ -44,11 +66,11 @@ public class TestdataMultiVarEntity extends TestdataObject {
     }
 
     public TestdataMultiVarEntity(String code, TestdataValue primaryValue, TestdataValue secondaryValue,
-            TestdataOtherValue nullableOtherValue) {
+            TestdataOtherValue tertiaryNullableValue) {
         super(code);
         this.primaryValue = primaryValue;
         this.secondaryValue = secondaryValue;
-        this.nullableOtherValue = nullableOtherValue;
+        this.tertiaryNullableValue = tertiaryNullableValue;
     }
 
     @PlanningVariable(valueRangeProviderRefs = "valueRange")
@@ -70,12 +92,12 @@ public class TestdataMultiVarEntity extends TestdataObject {
     }
 
     @PlanningVariable(valueRangeProviderRefs = "otherValueRange")
-    public TestdataOtherValue getNullableOtherValue() {
-        return nullableOtherValue;
+    public TestdataOtherValue getTertiaryNullableValue() {
+        return tertiaryNullableValue;
     }
 
-    public void setNullableOtherValue(TestdataOtherValue nullableOtherValue) {
-        this.nullableOtherValue = nullableOtherValue;
+    public void setTertiaryNullableValue(TestdataOtherValue tertiaryNullableValue) {
+        this.tertiaryNullableValue = tertiaryNullableValue;
     }
 
     // ************************************************************************

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,15 @@ package org.optaplanner.examples.pas.solver.move;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.heuristic.move.AbstractMove;
 import org.optaplanner.examples.pas.domain.Bed;
 import org.optaplanner.examples.pas.domain.BedDesignation;
+import org.optaplanner.examples.pas.domain.PatientAdmissionSchedule;
 
-public class BedChangeMove implements Move {
+public class BedChangeMove extends AbstractMove<PatientAdmissionSchedule> {
 
     private BedDesignation bedDesignation;
     private Bed toBed;
@@ -37,49 +36,58 @@ public class BedChangeMove implements Move {
         this.toBed = toBed;
     }
 
-    public boolean isMoveDoable(ScoreDirector scoreDirector) {
-        return !ObjectUtils.equals(bedDesignation.getBed(), toBed);
+    @Override
+    public boolean isMoveDoable(ScoreDirector<PatientAdmissionSchedule> scoreDirector) {
+        return !Objects.equals(bedDesignation.getBed(), toBed);
     }
 
-    public Move createUndoMove(ScoreDirector scoreDirector) {
+    @Override
+    public BedChangeMove createUndoMove(ScoreDirector<PatientAdmissionSchedule> scoreDirector) {
         return new BedChangeMove(bedDesignation, bedDesignation.getBed());
     }
 
-    public void doMove(ScoreDirector scoreDirector) {
+    @Override
+    protected void doMoveOnGenuineVariables(ScoreDirector<PatientAdmissionSchedule> scoreDirector) {
         PatientAdmissionMoveHelper.moveBed(scoreDirector, bedDesignation, toBed);
     }
 
+    @Override
+    public BedChangeMove rebase(ScoreDirector<PatientAdmissionSchedule> destinationScoreDirector) {
+        return new BedChangeMove(destinationScoreDirector.lookUpWorkingObject(bedDesignation),
+                destinationScoreDirector.lookUpWorkingObject(toBed));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Collections.singletonList(bedDesignation);
     }
 
+    @Override
     public Collection<? extends Object> getPlanningValues() {
         return Collections.singletonList(toBed);
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof BedChangeMove) {
-            BedChangeMove other = (BedChangeMove) o;
-            return new EqualsBuilder()
-                    .append(bedDesignation, other.bedDesignation)
-                    .append(toBed, other.toBed)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final BedChangeMove other = (BedChangeMove) o;
+        return Objects.equals(bedDesignation, other.bedDesignation) &&
+                Objects.equals(toBed, other.toBed);
     }
 
+    @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(bedDesignation)
-                .append(toBed)
-                .toHashCode();
+        return Objects.hash(bedDesignation, toBed);
     }
 
+    @Override
     public String toString() {
-        return bedDesignation + " => " + toBed;
+        return bedDesignation + " {" + bedDesignation.getBed() + " -> " + toBed + "}";
     }
 
 }

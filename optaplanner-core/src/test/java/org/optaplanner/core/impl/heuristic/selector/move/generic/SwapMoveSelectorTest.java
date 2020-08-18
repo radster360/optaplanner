@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,94 +16,78 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.generic;
 
-import java.util.Iterator;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertAllCodesOfMoveSelector;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
 
-import org.junit.Test;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
-
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
 
 public class SwapMoveSelectorTest {
 
     @Test
     public void originalLeftEqualsRight() {
-        EntitySelector entitySelector  = SelectorTestUtils.mockEntitySelector(TestdataEntity.buildEntityDescriptor(),
+        EntitySelector entitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.buildEntityDescriptor(),
                 new TestdataEntity("a"), new TestdataEntity("b"), new TestdataEntity("c"), new TestdataEntity("d"));
 
         SwapMoveSelector moveSelector = new SwapMoveSelector(entitySelector, entitySelector,
-                entitySelector.getEntityDescriptor().getVariableDescriptors(), false);
+                entitySelector.getEntityDescriptor().getGenuineVariableDescriptorList(), false);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         moveSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA1);
-        runAssertsOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector, "a<->b", "a<->c", "a<->d", "b<->c", "b<->d", "c<->d");
         moveSelector.stepEnded(stepScopeA1);
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA2);
-        runAssertsOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector, "a<->b", "a<->c", "a<->d", "b<->c", "b<->d", "c<->d");
         moveSelector.stepEnded(stepScopeA2);
 
         moveSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB1);
-        runAssertsOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector, "a<->b", "a<->c", "a<->d", "b<->c", "b<->d", "c<->d");
         moveSelector.stepEnded(stepScopeB1);
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB2);
-        runAssertsOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector, "a<->b", "a<->c", "a<->d", "b<->c", "b<->d", "c<->d");
         moveSelector.stepEnded(stepScopeB2);
 
         AbstractStepScope stepScopeB3 = mock(AbstractStepScope.class);
         when(stepScopeB3.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB3);
-        runAssertsOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector, "a<->b", "a<->c", "a<->d", "b<->c", "b<->d", "c<->d");
         moveSelector.stepEnded(stepScopeB3);
 
         moveSelector.phaseEnded(phaseScopeB);
 
         moveSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(entitySelector, 1, 2, 5);
-    }
-
-    private void runAssertsOriginalLeftEqualsRight(SwapMoveSelector moveSelector) {
-        Iterator<Move> iterator = moveSelector.iterator();
-        assertNotNull(iterator);
-        assertNextSwapMove(iterator, "a", "b");
-        assertNextSwapMove(iterator, "a", "c");
-        assertNextSwapMove(iterator, "a", "d");
-        assertNextSwapMove(iterator, "b", "c");
-        assertNextSwapMove(iterator, "b", "d");
-        assertNextSwapMove(iterator, "c", "d");
-        assertFalse(iterator.hasNext());
-        assertEquals(false, moveSelector.isContinuous());
-        assertEquals(false, moveSelector.isNeverEnding());
-        assertEquals(6L, moveSelector.getSize());
+        verifyPhaseLifecycle(entitySelector, 1, 2, 5);
     }
 
     @Test
@@ -111,155 +95,135 @@ public class SwapMoveSelectorTest {
         EntitySelector entitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.buildEntityDescriptor());
 
         SwapMoveSelector moveSelector = new SwapMoveSelector(entitySelector, entitySelector,
-                entitySelector.getEntityDescriptor().getVariableDescriptors(), false);
+                entitySelector.getEntityDescriptor().getGenuineVariableDescriptorList(), false);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         moveSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA1);
-        runAssertsEmptyOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeA1);
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA2);
-        runAssertsEmptyOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeA2);
 
         moveSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB1);
-        runAssertsEmptyOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeB1);
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB2);
-        runAssertsEmptyOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeB2);
 
         AbstractStepScope stepScopeB3 = mock(AbstractStepScope.class);
         when(stepScopeB3.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB3);
-        runAssertsEmptyOriginalLeftEqualsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeB3);
 
         moveSelector.phaseEnded(phaseScopeB);
 
         moveSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(entitySelector, 1, 2, 5);
-    }
-
-    private void runAssertsEmptyOriginalLeftEqualsRight(SwapMoveSelector moveSelector) {
-        Iterator<Move> iterator = moveSelector.iterator();
-        assertNotNull(iterator);
-        assertFalse(iterator.hasNext());
-        assertEquals(false, moveSelector.isContinuous());
-        assertEquals(false, moveSelector.isNeverEnding());
-        assertEquals(0L, moveSelector.getSize());
+        verifyPhaseLifecycle(entitySelector, 1, 2, 5);
     }
 
     @Test
     public void originalLeftUnequalsRight() {
-        PlanningEntityDescriptor entityDescriptor = TestdataEntity.buildEntityDescriptor();
+        EntityDescriptor entityDescriptor = TestdataEntity.buildEntityDescriptor();
 
-        EntitySelector leftEntitySelector  = SelectorTestUtils.mockEntitySelector(entityDescriptor,
+        EntitySelector leftEntitySelector = SelectorTestUtils.mockEntitySelector(entityDescriptor,
                 new TestdataEntity("a"), new TestdataEntity("b"), new TestdataEntity("c"), new TestdataEntity("d"));
 
-        EntitySelector rightEntitySelector  = SelectorTestUtils.mockEntitySelector(entityDescriptor,
+        EntitySelector rightEntitySelector = SelectorTestUtils.mockEntitySelector(entityDescriptor,
                 new TestdataEntity("x"), new TestdataEntity("y"), new TestdataEntity("z"));
 
         SwapMoveSelector moveSelector = new SwapMoveSelector(leftEntitySelector, rightEntitySelector,
-                leftEntitySelector.getEntityDescriptor().getVariableDescriptors(), false);
+                leftEntitySelector.getEntityDescriptor().getGenuineVariableDescriptorList(), false);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         moveSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA1);
-        runAssertsOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector,
+                "a<->x", "a<->y", "a<->z", "b<->x", "b<->y", "b<->z",
+                "c<->x", "c<->y", "c<->z", "d<->x", "d<->y", "d<->z");
         moveSelector.stepEnded(stepScopeA1);
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA2);
-        runAssertsOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector,
+                "a<->x", "a<->y", "a<->z", "b<->x", "b<->y", "b<->z",
+                "c<->x", "c<->y", "c<->z", "d<->x", "d<->y", "d<->z");
         moveSelector.stepEnded(stepScopeA2);
 
         moveSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB1);
-        runAssertsOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector,
+                "a<->x", "a<->y", "a<->z", "b<->x", "b<->y", "b<->z",
+                "c<->x", "c<->y", "c<->z", "d<->x", "d<->y", "d<->z");
         moveSelector.stepEnded(stepScopeB1);
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB2);
-        runAssertsOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector,
+                "a<->x", "a<->y", "a<->z", "b<->x", "b<->y", "b<->z",
+                "c<->x", "c<->y", "c<->z", "d<->x", "d<->y", "d<->z");
         moveSelector.stepEnded(stepScopeB2);
 
         AbstractStepScope stepScopeB3 = mock(AbstractStepScope.class);
         when(stepScopeB3.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB3);
-        runAssertsOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector,
+                "a<->x", "a<->y", "a<->z", "b<->x", "b<->y", "b<->z",
+                "c<->x", "c<->y", "c<->z", "d<->x", "d<->y", "d<->z");
         moveSelector.stepEnded(stepScopeB3);
 
         moveSelector.phaseEnded(phaseScopeB);
 
         moveSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(leftEntitySelector, 1, 2, 5);
-        verifySolverPhaseLifecycle(rightEntitySelector, 1, 2, 5);
-    }
-
-    private void runAssertsOriginalLeftUnequalsRight(SwapMoveSelector moveSelector) {
-        Iterator<Move> iterator = moveSelector.iterator();
-        assertNotNull(iterator);
-        assertNextSwapMove(iterator, "a", "x");
-        assertNextSwapMove(iterator, "a", "y");
-        assertNextSwapMove(iterator, "a", "z");
-        assertNextSwapMove(iterator, "b", "x");
-        assertNextSwapMove(iterator, "b", "y");
-        assertNextSwapMove(iterator, "b", "z");
-        assertNextSwapMove(iterator, "c", "x");
-        assertNextSwapMove(iterator, "c", "y");
-        assertNextSwapMove(iterator, "c", "z");
-        assertNextSwapMove(iterator, "d", "x");
-        assertNextSwapMove(iterator, "d", "y");
-        assertNextSwapMove(iterator, "d", "z");
-        assertFalse(iterator.hasNext());
-        assertEquals(false, moveSelector.isContinuous());
-        assertEquals(false, moveSelector.isNeverEnding());
-        assertEquals(12L, moveSelector.getSize());
+        verifyPhaseLifecycle(leftEntitySelector, 1, 2, 5);
+        verifyPhaseLifecycle(rightEntitySelector, 1, 2, 5);
     }
 
     @Test
     public void emptyRightOriginalLeftUnequalsRight() {
-        PlanningEntityDescriptor entityDescriptor = TestdataEntity.buildEntityDescriptor();
+        EntityDescriptor entityDescriptor = TestdataEntity.buildEntityDescriptor();
 
         EntitySelector leftEntitySelector = SelectorTestUtils.mockEntitySelector(entityDescriptor,
                 new TestdataEntity("a"), new TestdataEntity("b"), new TestdataEntity("c"), new TestdataEntity("d"));
@@ -267,73 +231,57 @@ public class SwapMoveSelectorTest {
         EntitySelector rightEntitySelector = SelectorTestUtils.mockEntitySelector(entityDescriptor);
 
         SwapMoveSelector moveSelector = new SwapMoveSelector(leftEntitySelector, rightEntitySelector,
-                leftEntitySelector.getEntityDescriptor().getVariableDescriptors(), false);
+                leftEntitySelector.getEntityDescriptor().getGenuineVariableDescriptorList(), false);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         moveSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA1);
-        runAssertsEmptyRightOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeA1);
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA2);
-        runAssertsEmptyRightOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeA2);
 
         moveSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB1);
-        runAssertsEmptyRightOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeB1);
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB2);
-        runAssertsEmptyRightOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeB2);
 
         AbstractStepScope stepScopeB3 = mock(AbstractStepScope.class);
         when(stepScopeB3.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB3);
-        runAssertsEmptyRightOriginalLeftUnequalsRight(moveSelector);
+        assertAllCodesOfMoveSelector(moveSelector);
         moveSelector.stepEnded(stepScopeB3);
 
         moveSelector.phaseEnded(phaseScopeB);
 
         moveSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(leftEntitySelector, 1, 2, 5);
-        verifySolverPhaseLifecycle(rightEntitySelector, 1, 2, 5);
-    }
-
-    private void runAssertsEmptyRightOriginalLeftUnequalsRight(SwapMoveSelector moveSelector) {
-        Iterator<Move> iterator = moveSelector.iterator();
-        assertNotNull(iterator);
-        assertFalse(iterator.hasNext());
-        assertEquals(false, moveSelector.isContinuous());
-        assertEquals(false, moveSelector.isNeverEnding());
-        assertEquals(0L, moveSelector.getSize());
-    }
-
-    private void assertNextSwapMove(Iterator<Move> iterator, String leftEntityCode, String rightEntityCode) {
-        assertTrue(iterator.hasNext());
-        SwapMove move = (SwapMove) iterator.next();
-        assertCode(leftEntityCode, move.getLeftEntity());
-        assertCode(rightEntityCode, move.getRightEntity());
+        verifyPhaseLifecycle(leftEntitySelector, 1, 2, 5);
+        verifyPhaseLifecycle(rightEntitySelector, 1, 2, 5);
     }
 
 }

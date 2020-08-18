@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,132 +32,117 @@ import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.chart.renderer.xy.XYStepRenderer;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-import org.optaplanner.benchmark.impl.DefaultPlannerBenchmark;
-import org.optaplanner.benchmark.impl.ProblemBenchmark;
-import org.optaplanner.benchmark.impl.SingleBenchmark;
+import org.optaplanner.benchmark.config.statistic.ProblemStatisticType;
 import org.optaplanner.benchmark.impl.report.BenchmarkReport;
-import org.optaplanner.benchmark.impl.statistic.AbstractProblemStatistic;
-import org.optaplanner.benchmark.impl.statistic.MillisecondsSpendNumberFormat;
-import org.optaplanner.benchmark.impl.statistic.ProblemStatisticType;
-import org.optaplanner.benchmark.impl.statistic.SingleStatistic;
-import org.optaplanner.core.api.score.Score;
+import org.optaplanner.benchmark.impl.result.ProblemBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SubSingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.statistic.ProblemStatistic;
+import org.optaplanner.benchmark.impl.statistic.SubSingleStatistic;
+import org.optaplanner.benchmark.impl.statistic.common.MillisecondsSpentNumberFormat;
 import org.optaplanner.core.impl.score.ScoreUtils;
 
-public class BestScoreProblemStatistic extends AbstractProblemStatistic {
+public class BestScoreProblemStatistic extends ProblemStatistic {
 
-    protected List<File> graphStatisticFileList = null;
+    protected List<File> graphFileList = null;
 
-    public BestScoreProblemStatistic(ProblemBenchmark problemBenchmark) {
-        super(problemBenchmark, ProblemStatisticType.BEST_SCORE);
+    private BestScoreProblemStatistic() {
+        // Required by JAXB
     }
 
-    public SingleStatistic createSingleStatistic() {
-        return new BestScoreSingleStatistic();
+    public BestScoreProblemStatistic(ProblemBenchmarkResult problemBenchmarkResult) {
+        super(problemBenchmarkResult, ProblemStatisticType.BEST_SCORE);
+    }
+
+    @Override
+    public SubSingleStatistic createSubSingleStatistic(SubSingleBenchmarkResult subSingleBenchmarkResult) {
+        return new BestScoreSubSingleStatistic(subSingleBenchmarkResult);
     }
 
     /**
-     * @return never null, each path is relative to the {@link DefaultPlannerBenchmark#benchmarkReportDirectory}
-     * (not {@link ProblemBenchmark#problemReportDirectory})
+     * @return never null
      */
-    public List<String> getGraphFilePathList() {
-        List<String> graphFilePathList = new ArrayList<String>(graphStatisticFileList.size());
-        for (File graphStatisticFile : graphStatisticFileList) {
-            graphFilePathList.add(toFilePath(graphStatisticFile));
-        }
-        return graphFilePathList;
+    @Override
+    public List<File> getGraphFileList() {
+        return graphFileList;
     }
 
     // ************************************************************************
     // Write methods
     // ************************************************************************
 
-    protected void writeCsvStatistic() {
-        ProblemStatisticCsv csv = new ProblemStatisticCsv();
-        for (SingleBenchmark singleBenchmark : problemBenchmark.getSingleBenchmarkList()) {
-            if (singleBenchmark.isSuccess()) {
-                BestScoreSingleStatistic singleStatistic = (BestScoreSingleStatistic)
-                        singleBenchmark.getSingleStatistic(problemStatisticType);
-                for (BestScoreSingleStatisticPoint point : singleStatistic.getPointList()) {
-                    long timeMillisSpend = point.getTimeMillisSpend();
-                    Score score = point.getScore();
-                    if (score != null) {
-                        csv.addPoint(singleBenchmark, timeMillisSpend, score.toString());
-                    }
-                }
-            } else {
-                csv.addPoint(singleBenchmark, 0L, "Failed");
-            }
-        }
-        csvStatisticFile = new File(problemBenchmark.getProblemReportDirectory(),
-                problemBenchmark.getName() + "BestScoreStatistic.csv");
-        csv.writeCsvStatisticFile();
-    }
-
-    protected void writeGraphStatistic() {
-        List<XYPlot> plotList = new ArrayList<XYPlot>(BenchmarkReport.CHARTED_SCORE_LEVEL_SIZE);
+    @Override
+    public void writeGraphFiles(BenchmarkReport benchmarkReport) {
+        List<XYPlot> plotList = new ArrayList<>(BenchmarkReport.CHARTED_SCORE_LEVEL_SIZE);
         int seriesIndex = 0;
-        for (SingleBenchmark singleBenchmark : problemBenchmark.getSingleBenchmarkList()) {
-            List<XYSeries> seriesList = new ArrayList<XYSeries>(BenchmarkReport.CHARTED_SCORE_LEVEL_SIZE);
+        for (SingleBenchmarkResult singleBenchmarkResult : problemBenchmarkResult.getSingleBenchmarkResultList()) {
+            List<XYSeries> seriesList = new ArrayList<>(BenchmarkReport.CHARTED_SCORE_LEVEL_SIZE);
             // No direct ascending lines between 2 points, but a stepping line instead
             XYItemRenderer renderer = new XYStepRenderer();
-            if (singleBenchmark.isSuccess()) {
-                BestScoreSingleStatistic singleStatistic = (BestScoreSingleStatistic)
-                        singleBenchmark.getSingleStatistic(problemStatisticType);
-                for (BestScoreSingleStatisticPoint point : singleStatistic.getPointList()) {
-                    long timeMillisSpend = point.getTimeMillisSpend();
+            if (singleBenchmarkResult.hasAllSuccess()) {
+                BestScoreSubSingleStatistic subSingleStatistic = (BestScoreSubSingleStatistic) singleBenchmarkResult
+                        .getSubSingleStatistic(problemStatisticType);
+                List<BestScoreStatisticPoint> points = subSingleStatistic.getPointList();
+                for (BestScoreStatisticPoint point : points) {
+                    if (!point.getScore().isSolutionInitialized()) {
+                        continue;
+                    }
+                    long timeMillisSpent = point.getTimeMillisSpent();
                     double[] levelValues = ScoreUtils.extractLevelDoubles(point.getScore());
                     for (int i = 0; i < levelValues.length && i < BenchmarkReport.CHARTED_SCORE_LEVEL_SIZE; i++) {
                         if (i >= seriesList.size()) {
                             seriesList.add(new XYSeries(
-                                    singleBenchmark.getSolverBenchmark().getNameWithFavoriteSuffix()));
+                                    singleBenchmarkResult.getSolverBenchmarkResult().getNameWithFavoriteSuffix()));
                         }
-                        seriesList.get(i).add(timeMillisSpend, levelValues[i]);
+                        seriesList.get(i).add(timeMillisSpent, levelValues[i]);
                     }
                 }
                 // TODO if startingSolution is initialized and no improvement is made, a horizontal line should be shown
                 // Draw a horizontal line from the last new best step to how long the solver actually ran
-                long timeMillisSpend = singleBenchmark.getTimeMillisSpend();
-                double[] bestScoreLevels = ScoreUtils.extractLevelDoubles(singleBenchmark.getScore());
+                long timeMillisSpent = singleBenchmarkResult.getTimeMillisSpent();
+                double[] bestScoreLevels = ScoreUtils.extractLevelDoubles(singleBenchmarkResult.getMedian().getScore());
                 for (int i = 0; i < bestScoreLevels.length && i < BenchmarkReport.CHARTED_SCORE_LEVEL_SIZE; i++) {
                     if (i >= seriesList.size()) {
                         seriesList.add(new XYSeries(
-                                singleBenchmark.getSolverBenchmark().getNameWithFavoriteSuffix()));
+                                singleBenchmarkResult.getSolverBenchmarkResult().getNameWithFavoriteSuffix()));
                     }
-                    seriesList.get(i).add(timeMillisSpend, bestScoreLevels[i]);
+                    seriesList.get(i).add(timeMillisSpent, bestScoreLevels[i]);
                 }
-                if (singleStatistic.getPointList().size() <= 1) {
+                if (subSingleStatistic.getPointList().size() <= 1) {
                     // Workaround for https://sourceforge.net/tracker/?func=detail&aid=3387330&group_id=15494&atid=115494
                     renderer = new StandardXYItemRenderer(StandardXYItemRenderer.SHAPES_AND_LINES);
                 }
             }
-            if (singleBenchmark.getSolverBenchmark().isFavorite()) {
+            if (singleBenchmarkResult.getSolverBenchmarkResult().isFavorite()) {
                 // Make the favorite more obvious
                 renderer.setSeriesStroke(0, new BasicStroke(2.0f));
             }
             for (int i = 0; i < seriesList.size(); i++) {
                 if (i >= plotList.size()) {
-                    plotList.add(createPlot(i));
+                    plotList.add(createPlot(benchmarkReport, i));
                 }
                 plotList.get(i).setDataset(seriesIndex, new XYSeriesCollection(seriesList.get(i)));
                 plotList.get(i).setRenderer(seriesIndex, renderer);
             }
             seriesIndex++;
         }
-        graphStatisticFileList = new ArrayList<File>(plotList.size());
+        graphFileList = new ArrayList<>(plotList.size());
         for (int scoreLevelIndex = 0; scoreLevelIndex < plotList.size(); scoreLevelIndex++) {
+            String scoreLevelLabel = problemBenchmarkResult.findScoreLevelLabel(scoreLevelIndex);
             JFreeChart chart = new JFreeChart(
-                    problemBenchmark.getName() + " best score level " + scoreLevelIndex + " statistic",
+                    problemBenchmarkResult.getName() + " best " + scoreLevelLabel + " statistic",
                     JFreeChart.DEFAULT_TITLE_FONT, plotList.get(scoreLevelIndex), true);
-            graphStatisticFileList.add(writeChartToImageFile(chart,
-                    problemBenchmark.getName() + "BestScoreStatisticLevel" + scoreLevelIndex));
+            graphFileList.add(writeChartToImageFile(chart,
+                    problemBenchmarkResult.getName() + "BestScoreStatisticLevel" + scoreLevelIndex));
         }
     }
 
-    private XYPlot createPlot(int scoreLevelIndex) {
-        Locale locale = problemBenchmark.getPlannerBenchmark().getBenchmarkReport().getLocale();
-        NumberAxis xAxis = new NumberAxis("Time spend");
-        xAxis.setNumberFormatOverride(new MillisecondsSpendNumberFormat(locale));
-        NumberAxis yAxis = new NumberAxis("Best score level " + scoreLevelIndex);
+    private XYPlot createPlot(BenchmarkReport benchmarkReport, int scoreLevelIndex) {
+        Locale locale = benchmarkReport.getLocale();
+        NumberAxis xAxis = new NumberAxis("Time spent");
+        xAxis.setNumberFormatOverride(new MillisecondsSpentNumberFormat(locale));
+        String scoreLevelLabel = problemBenchmarkResult.findScoreLevelLabel(scoreLevelIndex);
+        NumberAxis yAxis = new NumberAxis("Best " + scoreLevelLabel);
         yAxis.setNumberFormatOverride(NumberFormat.getInstance(locale));
         yAxis.setAutoRangeIncludesZero(false);
         XYPlot plot = new XYPlot(null, xAxis, yAxis, null);

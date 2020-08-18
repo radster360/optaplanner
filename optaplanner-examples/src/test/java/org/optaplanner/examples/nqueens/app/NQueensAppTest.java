@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,20 @@
 
 package org.optaplanner.examples.nqueens.app;
 
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.solver.Solver;
-
-import static org.junit.Assert.*;
+import org.optaplanner.core.api.solver.SolverFactory;
+import org.optaplanner.examples.nqueens.domain.NQueens;
 
 public class NQueensAppTest {
 
     @Test
     public void createSolverByApi() {
         NQueensApp nQueensApp = new NQueensApp();
-        Solver solver = nQueensApp.createSolverByApi();
-        assertNotNull(solver);
+        SolverFactory<NQueens> solverFactory = nQueensApp.createSolverFactoryByApi();
+        Solver<NQueens> solver = solverFactory.buildSolver();
+        Assertions.assertThat(solver).isNotNull();
     }
 
 }

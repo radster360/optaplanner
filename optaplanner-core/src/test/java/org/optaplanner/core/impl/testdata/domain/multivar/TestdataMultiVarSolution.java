@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,23 @@
 
 package org.optaplanner.core.impl.testdata.domain.multivar;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.testdata.domain.TestdataObject;
-import org.optaplanner.core.impl.testdata.domain.TestdataUtils;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
 @PlanningSolution
-public class TestdataMultiVarSolution extends TestdataObject implements Solution<SimpleScore> {
+public class TestdataMultiVarSolution extends TestdataObject {
 
-    public static SolutionDescriptor buildSolutionDescriptor() {
-        return TestdataUtils.buildSolutionDescriptor(TestdataMultiVarSolution.class, TestdataMultiVarEntity.class);
+    public static SolutionDescriptor<TestdataMultiVarSolution> buildSolutionDescriptor() {
+        return SolutionDescriptor.buildSolutionDescriptor(TestdataMultiVarSolution.class, TestdataMultiVarEntity.class);
     }
 
     private List<TestdataValue> valueList;
@@ -51,6 +49,7 @@ public class TestdataMultiVarSolution extends TestdataObject implements Solution
     }
 
     @ValueRangeProvider(id = "valueRange")
+    @ProblemFactCollectionProperty
     public List<TestdataValue> getValueList() {
         return valueList;
     }
@@ -60,6 +59,7 @@ public class TestdataMultiVarSolution extends TestdataObject implements Solution
     }
 
     @ValueRangeProvider(id = "otherValueRange")
+    @ProblemFactCollectionProperty
     public List<TestdataOtherValue> getOtherValueList() {
         return otherValueList;
     }
@@ -77,6 +77,7 @@ public class TestdataMultiVarSolution extends TestdataObject implements Solution
         this.multiVarEntityList = multiVarEntityList;
     }
 
+    @PlanningScore
     public SimpleScore getScore() {
         return score;
     }
@@ -88,12 +89,5 @@ public class TestdataMultiVarSolution extends TestdataObject implements Solution
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<Object> getProblemFacts() {
-        List<Object> problemFacts = new ArrayList<Object>(valueList.size() + otherValueList.size());
-        problemFacts.addAll(valueList);
-        problemFacts.addAll(otherValueList);
-        return problemFacts;
-    }
 
 }

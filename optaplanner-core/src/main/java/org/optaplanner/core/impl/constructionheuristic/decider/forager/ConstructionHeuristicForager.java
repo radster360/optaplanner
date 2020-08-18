@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package org.optaplanner.core.impl.constructionheuristic.decider.forager;
 
-import org.optaplanner.core.impl.constructionheuristic.event.ConstructionHeuristicSolverPhaseLifecycleListener;
+import org.optaplanner.core.impl.constructionheuristic.event.ConstructionHeuristicPhaseLifecycleListener;
 import org.optaplanner.core.impl.constructionheuristic.scope.ConstructionHeuristicMoveScope;
 import org.optaplanner.core.impl.constructionheuristic.scope.ConstructionHeuristicStepScope;
 
 /**
  * @see AbstractConstructionHeuristicForager
  */
-public interface ConstructionHeuristicForager extends ConstructionHeuristicSolverPhaseLifecycleListener {
+public interface ConstructionHeuristicForager extends ConstructionHeuristicPhaseLifecycleListener {
 
     void addMove(ConstructionHeuristicMoveScope moveScope);
 

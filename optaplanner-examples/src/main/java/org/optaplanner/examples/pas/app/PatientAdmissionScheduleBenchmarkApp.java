@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,14 @@ import org.optaplanner.examples.common.app.CommonBenchmarkApp;
 
 public class PatientAdmissionScheduleBenchmarkApp extends CommonBenchmarkApp {
 
-    public static final String DEFAULT_BENCHMARK_CONFIG
-            = "/org/optaplanner/examples/pas/benchmark/patientAdmissionScheduleBenchmarkConfig.xml";
-
     public static void main(String[] args) {
-        new PatientAdmissionScheduleBenchmarkApp().buildAndBenchmark(DEFAULT_BENCHMARK_CONFIG);
+        new PatientAdmissionScheduleBenchmarkApp().buildAndBenchmark(args);
+    }
+
+    public PatientAdmissionScheduleBenchmarkApp() {
+        super(
+                new ArgOption("default",
+                        "org/optaplanner/examples/pas/benchmark/patientAdmissionScheduleBenchmarkConfig.xml"));
     }
 
 }

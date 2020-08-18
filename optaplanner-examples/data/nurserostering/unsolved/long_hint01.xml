@@ -1,12 +1,12 @@
 <NurseRoster id="1">
   <id>0</id>
   <code>long_hint01</code>
-  <nurseRosterInfo id="2">
+  <nurseRosterParametrization id="2">
+    <id>0</id>
     <firstShiftDate id="3">
       <id>0</id>
       <dayIndex>0</dayIndex>
-      <dateString>2010-01-01</dateString>
-      <dayOfWeek>FRIDAY</dayOfWeek>
+      <date>2010-01-01</date>
       <shiftList id="4">
         <Shift id="5">
           <id>0</id>
@@ -88,8 +88,7 @@
     <lastShiftDate id="15">
       <id>27</id>
       <dayIndex>27</dayIndex>
-      <dateString>2010-01-28</dateString>
-      <dayOfWeek>THURSDAY</dayOfWeek>
+      <date>2010-01-28</date>
       <shiftList id="16">
         <Shift id="17">
           <id>135</id>
@@ -129,7 +128,7 @@
       </shiftList>
     </lastShiftDate>
     <planningWindowStart reference="3"/>
-  </nurseRosterInfo>
+  </nurseRosterParametrization>
   <skillList id="22">
     <Skill id="23">
       <id>0</id>
@@ -1447,8 +1446,7 @@
     <ShiftDate id="412">
       <id>1</id>
       <dayIndex>1</dayIndex>
-      <dateString>2010-01-02</dateString>
-      <dayOfWeek>SATURDAY</dayOfWeek>
+      <date>2010-01-02</date>
       <shiftList id="413">
         <Shift id="414">
           <id>5</id>
@@ -1490,8 +1488,7 @@
     <ShiftDate id="419">
       <id>2</id>
       <dayIndex>2</dayIndex>
-      <dateString>2010-01-03</dateString>
-      <dayOfWeek>SUNDAY</dayOfWeek>
+      <date>2010-01-03</date>
       <shiftList id="420">
         <Shift id="421">
           <id>10</id>
@@ -1533,8 +1530,7 @@
     <ShiftDate id="426">
       <id>3</id>
       <dayIndex>3</dayIndex>
-      <dateString>2010-01-04</dateString>
-      <dayOfWeek>MONDAY</dayOfWeek>
+      <date>2010-01-04</date>
       <shiftList id="427">
         <Shift id="428">
           <id>15</id>
@@ -1576,8 +1572,7 @@
     <ShiftDate id="433">
       <id>4</id>
       <dayIndex>4</dayIndex>
-      <dateString>2010-01-05</dateString>
-      <dayOfWeek>TUESDAY</dayOfWeek>
+      <date>2010-01-05</date>
       <shiftList id="434">
         <Shift id="435">
           <id>20</id>
@@ -1619,8 +1614,7 @@
     <ShiftDate id="440">
       <id>5</id>
       <dayIndex>5</dayIndex>
-      <dateString>2010-01-06</dateString>
-      <dayOfWeek>WEDNESDAY</dayOfWeek>
+      <date>2010-01-06</date>
       <shiftList id="441">
         <Shift id="442">
           <id>25</id>
@@ -1662,8 +1656,7 @@
     <ShiftDate id="447">
       <id>6</id>
       <dayIndex>6</dayIndex>
-      <dateString>2010-01-07</dateString>
-      <dayOfWeek>THURSDAY</dayOfWeek>
+      <date>2010-01-07</date>
       <shiftList id="448">
         <Shift id="449">
           <id>30</id>
@@ -1705,8 +1698,7 @@
     <ShiftDate id="454">
       <id>7</id>
       <dayIndex>7</dayIndex>
-      <dateString>2010-01-08</dateString>
-      <dayOfWeek>FRIDAY</dayOfWeek>
+      <date>2010-01-08</date>
       <shiftList id="455">
         <Shift id="456">
           <id>35</id>
@@ -1748,8 +1740,7 @@
     <ShiftDate id="461">
       <id>8</id>
       <dayIndex>8</dayIndex>
-      <dateString>2010-01-09</dateString>
-      <dayOfWeek>SATURDAY</dayOfWeek>
+      <date>2010-01-09</date>
       <shiftList id="462">
         <Shift id="463">
           <id>40</id>
@@ -1791,8 +1782,7 @@
     <ShiftDate id="468">
       <id>9</id>
       <dayIndex>9</dayIndex>
-      <dateString>2010-01-10</dateString>
-      <dayOfWeek>SUNDAY</dayOfWeek>
+      <date>2010-01-10</date>
       <shiftList id="469">
         <Shift id="470">
           <id>45</id>
@@ -1834,8 +1824,7 @@
     <ShiftDate id="475">
       <id>10</id>
       <dayIndex>10</dayIndex>
-      <dateString>2010-01-11</dateString>
-      <dayOfWeek>MONDAY</dayOfWeek>
+      <date>2010-01-11</date>
       <shiftList id="476">
         <Shift id="477">
           <id>50</id>
@@ -1877,8 +1866,7 @@
     <ShiftDate id="482">
       <id>11</id>
       <dayIndex>11</dayIndex>
-      <dateString>2010-01-12</dateString>
-      <dayOfWeek>TUESDAY</dayOfWeek>
+      <date>2010-01-12</date>
       <shiftList id="483">
         <Shift id="484">
           <id>55</id>
@@ -1920,8 +1908,7 @@
     <ShiftDate id="489">
       <id>12</id>
       <dayIndex>12</dayIndex>
-      <dateString>2010-01-13</dateString>
-      <dayOfWeek>WEDNESDAY</dayOfWeek>
+      <date>2010-01-13</date>
       <shiftList id="490">
         <Shift id="491">
           <id>60</id>
@@ -1963,8 +1950,7 @@
     <ShiftDate id="496">
       <id>13</id>
       <dayIndex>13</dayIndex>
-      <dateString>2010-01-14</dateString>
-      <dayOfWeek>THURSDAY</dayOfWeek>
+      <date>2010-01-14</date>
       <shiftList id="497">
         <Shift id="498">
           <id>65</id>
@@ -2006,8 +1992,7 @@
     <ShiftDate id="503">
       <id>14</id>
       <dayIndex>14</dayIndex>
-      <dateString>2010-01-15</dateString>
-      <dayOfWeek>FRIDAY</dayOfWeek>
+      <date>2010-01-15</date>
       <shiftList id="504">
         <Shift id="505">
           <id>70</id>
@@ -2049,8 +2034,7 @@
     <ShiftDate id="510">
       <id>15</id>
       <dayIndex>15</dayIndex>
-      <dateString>2010-01-16</dateString>
-      <dayOfWeek>SATURDAY</dayOfWeek>
+      <date>2010-01-16</date>
       <shiftList id="511">
         <Shift id="512">
           <id>75</id>
@@ -2092,8 +2076,7 @@
     <ShiftDate id="517">
       <id>16</id>
       <dayIndex>16</dayIndex>
-      <dateString>2010-01-17</dateString>
-      <dayOfWeek>SUNDAY</dayOfWeek>
+      <date>2010-01-17</date>
       <shiftList id="518">
         <Shift id="519">
           <id>80</id>
@@ -2135,8 +2118,7 @@
     <ShiftDate id="524">
       <id>17</id>
       <dayIndex>17</dayIndex>
-      <dateString>2010-01-18</dateString>
-      <dayOfWeek>MONDAY</dayOfWeek>
+      <date>2010-01-18</date>
       <shiftList id="525">
         <Shift id="526">
           <id>85</id>
@@ -2178,8 +2160,7 @@
     <ShiftDate id="531">
       <id>18</id>
       <dayIndex>18</dayIndex>
-      <dateString>2010-01-19</dateString>
-      <dayOfWeek>TUESDAY</dayOfWeek>
+      <date>2010-01-19</date>
       <shiftList id="532">
         <Shift id="533">
           <id>90</id>
@@ -2221,8 +2202,7 @@
     <ShiftDate id="538">
       <id>19</id>
       <dayIndex>19</dayIndex>
-      <dateString>2010-01-20</dateString>
-      <dayOfWeek>WEDNESDAY</dayOfWeek>
+      <date>2010-01-20</date>
       <shiftList id="539">
         <Shift id="540">
           <id>95</id>
@@ -2264,8 +2244,7 @@
     <ShiftDate id="545">
       <id>20</id>
       <dayIndex>20</dayIndex>
-      <dateString>2010-01-21</dateString>
-      <dayOfWeek>THURSDAY</dayOfWeek>
+      <date>2010-01-21</date>
       <shiftList id="546">
         <Shift id="547">
           <id>100</id>
@@ -2307,8 +2286,7 @@
     <ShiftDate id="552">
       <id>21</id>
       <dayIndex>21</dayIndex>
-      <dateString>2010-01-22</dateString>
-      <dayOfWeek>FRIDAY</dayOfWeek>
+      <date>2010-01-22</date>
       <shiftList id="553">
         <Shift id="554">
           <id>105</id>
@@ -2350,8 +2328,7 @@
     <ShiftDate id="559">
       <id>22</id>
       <dayIndex>22</dayIndex>
-      <dateString>2010-01-23</dateString>
-      <dayOfWeek>SATURDAY</dayOfWeek>
+      <date>2010-01-23</date>
       <shiftList id="560">
         <Shift id="561">
           <id>110</id>
@@ -2393,8 +2370,7 @@
     <ShiftDate id="566">
       <id>23</id>
       <dayIndex>23</dayIndex>
-      <dateString>2010-01-24</dateString>
-      <dayOfWeek>SUNDAY</dayOfWeek>
+      <date>2010-01-24</date>
       <shiftList id="567">
         <Shift id="568">
           <id>115</id>
@@ -2436,8 +2412,7 @@
     <ShiftDate id="573">
       <id>24</id>
       <dayIndex>24</dayIndex>
-      <dateString>2010-01-25</dateString>
-      <dayOfWeek>MONDAY</dayOfWeek>
+      <date>2010-01-25</date>
       <shiftList id="574">
         <Shift id="575">
           <id>120</id>
@@ -2479,8 +2454,7 @@
     <ShiftDate id="580">
       <id>25</id>
       <dayIndex>25</dayIndex>
-      <dateString>2010-01-26</dateString>
-      <dayOfWeek>TUESDAY</dayOfWeek>
+      <date>2010-01-26</date>
       <shiftList id="581">
         <Shift id="582">
           <id>125</id>
@@ -2522,8 +2496,7 @@
     <ShiftDate id="587">
       <id>26</id>
       <dayIndex>26</dayIndex>
-      <dateString>2010-01-27</dateString>
-      <dayOfWeek>WEDNESDAY</dayOfWeek>
+      <date>2010-01-27</date>
       <shiftList id="588">
         <Shift id="589">
           <id>130</id>

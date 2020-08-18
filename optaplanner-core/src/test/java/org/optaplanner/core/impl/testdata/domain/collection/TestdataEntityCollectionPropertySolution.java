@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,30 @@
 
 package org.optaplanner.core.impl.testdata.domain.collection;
 
-import java.util.Collection;
 import java.util.List;
 
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.testdata.domain.TestdataObject;
-import org.optaplanner.core.impl.testdata.domain.TestdataUtils;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
 @PlanningSolution
-public class TestdataEntityCollectionPropertySolution extends TestdataObject implements Solution<SimpleScore> {
+public class TestdataEntityCollectionPropertySolution extends TestdataObject {
 
     public static SolutionDescriptor buildSolutionDescriptor() {
-        return TestdataUtils.buildSolutionDescriptor(TestdataEntityCollectionPropertySolution.class,
+        return SolutionDescriptor.buildSolutionDescriptor(TestdataEntityCollectionPropertySolution.class,
                 TestdataEntityCollectionPropertyEntity.class);
     }
 
     private List<TestdataValue> valueList;
     private List<TestdataEntityCollectionPropertyEntity> entityList;
 
+    @PlanningScore
     private SimpleScore score;
 
     public TestdataEntityCollectionPropertySolution() {
@@ -50,6 +50,7 @@ public class TestdataEntityCollectionPropertySolution extends TestdataObject imp
     }
 
     @ValueRangeProvider(id = "valueRange")
+    @ProblemFactCollectionProperty
     public List<TestdataValue> getValueList() {
         return valueList;
     }
@@ -78,9 +79,5 @@ public class TestdataEntityCollectionPropertySolution extends TestdataObject imp
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<? extends Object> getProblemFacts() {
-        return valueList;
-    }
 
 }

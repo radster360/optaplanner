@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,13 +19,17 @@ package org.optaplanner.core.impl.localsearch.decider.acceptor.tabu;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchMoveScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
-import org.optaplanner.core.impl.move.Move;
 
 public class MoveTabuAcceptor extends AbstractTabuAcceptor {
 
     protected boolean useUndoMoveAsTabuMove = true;
+
+    public MoveTabuAcceptor(String logIndentation) {
+        super(logIndentation);
+    }
 
     public void setUseUndoMoveAsTabuMove(boolean useUndoMoveAsTabuMove) {
         this.useUndoMoveAsTabuMove = useUndoMoveAsTabuMove;
@@ -42,7 +46,7 @@ public class MoveTabuAcceptor extends AbstractTabuAcceptor {
 
     @Override
     protected Collection<? extends Object> findNewTabu(LocalSearchStepScope stepScope) {
-        Move tabuMove;
+        Move<?> tabuMove;
         if (useUndoMoveAsTabuMove) {
             tabuMove = stepScope.getUndoStep();
         } else {

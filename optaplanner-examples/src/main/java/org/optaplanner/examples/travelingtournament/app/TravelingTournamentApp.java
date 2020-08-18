@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,53 +16,59 @@
 
 package org.optaplanner.examples.travelingtournament.app;
 
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.common.swingui.SolutionPanel;
-import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentDao;
-import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentSolutionExporter;
-import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentSolutionImporter;
+import org.optaplanner.examples.travelingtournament.domain.TravelingTournament;
+import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentExporter;
+import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentImporter;
+import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentXmlSolutionFileIO;
 import org.optaplanner.examples.travelingtournament.swingui.TravelingTournamentPanel;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
-public class TravelingTournamentApp extends CommonApp {
+/**
+ * WARNING: This is an old, complex, tailored example. You're probably better off with one of the other examples.
+ */
+public class TravelingTournamentApp extends CommonApp<TravelingTournament> {
 
-    public static final String SOLVER_CONFIG
-            = "/org/optaplanner/examples/travelingtournament/solver/travelingTournamentSolverConfig.xml";
+    public static final String SOLVER_CONFIG =
+            "org/optaplanner/examples/travelingtournament/solver/travelingTournamentSolverConfig.xml";
+
+    public static final String DATA_DIR_NAME = "travelingtournament";
 
     public static void main(String[] args) {
-        fixateLookAndFeel();
+        prepareSwingEnvironment();
         new TravelingTournamentApp().init();
     }
 
-    @Override
-    protected Solver createSolver() {
-        XmlSolverFactory solverFactory = new XmlSolverFactory();
-        solverFactory.configure(SOLVER_CONFIG);
-        return solverFactory.buildSolver();
+    public TravelingTournamentApp() {
+        super("Traveling tournament",
+                "Official competition name: TTP - Traveling tournament problem\n\n" +
+                        "Assign sport matches to days. Minimize the distance travelled.",
+                SOLVER_CONFIG, DATA_DIR_NAME,
+                TravelingTournamentPanel.LOGO_PATH);
     }
 
     @Override
-    protected SolutionPanel createSolutionPanel() {
+    protected TravelingTournamentPanel createSolutionPanel() {
         return new TravelingTournamentPanel();
     }
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new TravelingTournamentDao();
+    public SolutionFileIO<TravelingTournament> createSolutionFileIO() {
+        return new TravelingTournamentXmlSolutionFileIO();
     }
 
     @Override
-    protected AbstractSolutionImporter createSolutionImporter() {
-        return new TravelingTournamentSolutionImporter();
+    protected AbstractSolutionImporter[] createSolutionImporters() {
+        return new AbstractSolutionImporter[] {
+                new TravelingTournamentImporter()
+        };
     }
 
     @Override
     protected AbstractSolutionExporter createSolutionExporter() {
-        return new TravelingTournamentSolutionExporter();
+        return new TravelingTournamentExporter();
     }
 
 }

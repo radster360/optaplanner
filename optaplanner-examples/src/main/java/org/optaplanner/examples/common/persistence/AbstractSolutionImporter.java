@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,79 +17,60 @@
 package org.optaplanner.examples.common.persistence;
 
 import java.io.File;
-import java.io.FileFilter;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
-import org.apache.commons.io.filefilter.DirectoryFileFilter;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.examples.common.app.LoggingMain;
-import org.optaplanner.examples.common.business.ProblemFileComparator;
-import org.optaplanner.examples.common.business.SolutionFileFilter;
 
-public abstract class AbstractSolutionImporter extends LoggingMain {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public abstract class AbstractSolutionImporter<Solution_> extends LoggingMain {
 
-    protected static final String DEFAULT_OUTPUT_FILE_SUFFIX = ".xml";
-
-    protected SolutionDao solutionDao;
-
-    public AbstractSolutionImporter(SolutionDao solutionDao) {
-        this.solutionDao = solutionDao;
+    public boolean acceptInputFile(File inputFile) {
+        if (isInputFileDirectory()) {
+            return inputFile.isDirectory();
+        }
+        return inputFile.getName().endsWith("." + getInputFileSuffix());
     }
 
-    protected File getInputDir() {
-        return new File(solutionDao.getDataDir(), "input");
+    public boolean isInputFileDirectory() {
+        return false;
     }
 
     public abstract String getInputFileSuffix();
 
-    protected File getOutputDir() {
-        return new File(solutionDao.getDataDir(), "unsolved");
+    public abstract Solution_ readSolution(File inputFile);
+
+    public static abstract class InputBuilder extends LoggingMain {
+
     }
 
-    protected String getOutputFileSuffix() {
-        return DEFAULT_OUTPUT_FILE_SUFFIX;
-    }
-
-    public void convertAll() {
-        File inputDir = getInputDir();
-        if (!inputDir.exists()) {
-            throw new IllegalStateException("The directory inputDir (" + inputDir.getAbsolutePath()
-                    + ") does not exist." +
-                    " The working directory should be set to the directory that contains the data directory." +
-                    " This is different in a git clone (optaplanner/optaplanner-examples)" +
-                    " and the release zip (examples).");
+    public static BigInteger factorial(int base) {
+        if (base > 100000) {
+            // Calculation takes too long
+            return null;
         }
-        File outputDir = getOutputDir();
-        File[] inputFiles = inputDir.listFiles();
-        Arrays.sort(inputFiles, new ProblemFileComparator());
-        for (File inputFile : inputFiles) {
-            if (acceptInputFile(inputFile) && acceptInputFileDuringBulkConvert(inputFile)) {
-                Solution solution = readSolution(inputFile);
-                String inputFileName = inputFile.getName();
-                String outputFileName = inputFileName.substring(0,
-                        inputFileName.length() - getInputFileSuffix().length())
-                        + getOutputFileSuffix();
-                File outputFile = new File(outputDir, outputFileName);
-                solutionDao.writeSolution(solution, outputFile);
-            }
+        BigInteger value = BigInteger.ONE;
+        for (int i = 1; i <= base; i++) {
+            value = value.multiply(BigInteger.valueOf(i));
         }
+        return value;
     }
 
-    public boolean acceptInputFile(File inputFile) {
-        return inputFile.getName().endsWith(getInputFileSuffix());
+    public static String getFlooredPossibleSolutionSize(BigInteger possibleSolutionSize) {
+        if (possibleSolutionSize == null) {
+            return null;
+        }
+        if (possibleSolutionSize.compareTo(BigInteger.valueOf(1000L)) < 0) {
+            return possibleSolutionSize.toString();
+        }
+        BigDecimal possibleSolutionSizeBigDecimal = new BigDecimal(possibleSolutionSize);
+        int decimalDigits = possibleSolutionSizeBigDecimal.scale() < 0
+                ? possibleSolutionSizeBigDecimal.precision() - possibleSolutionSizeBigDecimal.scale()
+                : possibleSolutionSizeBigDecimal.precision();
+        return "10^" + decimalDigits;
     }
-
-    /**
-     * Some files are to big to be serialized to XML or take too long.
-     * @param inputFile never null
-     * @return true if accepted
-     */
-    public boolean acceptInputFileDuringBulkConvert(File inputFile) {
-        return true;
-    }
-
-    public abstract Solution readSolution(File inputFile);
 
 }

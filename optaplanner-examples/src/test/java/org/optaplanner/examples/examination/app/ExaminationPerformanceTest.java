@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,25 @@
 
 package org.optaplanner.examples.examination.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.examination.persistence.ExaminationDao;
+import org.optaplanner.examples.examination.domain.Examination;
 
-public class ExaminationPerformanceTest extends SolverPerformanceTest {
+public class ExaminationPerformanceTest extends SolverPerformanceTest<Examination> {
 
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/examination/solver/examinationSolverConfig.xml";
-    }
+    private static final String UNSOLVED_DATA_FILE = "data/examination/unsolved/exam_comp_set5.xml";
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new ExaminationDao();
+    protected ExaminationApp createCommonApp() {
+        return new ExaminationApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveComp_set5() {
-        File unsolvedDataFile = new File("data/examination/unsolved/exam_comp_set5.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-4393soft");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(UNSOLVED_DATA_FILE, "0hard/-4393soft", EnvironmentMode.REPRODUCIBLE),
+                testData(UNSOLVED_DATA_FILE, "0hard/-4407soft", EnvironmentMode.FAST_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveComp_set5FastAssert() {
-        File unsolvedDataFile = new File("data/examination/unsolved/exam_comp_set5.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-4407soft", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

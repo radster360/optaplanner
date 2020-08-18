@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,28 @@
 
 package org.optaplanner.core.impl.testdata.domain.chained;
 
-import java.util.Collection;
 import java.util.List;
 
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.testdata.domain.TestdataObject;
-import org.optaplanner.core.impl.testdata.domain.TestdataUtils;
+import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
 @PlanningSolution
-public class TestdataChainedSolution extends TestdataObject implements Solution<SimpleScore> {
+public class TestdataChainedSolution extends TestdataObject {
 
-    public static SolutionDescriptor buildSolutionDescriptor() {
-        return TestdataUtils.buildSolutionDescriptor(TestdataChainedSolution.class, TestdataChainedEntity.class);
+    public static SolutionDescriptor<TestdataChainedSolution> buildSolutionDescriptor() {
+        return SolutionDescriptor.buildSolutionDescriptor(TestdataChainedSolution.class, TestdataChainedEntity.class);
     }
 
     private List<TestdataChainedAnchor> chainedAnchorList;
     private List<TestdataChainedEntity> chainedEntityList;
+    private List<TestdataValue> unchainedValueList;
 
     private SimpleScore score;
 
@@ -48,6 +49,7 @@ public class TestdataChainedSolution extends TestdataObject implements Solution<
     }
 
     @ValueRangeProvider(id = "chainedAnchorRange")
+    @ProblemFactCollectionProperty
     public List<TestdataChainedAnchor> getChainedAnchorList() {
         return chainedAnchorList;
     }
@@ -66,6 +68,16 @@ public class TestdataChainedSolution extends TestdataObject implements Solution<
         this.chainedEntityList = chainedEntityList;
     }
 
+    @ValueRangeProvider(id = "unchainedRange")
+    public List<TestdataValue> getUnchainedValueList() {
+        return unchainedValueList;
+    }
+
+    public void setUnchainedValueList(List<TestdataValue> unchainedValueList) {
+        this.unchainedValueList = unchainedValueList;
+    }
+
+    @PlanningScore
     public SimpleScore getScore() {
         return score;
     }
@@ -77,9 +89,5 @@ public class TestdataChainedSolution extends TestdataObject implements Solution<
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<? extends Object> getProblemFacts() {
-        return chainedAnchorList;
-    }
 
 }

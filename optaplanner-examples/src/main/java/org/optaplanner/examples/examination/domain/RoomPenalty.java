@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.optaplanner.examples.examination.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("RoomPenalty")
 public class RoomPenalty extends AbstractPersistable {
@@ -44,6 +45,25 @@ public class RoomPenalty extends AbstractPersistable {
     @Override
     public String toString() {
         return roomPenaltyType + "@" + topic.getId();
+    }
+
+    // ************************************************************************
+    // With methods
+    // ************************************************************************
+
+    public RoomPenalty withId(long id) {
+        this.setId(id);
+        return this;
+    }
+
+    public RoomPenalty withRoomPenaltyType(RoomPenaltyType type) {
+        this.setRoomPenaltyType(type);
+        return this;
+    }
+
+    public RoomPenalty withTopic(Topic topic) {
+        this.setTopic(topic);
+        return this;
     }
 
 }

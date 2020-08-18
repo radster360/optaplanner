@@ -2,99 +2,77 @@
 <plannerBenchmark>
   <benchmarkDirectory>local/data/nurserostering/medium</benchmarkDirectory>
   <parallelBenchmarkCount>AUTO</parallelBenchmarkCount>
-  <warmUpSecondsSpend>30</warmUpSecondsSpend>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.nurserostering.domain.NurseRoster</xstreamAnnotatedClass>
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_late01_initialized.xml</inputSolutionFile>-->
+      <solutionFileIOClass>org.optaplanner.examples.nurserostering.persistence.NurseRosterXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/nurserostering/unsolved/medium01.xml</inputSolutionFile>
       <inputSolutionFile>data/nurserostering/unsolved/medium02.xml</inputSolutionFile>
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium03.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium04.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium05.xml</inputSolutionFile>-->
+      <inputSolutionFile>data/nurserostering/unsolved/medium03.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium04.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium05.xml</inputSolutionFile>
       <inputSolutionFile>data/nurserostering/unsolved/medium_hint01.xml</inputSolutionFile>
       <inputSolutionFile>data/nurserostering/unsolved/medium_hint02.xml</inputSolutionFile>
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_hint03.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_late01.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_late02.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_late03.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_late04.xml</inputSolutionFile>-->
-      <!--<inputSolutionFile>data/nurserostering/unsolved/medium_late05.xml</inputSolutionFile>-->
-      <problemStatisticType>BEST_SCORE</problemStatisticType>
+      <inputSolutionFile>data/nurserostering/unsolved/medium_hint03.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium_late01.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium_late02.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium_late03.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium_late04.xml</inputSolutionFile>
+      <inputSolutionFile>data/nurserostering/unsolved/medium_late05.xml</inputSolutionFile>
+      <!--<problemStatisticType>BEST_SCORE</problemStatisticType>-->
       <!--<problemStatisticType>STEP_SCORE</problemStatisticType>-->
-      <!--<problemStatisticType>CALCULATE_COUNT_PER_SECOND</problemStatisticType>-->
+      <!--<problemStatisticType>SCORE_CALCULATION_SPEED</problemStatisticType>-->
+      <!--<problemStatisticType>BEST_SOLUTION_MUTATION</problemStatisticType>-->
+      <!--<problemStatisticType>MOVE_COUNT_PER_STEP</problemStatisticType>-->
       <!--<problemStatisticType>MEMORY_USE</problemStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_BEST_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_STEP_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_BEST_SCORE_DIFF</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_STEP_SCORE_DIFF</singleStatisticType>-->
     </problemBenchmarks>
 
     <solver>
       <solutionClass>org.optaplanner.examples.nurserostering.domain.NurseRoster</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.nurserostering.domain.ShiftAssignment</planningEntityClass>
+      <entityClass>org.optaplanner.examples.nurserostering.domain.ShiftAssignment</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/nurserostering/solver/nurseRosteringScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/nurserostering/solver/nurseRosteringConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <termination>
-        <!--
-          Official benchmark maximumSecondsSpend allowed on:
-          - ge0ffrey's main pc: sprint 11, medium 700, long 42000
-        -->
-        <maximumSecondsSpend>700</maximumSecondsSpend>
-        <!--<scoreAttained>0hard/-999999999soft</scoreAttained>-->
+        <minutesSpentLimit>5</minutesSpentLimit>
       </termination>
-      <constructionHeuristic>
-        <constructionHeuristicType>BEST_FIT</constructionHeuristicType>
-      </constructionHeuristic>
     </solver>
   </inheritedSolverBenchmark>
 
   <solverBenchmark>
-    <name>tabuSearch-moveTabu</name>
+    <name>Weakest Fit</name>
     <solver>
-      <localSearch>
-        <unionMoveSelector>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.EmployeeChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>STEP</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentPillarPartSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-        </unionMoveSelector>
-        <acceptor>
-          <moveTabuSize>7</moveTabuSize>
-        </acceptor>
-        <forager>
-          <acceptedCountLimit>800</acceptedCountLimit>
-        </forager>
-      </localSearch>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
+      </constructionHeuristic>
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>tabuSearch-entityTabu</name>
+    <name>Tabu Search</name>
     <solver>
       <constructionHeuristic>
-        <constructionHeuristicType>BEST_FIT</constructionHeuristicType>
+        <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
       </constructionHeuristic>
       <localSearch>
         <unionMoveSelector>
           <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.EmployeeChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
             <cacheType>STEP</cacheType>
             <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentPillarPartSwapMoveFactory</moveListFactoryClass>
           </moveListFactory>
+          <changeMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </changeMoveSelector>
+          <swapMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </swapMoveSelector>
         </unionMoveSelector>
         <acceptor>
           <entityTabuSize>7</entityTabuSize>
@@ -106,22 +84,39 @@
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>simulatedAnnealing</name>
+    <name>Simulated Annealing</name>
     <solver>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
+      </constructionHeuristic>
       <localSearch>
         <unionMoveSelector>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.EmployeeChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>STEP</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentPillarPartSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
+          <changeMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </changeMoveSelector>
+          <swapMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </swapMoveSelector>
+          <pillarChangeMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarChangeMoveSelector>
+          <pillarSwapMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarSwapMoveSelector>
         </unionMoveSelector>
         <acceptor>
           <simulatedAnnealingStartingTemperature>0hard/8soft</simulatedAnnealingStartingTemperature>
@@ -129,6 +124,50 @@
         </acceptor>
         <forager>
           <acceptedCountLimit>4</acceptedCountLimit>
+        </forager>
+      </localSearch>
+    </solver>
+  </solverBenchmark>
+  <solverBenchmark>
+    <name>Late Acceptance</name>
+    <solver>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
+      </constructionHeuristic>
+      <localSearch>
+        <unionMoveSelector>
+          <changeMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </changeMoveSelector>
+          <swapMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </swapMoveSelector>
+          <pillarChangeMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarChangeMoveSelector>
+          <pillarSwapMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarSwapMoveSelector>
+        </unionMoveSelector>
+        <acceptor>
+          <lateAcceptanceSize>500</lateAcceptanceSize>
+        </acceptor>
+        <forager>
+          <acceptedCountLimit>1</acceptedCountLimit>
         </forager>
       </localSearch>
     </solver>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,28 @@
 
 package org.optaplanner.core.impl.localsearch.decider.acceptor.tabu;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import org.optaplanner.core.impl.localsearch.decider.acceptor.AbstractAcceptor;
 import org.optaplanner.core.impl.localsearch.decider.acceptor.Acceptor;
 import org.optaplanner.core.impl.localsearch.decider.acceptor.tabu.size.TabuSizeStrategy;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchMoveScope;
-import org.optaplanner.core.impl.localsearch.scope.LocalSearchSolverPhaseScope;
+import org.optaplanner.core.impl.localsearch.scope.LocalSearchPhaseScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
 
 /**
  * Abstract superclass for all Tabu Acceptors.
+ *
  * @see Acceptor
  */
 public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
+
+    protected final String logIndentation;
 
     protected TabuSizeStrategy tabuSizeStrategy = null;
     protected TabuSizeStrategy fadingTabuSizeStrategy = null;
@@ -43,10 +46,14 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     protected boolean assertTabuHashCodeCorrectness = false;
 
     protected Map<Object, Integer> tabuToStepIndexMap;
-    protected List<Object> tabuSequenceList;
+    protected Deque<Object> tabuSequenceDeque;
 
     protected int workingTabuSize = -1;
     protected int workingFadingTabuSize = -1;
+
+    public AbstractTabuAcceptor(String logIndentation) {
+        this.logIndentation = logIndentation;
+    }
 
     public void setTabuSizeStrategy(TabuSizeStrategy tabuSizeStrategy) {
         this.tabuSizeStrategy = tabuSizeStrategy;
@@ -69,22 +76,23 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(LocalSearchSolverPhaseScope phaseScope) {
+    public void phaseStarted(LocalSearchPhaseScope phaseScope) {
         super.phaseStarted(phaseScope);
         LocalSearchStepScope lastCompletedStepScope = phaseScope.getLastCompletedStepScope();
         // Tabu sizes do not change during stepStarted(), because they must be in sync with the tabuSequenceList.size()
         workingTabuSize = tabuSizeStrategy == null ? 0 : tabuSizeStrategy.determineTabuSize(lastCompletedStepScope);
-        workingFadingTabuSize = fadingTabuSizeStrategy == null ? 0 : fadingTabuSizeStrategy.determineTabuSize(lastCompletedStepScope);
+        workingFadingTabuSize = fadingTabuSizeStrategy == null ? 0
+                : fadingTabuSizeStrategy.determineTabuSize(lastCompletedStepScope);
         int totalTabuListSize = workingTabuSize + workingFadingTabuSize; // is at least 1
-        tabuToStepIndexMap = new HashMap<Object, Integer>(totalTabuListSize);
-        tabuSequenceList = new LinkedList<Object>();
+        tabuToStepIndexMap = new HashMap<>(totalTabuListSize);
+        tabuSequenceDeque = new ArrayDeque<>();
     }
 
     @Override
-    public void phaseEnded(LocalSearchSolverPhaseScope phaseScope) {
+    public void phaseEnded(LocalSearchPhaseScope phaseScope) {
         super.phaseEnded(phaseScope);
         tabuToStepIndexMap = null;
-        tabuSequenceList = null;
+        tabuSequenceDeque = null;
         workingTabuSize = -1;
         workingFadingTabuSize = -1;
     }
@@ -101,12 +109,13 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     protected void adjustTabuList(int tabuStepIndex, Collection<? extends Object> tabus) {
         int totalTabuListSize = workingTabuSize + workingFadingTabuSize; // is at least 1
         // Remove the oldest tabu(s)
-        for (Iterator<Object> it = tabuSequenceList.iterator(); it.hasNext();) {
+        for (Iterator<Object> it = tabuSequenceDeque.iterator(); it.hasNext();) {
             Object oldTabu = it.next();
             Integer oldTabuStepIndexInteger = tabuToStepIndexMap.get(oldTabu);
             if (oldTabuStepIndexInteger == null) {
-                throw new IllegalStateException("HashCode violation: the hashCode of tabu (" + oldTabu
-                        + ") probably changed since it was inserted in the tabu Map or Set.");
+                throw new IllegalStateException("HashCode stability violation: the hashCode() of tabu ("
+                        + oldTabu + ") of class (" + oldTabu.getClass()
+                        + ") changed during planning, since it was inserted in the tabu Map or Set.");
             }
             int oldTabuStepCount = tabuStepIndex - oldTabuStepIndexInteger; // at least 1
             if (oldTabuStepCount < totalTabuListSize) {
@@ -120,13 +129,14 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
             // Push tabu to the end of the line
             if (tabuToStepIndexMap.containsKey(tabu)) {
                 tabuToStepIndexMap.remove(tabu);
-                tabuSequenceList.remove(tabu);
+                tabuSequenceDeque.remove(tabu);
             }
             tabuToStepIndexMap.put(tabu, tabuStepIndex);
-            tabuSequenceList.add(tabu);
+            tabuSequenceDeque.add(tabu);
         }
     }
 
+    @Override
     public boolean isAccepted(LocalSearchMoveScope moveScope) {
         int maximumTabuStepIndex = locateMaximumTabStepIndex(moveScope);
         if (maximumTabuStepIndex < 0) {
@@ -134,26 +144,30 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
             return true;
         }
         if (aspirationEnabled) {
-            // Doesn't use the deciderScoreComparator because shifting penalties don't apply
+            // Natural comparison because shifting penalties don't apply
             if (moveScope.getScore().compareTo(
                     moveScope.getStepScope().getPhaseScope().getBestScore()) > 0) {
-                logger.trace("        Proposed move ({}) is tabu, but is accepted anyway due to aspiration.",
+                logger.trace("{}        Proposed move ({}) is tabu, but is accepted anyway due to aspiration.",
+                        logIndentation,
                         moveScope.getMove());
                 return true;
             }
         }
         int tabuStepCount = moveScope.getStepScope().getStepIndex() - maximumTabuStepIndex; // at least 1
         if (tabuStepCount <= workingTabuSize) {
-            logger.trace("        Proposed move ({}) is tabu and is therefore not accepted.", moveScope.getMove());
+            logger.trace("{}        Proposed move ({}) is tabu and is therefore not accepted.",
+                    logIndentation, moveScope.getMove());
             return false;
         }
         double acceptChance = calculateFadingTabuAcceptChance(tabuStepCount - workingTabuSize);
         boolean accepted = moveScope.getWorkingRandom().nextDouble() < acceptChance;
         if (accepted) {
-            logger.trace("        Proposed move ({}) is fading tabu with acceptChance ({}) and is accepted.",
+            logger.trace("{}        Proposed move ({}) is fading tabu with acceptChance ({}) and is accepted.",
+                    logIndentation,
                     moveScope.getMove(), acceptChance);
         } else {
-            logger.trace("        Proposed move ({}) is fading tabu with acceptChance ({}) and is not accepted.",
+            logger.trace("{}        Proposed move ({}) is fading tabu with acceptChance ({}) and is not accepted.",
+                    logIndentation,
                     moveScope.getMove(), acceptChance);
         }
         return accepted;
@@ -168,15 +182,19 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
                 maximumTabuStepIndex = Math.max(tabuStepIndexInteger, maximumTabuStepIndex);
             }
             if (assertTabuHashCodeCorrectness) {
-                for (Object tabu : tabuSequenceList) {
-                    if (tabu.equals(checkingTabu)) {
+                for (Object tabu : tabuSequenceDeque) {
+                    // tabu and checkingTabu can be null with a nullable planning variable
+                    if (tabu != null && tabu.equals(checkingTabu)) {
                         if (tabu.hashCode() != checkingTabu.hashCode()) {
-                            throw new IllegalStateException("HashCode violation: tabu (" + tabu + ") and checkingTabu ("
-                                    + checkingTabu + ") are equal but have a different hashCode.");
+                            throw new IllegalStateException("HashCode/equals contract violation: tabu (" + tabu
+                                    + ") of class (" + tabu.getClass()
+                                    + ") and checkingTabu (" + checkingTabu
+                                    + ") are equals() but have a different hashCode().");
                         }
                         if (tabuStepIndexInteger == null) {
-                            throw new IllegalStateException("HashCode violation: the hashCode of tabu (" + tabu
-                                    + ") probably changed since it was inserted in the tabu Map or Set.");
+                            throw new IllegalStateException("HashCode stability violation: the hashCode() of tabu ("
+                                    + tabu + ") of class (" + tabu.getClass()
+                                    + ") changed during planning, since it was inserted in the tabu Map or Set.");
                         }
                     }
                 }
@@ -186,8 +204,8 @@ public abstract class AbstractTabuAcceptor extends AbstractAcceptor {
     }
 
     /**
-     * @param fadingTabuStepCount 0 < fadingTabuStepCount <= fadingTabuSize
-     * @return 0.0 < acceptChance < 1.0
+     * @param fadingTabuStepCount {@code 0 < fadingTabuStepCount <= fadingTabuSize}
+     * @return {@code 0.0 < acceptChance < 1.0}
      */
     protected double calculateFadingTabuAcceptChance(int fadingTabuStepCount) {
         // The + 1's are because acceptChance should not be 0.0 or 1.0

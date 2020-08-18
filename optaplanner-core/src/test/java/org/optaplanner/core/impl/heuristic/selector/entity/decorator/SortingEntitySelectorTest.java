@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,28 @@
 
 package org.optaplanner.core.impl.heuristic.selector.entity.decorator;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertAllCodesOfEntitySelector;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
 
-import org.junit.Test;
+import java.util.Comparator;
+
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
-
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
+import org.optaplanner.core.impl.testdata.domain.TestdataObject;
+import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 
 public class SortingEntitySelectorTest {
 
@@ -51,9 +56,9 @@ public class SortingEntitySelectorTest {
         runCacheType(SelectionCacheType.STEP, 5);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void cacheTypeJustInTime() {
-        runCacheType(SelectionCacheType.JUST_IN_TIME, 5);
+        assertThatIllegalArgumentException().isThrownBy(() -> runCacheType(SelectionCacheType.JUST_IN_TIME, 5));
     }
 
     public void runCacheType(SelectionCacheType cacheType, int timesCalled) {
@@ -61,21 +66,14 @@ public class SortingEntitySelectorTest {
                 new TestdataEntity("jan"), new TestdataEntity("feb"), new TestdataEntity("mar"),
                 new TestdataEntity("apr"), new TestdataEntity("may"), new TestdataEntity("jun"));
 
-        SelectionSorter<TestdataEntity> sorter = new SelectionSorter<TestdataEntity>() {
-            public void sort(ScoreDirector scoreDirector, List<TestdataEntity> selectionList) {
-                Collections.sort(selectionList, new Comparator<TestdataEntity>() {
-                    public int compare(TestdataEntity a, TestdataEntity b) {
-                        return a.getCode().compareTo(b.getCode());
-                    }
-                });
-            }
-        };
+        SelectionSorter<TestdataSolution, TestdataEntity> sorter = (scoreDirector, selectionList) -> selectionList
+                .sort(Comparator.comparing(TestdataObject::getCode));
         EntitySelector entitySelector = new SortingEntitySelector(childEntitySelector, cacheType, sorter);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         entitySelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         entitySelector.phaseStarted(phaseScopeA);
 
@@ -93,7 +91,7 @@ public class SortingEntitySelectorTest {
 
         entitySelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         entitySelector.phaseStarted(phaseScopeB);
 
@@ -119,9 +117,23 @@ public class SortingEntitySelectorTest {
 
         entitySelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(childEntitySelector, 1, 2, 5);
+        verifyPhaseLifecycle(childEntitySelector, 1, 2, 5);
         verify(childEntitySelector, times(timesCalled)).iterator();
         verify(childEntitySelector, times(timesCalled)).getSize();
+    }
+
+    @Test
+    public void isNeverEnding() {
+        EntitySelector entitySelector = new SortingEntitySelector(mock(EntitySelector.class), SelectionCacheType.PHASE,
+                mock(SelectionSorter.class));
+        assertThat(entitySelector.isNeverEnding()).isFalse();
+    }
+
+    @Test
+    public void isCountable() {
+        EntitySelector entitySelector = new SortingEntitySelector(mock(EntitySelector.class), SelectionCacheType.PHASE,
+                mock(SelectionSorter.class));
+        assertThat(entitySelector.isCountable()).isTrue();
     }
 
 }

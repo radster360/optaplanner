@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,30 +16,44 @@
 
 package org.optaplanner.core.impl.score.director.incremental;
 
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.api.score.constraint.ConstraintMatch;
+import org.optaplanner.core.api.score.constraint.ConstraintMatchTotal;
+import org.optaplanner.core.api.score.constraint.Indictment;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.VariableDescriptor;
+import org.optaplanner.core.impl.score.constraint.DefaultIndictment;
 import org.optaplanner.core.impl.score.director.AbstractScoreDirector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solution.Solution;
 
 /**
  * Incremental java implementation of {@link ScoreDirector}, which only recalculates the {@link Score}
- * of the part of the {@link Solution} workingSolution that changed,
- * instead of the going through the entire {@link Solution}. This is incremental calculation, which is fast.
+ * of the part of the {@link PlanningSolution working solution} that changed,
+ * instead of the going through the entire {@link PlanningSolution}. This is incremental calculation, which is fast.
+ *
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  * @see ScoreDirector
  */
-public class IncrementalScoreDirector extends AbstractScoreDirector<IncrementalScoreDirectorFactory> {
+public class IncrementalScoreDirector<Solution_>
+        extends AbstractScoreDirector<Solution_, IncrementalScoreDirectorFactory<Solution_>> {
 
-    private final IncrementalScoreCalculator incrementalScoreCalculator;
+    private final IncrementalScoreCalculator<Solution_> incrementalScoreCalculator;
 
-    public IncrementalScoreDirector(IncrementalScoreDirectorFactory scoreDirectorFactory,
-            IncrementalScoreCalculator incrementalScoreCalculator) {
-        super(scoreDirectorFactory);
+    public IncrementalScoreDirector(IncrementalScoreDirectorFactory<Solution_> scoreDirectorFactory,
+            boolean lookUpEnabled, boolean constraintMatchEnabledPreference,
+            IncrementalScoreCalculator<Solution_> incrementalScoreCalculator) {
+        super(scoreDirectorFactory, lookUpEnabled, constraintMatchEnabledPreference);
         this.incrementalScoreCalculator = incrementalScoreCalculator;
     }
 
-    public IncrementalScoreCalculator getIncrementalScoreCalculator() {
+    public IncrementalScoreCalculator<Solution_> getIncrementalScoreCalculator() {
         return incrementalScoreCalculator;
     }
 
@@ -48,15 +62,80 @@ public class IncrementalScoreDirector extends AbstractScoreDirector<IncrementalS
     // ************************************************************************
 
     @Override
-    public void setWorkingSolution(Solution workingSolution) {
+    public void setWorkingSolution(Solution_ workingSolution) {
         super.setWorkingSolution(workingSolution);
-        incrementalScoreCalculator.resetWorkingSolution(workingSolution);
+        if (incrementalScoreCalculator instanceof ConstraintMatchAwareIncrementalScoreCalculator) {
+            ((ConstraintMatchAwareIncrementalScoreCalculator<Solution_>) incrementalScoreCalculator)
+                    .resetWorkingSolution(workingSolution, constraintMatchEnabledPreference);
+        } else {
+            incrementalScoreCalculator.resetWorkingSolution(workingSolution);
+        }
     }
 
+    @Override
     public Score calculateScore() {
+        variableListenerSupport.assertNotificationQueuesAreEmpty();
         Score score = incrementalScoreCalculator.calculateScore();
+        if (score == null) {
+            throw new IllegalStateException("The incrementalScoreCalculator (" + incrementalScoreCalculator.getClass()
+                    + ") must return a non-null score (" + score + ") in the method calculateScore().");
+        } else if (!score.isSolutionInitialized()) {
+            throw new IllegalStateException("The score (" + this + ")'s initScore (" + score.getInitScore()
+                    + ") should be 0.\n"
+                    + "Maybe the score calculator (" + incrementalScoreCalculator.getClass() + ") is calculating "
+                    + "the initScore too, although it's the score director's responsibility.");
+        }
+        if (workingInitScore != 0) {
+            score = score.withInitScore(workingInitScore);
+        }
         setCalculatedScore(score);
         return score;
+    }
+
+    @Override
+    public boolean isConstraintMatchEnabled() {
+        return constraintMatchEnabledPreference
+                && incrementalScoreCalculator instanceof ConstraintMatchAwareIncrementalScoreCalculator;
+    }
+
+    @Override
+    public Map<String, ConstraintMatchTotal> getConstraintMatchTotalMap() {
+        if (!isConstraintMatchEnabled()) {
+            throw new IllegalStateException("When constraintMatchEnabled (" + isConstraintMatchEnabled()
+                    + ") is disabled in the constructor, this method should not be called.");
+        }
+        // Notice that we don't trigger the variable listeners
+        return ((ConstraintMatchAwareIncrementalScoreCalculator<Solution_>) incrementalScoreCalculator)
+                .getConstraintMatchTotals()
+                .stream()
+                .collect(toMap(ConstraintMatchTotal::getConstraintId, identity()));
+    }
+
+    @Override
+    public Map<Object, Indictment> getIndictmentMap() {
+        if (!isConstraintMatchEnabled()) {
+            throw new IllegalStateException("When constraintMatchEnabled (" + isConstraintMatchEnabled()
+                    + ") is disabled in the constructor, this method should not be called.");
+        }
+        Map<Object, Indictment> incrementalIndictmentMap =
+                ((ConstraintMatchAwareIncrementalScoreCalculator<Solution_>) incrementalScoreCalculator).getIndictmentMap();
+        if (incrementalIndictmentMap != null) {
+            return incrementalIndictmentMap;
+        }
+        Map<Object, Indictment> indictmentMap = new LinkedHashMap<>(); // TODO use entitySize
+        Score zeroScore = getScoreDefinition().getZeroScore();
+        for (ConstraintMatchTotal constraintMatchTotal : getConstraintMatchTotalMap().values()) {
+            for (ConstraintMatch constraintMatch : constraintMatchTotal.getConstraintMatchSet()) {
+                constraintMatch.getJustificationList().stream()
+                        .distinct() // One match might have the same justification twice
+                        .forEach(justification -> {
+                            DefaultIndictment indictment = (DefaultIndictment) indictmentMap.computeIfAbsent(justification,
+                                    k -> new DefaultIndictment(justification, zeroScore));
+                            indictment.addConstraintMatch(constraintMatch);
+                        });
+            }
+        }
+        return indictmentMap;
     }
 
     // ************************************************************************
@@ -64,49 +143,37 @@ public class IncrementalScoreDirector extends AbstractScoreDirector<IncrementalS
     // ************************************************************************
 
     @Override
-    public void beforeEntityAdded(PlanningEntityDescriptor entityDescriptor, Object entity) {
+    public void beforeEntityAdded(EntityDescriptor<Solution_> entityDescriptor, Object entity) {
         incrementalScoreCalculator.beforeEntityAdded(entity);
         super.beforeEntityAdded(entityDescriptor, entity);
     }
 
     @Override
-    public void afterEntityAdded(PlanningEntityDescriptor entityDescriptor, Object entity) {
+    public void afterEntityAdded(EntityDescriptor<Solution_> entityDescriptor, Object entity) {
         incrementalScoreCalculator.afterEntityAdded(entity);
         super.afterEntityAdded(entityDescriptor, entity);
     }
 
     @Override
-    public void beforeVariableChanged(PlanningVariableDescriptor variableDescriptor, Object entity) {
+    public void beforeVariableChanged(VariableDescriptor variableDescriptor, Object entity) {
         incrementalScoreCalculator.beforeVariableChanged(entity, variableDescriptor.getVariableName());
         super.beforeVariableChanged(variableDescriptor, entity);
     }
 
     @Override
-    public void afterVariableChanged(PlanningVariableDescriptor variableDescriptor, Object entity) {
+    public void afterVariableChanged(VariableDescriptor variableDescriptor, Object entity) {
         incrementalScoreCalculator.afterVariableChanged(entity, variableDescriptor.getVariableName());
         super.afterVariableChanged(variableDescriptor, entity);
     }
 
     @Override
-    public void beforeShadowVariableChanged(Object entity, String variableName) {
-        incrementalScoreCalculator.beforeVariableChanged(entity, variableName);
-        super.beforeShadowVariableChanged(entity, variableName);
-    }
-
-    @Override
-    public void afterShadowVariableChanged(Object entity, String variableName) {
-        incrementalScoreCalculator.afterVariableChanged(entity, variableName);
-        super.afterShadowVariableChanged(entity, variableName);
-    }
-
-    @Override
-    public void beforeEntityRemoved(PlanningEntityDescriptor entityDescriptor, Object entity) {
+    public void beforeEntityRemoved(EntityDescriptor<Solution_> entityDescriptor, Object entity) {
         incrementalScoreCalculator.beforeEntityRemoved(entity);
         super.beforeEntityRemoved(entityDescriptor, entity);
     }
 
     @Override
-    public void afterEntityRemoved(PlanningEntityDescriptor entityDescriptor, Object entity) {
+    public void afterEntityRemoved(EntityDescriptor<Solution_> entityDescriptor, Object entity) {
         incrementalScoreCalculator.afterEntityRemoved(entity);
         super.afterEntityRemoved(entityDescriptor, entity);
     }
@@ -127,14 +194,14 @@ public class IncrementalScoreDirector extends AbstractScoreDirector<IncrementalS
     }
 
     @Override
-    public void beforeProblemFactChanged(Object problemFact) {
-        super.beforeProblemFactChanged(problemFact);
+    public void beforeProblemPropertyChanged(Object problemFactOrEntity) {
+        super.beforeProblemPropertyChanged(problemFactOrEntity);
     }
 
     @Override
-    public void afterProblemFactChanged(Object problemFact) {
+    public void afterProblemPropertyChanged(Object problemFactOrEntity) {
         incrementalScoreCalculator.resetWorkingSolution(workingSolution); // TODO do not nuke it
-        super.afterProblemFactChanged(problemFact);
+        super.afterProblemPropertyChanged(problemFactOrEntity);
     }
 
     @Override
@@ -146,24 +213,6 @@ public class IncrementalScoreDirector extends AbstractScoreDirector<IncrementalS
     public void afterProblemFactRemoved(Object problemFact) {
         incrementalScoreCalculator.resetWorkingSolution(workingSolution); // TODO do not nuke it
         super.afterProblemFactRemoved(problemFact);
-    }
-
-    // ************************************************************************
-    // Assert methods
-    // ************************************************************************
-
-    @Override
-    protected String buildScoreCorruptionAnalysis(ScoreDirector uncorruptedScoreDirector) {
-        if (!(uncorruptedScoreDirector instanceof IncrementalScoreDirector)) {
-            return "  Score corruption analysis could not be generated because "
-                    + "the uncorruptedScoreDirector class (" + uncorruptedScoreDirector.getClass()
-                    + ") is not an instance of the scoreDirector class (" + IncrementalScoreDirector.class + ").\n"
-                    + "  Check your score constraints manually.";
-        }
-        IncrementalScoreDirector uncorruptedIncrementalScoreDirector
-                = (IncrementalScoreDirector) uncorruptedScoreDirector;
-        return incrementalScoreCalculator.buildScoreCorruptionAnalysis(
-                uncorruptedIncrementalScoreDirector.incrementalScoreCalculator);
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.optaplanner.examples.nurserostering.domain;
 
+import java.time.DayOfWeek;
 import java.util.EnumSet;
 
 public enum WeekendDefinition {
@@ -77,6 +78,7 @@ public enum WeekendDefinition {
         return lastDayOfWeekend;
     }
 
+    @Override
     public String toString() {
         return code;
     }

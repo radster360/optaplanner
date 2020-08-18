@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,72 +16,100 @@
 
 package org.optaplanner.core.impl.score.buildin.hardsoft;
 
-import org.junit.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScore;
+import org.optaplanner.core.config.score.trend.InitializingScoreTrendLevel;
+import org.optaplanner.core.impl.score.buildin.AbstractScoreDefinitionTest;
+import org.optaplanner.core.impl.score.trend.InitializingScoreTrend;
 
-import static org.junit.Assert.*;
-
-public class HardSoftScoreDefinitionTest {
+public class HardSoftScoreDefinitionTest extends AbstractScoreDefinitionTest {
 
     @Test
-    public void testCalculateTimeGradient() {
+    public void getZeroScore() {
+        HardSoftScore score = new HardSoftScoreDefinition().getZeroScore();
+        assertThat(score).isEqualTo(HardSoftScore.ZERO);
+    }
+
+    @Test
+    public void getSoftestOneScore() {
+        HardSoftScore score = new HardSoftScoreDefinition().getOneSoftestScore();
+        assertThat(score).isEqualTo(HardSoftScore.ONE_SOFT);
+    }
+
+    @Test
+    public void getLevelsSize() {
+        assertThat(new HardSoftScoreDefinition().getLevelsSize()).isEqualTo(2);
+    }
+
+    @Test
+    public void getLevelLabels() {
+        assertThat(new HardSoftScoreDefinition().getLevelLabels()).isEqualTo(new String[] { "hard score", "soft score" });
+    }
+
+    @Test
+    public void getFeasibleLevelsSize() {
+        assertThat(new HardSoftScoreDefinition().getFeasibleLevelsSize()).isEqualTo(1);
+    }
+
+    @Test
+    public void buildOptimisticBoundOnlyUp() {
         HardSoftScoreDefinition scoreDefinition = new HardSoftScoreDefinition();
-        scoreDefinition.setHardScoreTimeGradientWeight(0.75);
+        HardSoftScore optimisticBound = scoreDefinition.buildOptimisticBound(
+                InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_UP, 2),
+                HardSoftScore.of(-1, -2));
+        assertThat(optimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(optimisticBound.getHardScore()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(optimisticBound.getSoftScore()).isEqualTo(Integer.MAX_VALUE);
+    }
 
-        // Normal cases
-        // Smack in the middle
-        assertEquals(0.6, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-14, -340)), 0.0);
-        // No hard broken, total soft broken
-        assertEquals(0.75, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-10, -400)), 0.0);
-        // Total hard broken, no soft broken
-        assertEquals(0.25, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-20, -300)), 0.0);
-        // No hard broken, more than total soft broken
-        assertEquals(0.75, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-10, -900)), 0.0);
-        // More than total hard broken, no soft broken
-        assertEquals(0.0, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-90, -300)), 0.0);
+    @Test
+    public void buildOptimisticBoundOnlyDown() {
+        HardSoftScoreDefinition scoreDefinition = new HardSoftScoreDefinition();
+        HardSoftScore optimisticBound = scoreDefinition.buildOptimisticBound(
+                InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_DOWN, 2),
+                HardSoftScore.of(-1, -2));
+        assertThat(optimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(optimisticBound.getHardScore()).isEqualTo(-1);
+        assertThat(optimisticBound.getSoftScore()).isEqualTo(-2);
+    }
 
-        // Perfect min/max cases
-        assertEquals(1.0, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-10, -300), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-10, -300)), 0.0);
-        assertEquals(0.0, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-20, -400)), 0.0);
-        assertEquals(1.0, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-10, -300)), 0.0);
+    @Test
+    public void buildPessimisticBoundOnlyUp() {
+        HardSoftScoreDefinition scoreDefinition = new HardSoftScoreDefinition();
+        HardSoftScore pessimisticBound = scoreDefinition.buildPessimisticBound(
+                InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_UP, 2),
+                HardSoftScore.of(-1, -2));
+        assertThat(pessimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(pessimisticBound.getHardScore()).isEqualTo(-1);
+        assertThat(pessimisticBound.getSoftScore()).isEqualTo(-2);
+    }
 
-        // Hard total delta is 0
-        assertEquals(0.75 + (0.6 * 0.25), scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-10, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-10, -340)), 0.0);
-        assertEquals(0.0, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-10, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-20, -340)), 0.0);
-        assertEquals(1.0, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-10, -400), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-0, -340)), 0.0);
+    @Test
+    public void buildPessimisticBoundOnlyDown() {
+        HardSoftScoreDefinition scoreDefinition = new HardSoftScoreDefinition();
+        HardSoftScore pessimisticBound = scoreDefinition.buildPessimisticBound(
+                InitializingScoreTrend.buildUniformTrend(InitializingScoreTrendLevel.ONLY_DOWN, 2),
+                HardSoftScore.of(-1, -2));
+        assertThat(pessimisticBound.getInitScore()).isEqualTo(0);
+        assertThat(pessimisticBound.getHardScore()).isEqualTo(Integer.MIN_VALUE);
+        assertThat(pessimisticBound.getSoftScore()).isEqualTo(Integer.MIN_VALUE);
+    }
 
-        // Soft total delta is 0
-        assertEquals((0.6 * 0.75) + 0.25, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -300), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-14, -300)), 0.0);
-        assertEquals(0.6 * 0.75, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -300), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-14, -400)), 0.0);
-        assertEquals((0.6 * 0.75) + 0.25, scoreDefinition.calculateTimeGradient(
-                HardSoftScore.valueOf(-20, -300), HardSoftScore.valueOf(-10, -300),
-                HardSoftScore.valueOf(-14, -0)), 0.0);
+    @Test
+    public void divideBySanitizedDivisor() {
+        HardSoftScoreDefinition scoreDefinition = new HardSoftScoreDefinition();
+        HardSoftScore dividend = scoreDefinition.fromLevelNumbers(2, new Number[] { 0, 10 });
+        HardSoftScore zeroDivisor = scoreDefinition.getZeroScore();
+        assertThat(scoreDefinition.divideBySanitizedDivisor(dividend, zeroDivisor))
+                .isEqualTo(dividend);
+        HardSoftScore oneDivisor = scoreDefinition.getOneSoftestScore();
+        assertThat(scoreDefinition.divideBySanitizedDivisor(dividend, oneDivisor))
+                .isEqualTo(dividend);
+        HardSoftScore tenDivisor = scoreDefinition.fromLevelNumbers(10, new Number[] { 10, 10 });
+        assertThat(scoreDefinition.divideBySanitizedDivisor(dividend, tenDivisor))
+                .isEqualTo(scoreDefinition.fromLevelNumbers(0, new Number[] { 0, 1 }));
     }
 
 }

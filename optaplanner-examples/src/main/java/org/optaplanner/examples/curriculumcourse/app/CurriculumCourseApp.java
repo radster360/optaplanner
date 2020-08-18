@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,53 +16,56 @@
 
 package org.optaplanner.examples.curriculumcourse.app;
 
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.common.swingui.SolutionPanel;
-import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseDao;
-import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseSolutionExporter;
-import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseSolutionImporter;
+import org.optaplanner.examples.curriculumcourse.domain.CourseSchedule;
+import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseExporter;
+import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseImporter;
+import org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseXmlSolutionFileIO;
 import org.optaplanner.examples.curriculumcourse.swingui.CurriculumCoursePanel;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
-public class CurriculumCourseApp extends CommonApp {
+public class CurriculumCourseApp extends CommonApp<CourseSchedule> {
 
-    public static final String SOLVER_CONFIG
-            = "/org/optaplanner/examples/curriculumcourse/solver/curriculumCourseSolverConfig.xml";
+    public static final String SOLVER_CONFIG =
+            "org/optaplanner/examples/curriculumcourse/solver/curriculumCourseSolverConfig.xml";
+
+    public static final String DATA_DIR_NAME = "curriculumcourse";
 
     public static void main(String[] args) {
-        fixateLookAndFeel();
+        prepareSwingEnvironment();
         new CurriculumCourseApp().init();
     }
 
-    @Override
-    protected Solver createSolver() {
-        XmlSolverFactory solverFactory = new XmlSolverFactory();
-        solverFactory.configure(SOLVER_CONFIG);
-        return solverFactory.buildSolver();
+    public CurriculumCourseApp() {
+        super("Course timetabling",
+                "Official competition name: ITC 2007 track3 - Curriculum course scheduling\n\n" +
+                        "Assign lectures to periods and rooms.",
+                SOLVER_CONFIG, DATA_DIR_NAME,
+                CurriculumCoursePanel.LOGO_PATH);
     }
 
     @Override
-    protected SolutionPanel createSolutionPanel() {
+    protected CurriculumCoursePanel createSolutionPanel() {
         return new CurriculumCoursePanel();
     }
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new CurriculumCourseDao();
+    public SolutionFileIO<CourseSchedule> createSolutionFileIO() {
+        return new CurriculumCourseXmlSolutionFileIO();
     }
 
     @Override
-    protected AbstractSolutionImporter createSolutionImporter() {
-        return new CurriculumCourseSolutionImporter();
+    protected AbstractSolutionImporter[] createSolutionImporters() {
+        return new AbstractSolutionImporter[] {
+                new CurriculumCourseImporter()
+        };
     }
 
     @Override
     protected AbstractSolutionExporter createSolutionExporter() {
-        return new CurriculumCourseSolutionExporter();
+        return new CurriculumCourseExporter();
     }
 
 }

@@ -1,11 +1,11 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *      http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,12 +18,17 @@ package org.optaplanner.core.impl.solver.event;
 
 import java.util.EventListener;
 
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
-public interface SolverLifecycleListener extends EventListener {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ * @see SolverLifecycleListenerAdapter
+ */
+public interface SolverLifecycleListener<Solution_> extends EventListener {
 
-    void solvingStarted(DefaultSolverScope solverScope);
+    void solvingStarted(SolverScope<Solution_> solverScope);
 
-    void solvingEnded(DefaultSolverScope solverScope);
+    void solvingEnded(SolverScope<Solution_> solverScope);
 
 }

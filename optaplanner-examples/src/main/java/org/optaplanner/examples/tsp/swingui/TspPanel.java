@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,30 +17,27 @@
 package org.optaplanner.examples.tsp.swingui;
 
 import java.awt.BorderLayout;
+
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.core.impl.solver.ProblemFactChange;
 import org.optaplanner.examples.common.swingui.SolutionPanel;
 import org.optaplanner.examples.common.swingui.SolverAndPersistenceFrame;
-import org.optaplanner.examples.tsp.domain.City;
-import org.optaplanner.examples.tsp.domain.TravelingSalesmanTour;
+import org.optaplanner.examples.tsp.domain.Domicile;
+import org.optaplanner.examples.tsp.domain.Standstill;
+import org.optaplanner.examples.tsp.domain.TspSolution;
 import org.optaplanner.examples.tsp.domain.Visit;
+import org.optaplanner.examples.tsp.domain.location.AirLocation;
+import org.optaplanner.examples.tsp.domain.location.Location;
 
-/**
- * TODO this code is highly unoptimized
- */
-public class TspPanel extends SolutionPanel {
+public class TspPanel extends SolutionPanel<TspSolution> {
 
     public static final String LOGO_PATH = "/org/optaplanner/examples/tsp/swingui/tspLogo.png";
 
     private TspWorldPanel tspWorldPanel;
     private TspListPanel tspListPanel;
 
-    private Long nextCityId = null;
+    private Long nextLocationId = null;
 
     public TspPanel() {
         setLayout(new BorderLayout());
@@ -60,68 +57,109 @@ public class TspPanel extends SolutionPanel {
     }
 
     @Override
-    public boolean isRefreshScreenDuringSolving() {
-        return true;
+    public void resetPanel(TspSolution tspSolution) {
+        tspWorldPanel.resetPanel(tspSolution);
+        tspListPanel.resetPanel(tspSolution);
+        resetNextLocationId();
     }
 
-    public TravelingSalesmanTour getTravelingSalesmanTour() {
-        return (TravelingSalesmanTour) solutionBusiness.getSolution();
-    }
-
-    public void resetPanel(Solution solution) {
-        TravelingSalesmanTour travelingSalesmanTour = (TravelingSalesmanTour) solution;
-        tspWorldPanel.resetPanel(travelingSalesmanTour);
-        tspListPanel.resetPanel(travelingSalesmanTour);
-        resetNextCityId();
-    }
-
-    private void resetNextCityId() {
-        long highestCityId = 0L;
-        for (City city : getTravelingSalesmanTour().getCityList()) {
-            if (highestCityId < city.getId().longValue()) {
-                highestCityId = city.getId();
+    private void resetNextLocationId() {
+        long highestLocationId = 0L;
+        for (Location location : getSolution().getLocationList()) {
+            if (highestLocationId < location.getId().longValue()) {
+                highestLocationId = location.getId();
             }
         }
-        nextCityId = highestCityId + 1L;
+        nextLocationId = highestLocationId + 1L;
     }
 
     @Override
-    public void updatePanel(Solution solution) {
-        TravelingSalesmanTour travelingSalesmanTour = (TravelingSalesmanTour) solution;
-        tspWorldPanel.updatePanel(travelingSalesmanTour);
-        tspListPanel.updatePanel(travelingSalesmanTour);
-    }
-
-    public void doMove(Move move) {
-        solutionBusiness.doMove(move);
+    public void updatePanel(TspSolution tspSolution) {
+        tspWorldPanel.updatePanel(tspSolution);
+        tspListPanel.updatePanel(tspSolution);
     }
 
     public SolverAndPersistenceFrame getWorkflowFrame() {
         return solverAndPersistenceFrame;
     }
 
-    public void insertCityAndVisit(double longitude, double latitude) {
-        final City newCity = new City();
-        newCity.setId(nextCityId);
-        nextCityId++;
-        newCity.setLongitude(longitude);
-        newCity.setLatitude(latitude);
-        logger.info("Scheduling insertion of newCity ({}).", newCity);
-        solutionBusiness.doProblemFactChange(new ProblemFactChange() {
-            public void doChange(ScoreDirector scoreDirector) {
-                TravelingSalesmanTour solution = (TravelingSalesmanTour) scoreDirector.getWorkingSolution();
-                scoreDirector.beforeProblemFactAdded(newCity);
-                solution.getCityList().add(newCity);
-                scoreDirector.afterProblemFactAdded(newCity);
-                Visit newVisit = new Visit();
-                newVisit.setId(newCity.getId());
-                newVisit.setCity(newCity);
-                scoreDirector.beforeEntityAdded(newVisit);
-                solution.getVisitList().add(newVisit);
-                scoreDirector.afterEntityAdded(newVisit);
-            }
+    public void insertLocationAndVisit(double longitude, double latitude) {
+        final Location newLocation;
+        switch (getSolution().getDistanceType()) {
+            case AIR_DISTANCE:
+                newLocation = new AirLocation();
+                break;
+            case ROAD_DISTANCE:
+                logger.warn("Adding locations for a road distance dataset is not supported.");
+                return;
+            default:
+                throw new IllegalStateException("The distanceType (" + getSolution().getDistanceType()
+                        + ") is not implemented.");
+        }
+        newLocation.setId(nextLocationId);
+        nextLocationId++;
+        newLocation.setLongitude(longitude);
+        newLocation.setLatitude(latitude);
+        logger.info("Scheduling insertion of newLocation ({}).", newLocation);
+        doProblemFactChange(scoreDirector -> {
+            TspSolution tspSolution = scoreDirector.getWorkingSolution();
+            scoreDirector.beforeProblemFactAdded(newLocation);
+            tspSolution.getLocationList().add(newLocation);
+            scoreDirector.afterProblemFactAdded(newLocation);
+            Visit newVisit = new Visit();
+            newVisit.setId(newLocation.getId());
+            newVisit.setLocation(newLocation);
+            scoreDirector.beforeEntityAdded(newVisit);
+            tspSolution.getVisitList().add(newVisit);
+            scoreDirector.afterEntityAdded(newVisit);
+            scoreDirector.triggerVariableListeners();
         });
-        updatePanel(solutionBusiness.getSolution());
+    }
+
+    public void connectStandstills(Standstill sourceStandstill, Standstill targetStandstill) {
+        if (targetStandstill instanceof Domicile) {
+            TspSolution tspSolution = getSolution();
+            Standstill lastStandstill = tspSolution.getDomicile();
+            for (Visit nextVisit = findNextVisit(tspSolution, lastStandstill); nextVisit != null; nextVisit = findNextVisit(
+                    tspSolution, lastStandstill)) {
+                lastStandstill = nextVisit;
+            }
+            targetStandstill = sourceStandstill;
+            sourceStandstill = lastStandstill;
+        }
+        if (targetStandstill instanceof Visit
+                && (sourceStandstill instanceof Domicile || ((Visit) sourceStandstill).getPreviousStandstill() != null)) {
+            solutionBusiness.doChangeMove((Visit) targetStandstill, "previousStandstill", sourceStandstill);
+        }
+        solverAndPersistenceFrame.resetScreen();
+    }
+
+    public Standstill findNearestStandstill(AirLocation clickLocation) {
+        TspSolution tspSolution = getSolution();
+        Standstill standstill = tspSolution.getDomicile();
+        double minimumAirDistance = standstill.getLocation().getAirDistanceDoubleTo(clickLocation);
+        for (Visit selectedVisit : tspSolution.getVisitList()) {
+            double airDistance = selectedVisit.getLocation().getAirDistanceDoubleTo(clickLocation);
+            if (airDistance < minimumAirDistance) {
+                standstill = selectedVisit;
+                minimumAirDistance = airDistance;
+            }
+        }
+        return standstill;
+    }
+
+    private Visit findNextVisit(TspSolution tspSolution, Standstill standstill) {
+        // Using an @InverseRelationShadowVariable on the model like in vehicle routing is far more efficient
+        for (Visit visit : tspSolution.getVisitList()) {
+            if (visit.getPreviousStandstill() == standstill) {
+                return visit;
+            }
+        }
+        return null;
+    }
+
+    public void doMove(Visit visit, Standstill toStandstill) {
+        solutionBusiness.doChangeMove(visit, "previousStandstill", toStandstill);
     }
 
 }

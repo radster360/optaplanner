@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,35 +30,30 @@ import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.YIntervalRenderer;
 import org.jfree.data.xy.YIntervalSeries;
 import org.jfree.data.xy.YIntervalSeriesCollection;
-import org.optaplanner.core.impl.solution.Solution;
 import org.optaplanner.examples.common.swingui.SolutionPanel;
 import org.optaplanner.examples.projectjobscheduling.domain.Allocation;
 import org.optaplanner.examples.projectjobscheduling.domain.Project;
 import org.optaplanner.examples.projectjobscheduling.domain.Schedule;
 
-public class ProjectJobSchedulingPanel extends SolutionPanel {
+public class ProjectJobSchedulingPanel extends SolutionPanel<Schedule> {
 
-    public static final String LOGO_PATH = "/org/optaplanner/examples/projectjobscheduling/swingui/projectJobSchedulingLogo.png";
+    public static final String LOGO_PATH =
+            "/org/optaplanner/examples/projectjobscheduling/swingui/projectJobSchedulingLogo.png";
 
     public ProjectJobSchedulingPanel() {
         setLayout(new BorderLayout());
     }
 
     @Override
-    public boolean isRefreshScreenDuringSolving() {
-        return true;
-    }
-
-    public void resetPanel(Solution solution) {
+    public void resetPanel(Schedule schedule) {
         removeAll();
-        Schedule schedule = (Schedule) solution;
         ChartPanel chartPanel = new ChartPanel(createChart(schedule));
         add(chartPanel, BorderLayout.CENTER);
     }
 
     private JFreeChart createChart(Schedule schedule) {
         YIntervalSeriesCollection seriesCollection = new YIntervalSeriesCollection();
-        Map<Project, YIntervalSeries> projectSeriesMap = new LinkedHashMap<Project, YIntervalSeries>(
+        Map<Project, YIntervalSeries> projectSeriesMap = new LinkedHashMap<>(
                 schedule.getProjectList().size());
         YIntervalRenderer renderer = new YIntervalRenderer();
         int maximumEndDate = 0;
@@ -72,14 +67,12 @@ public class ProjectJobSchedulingPanel extends SolutionPanel {
             seriesIndex++;
         }
         for (Allocation allocation : schedule.getAllocationList()) {
-            Integer startDate = allocation.getStartDate();
-            Integer endDate = allocation.getEndDate();
-            if (startDate != null && endDate != null) {
-                YIntervalSeries projectSeries = projectSeriesMap.get(allocation.getProject());
-                projectSeries.add(allocation.getId(), (startDate + endDate) / 2.0,
-                        startDate, endDate);
-                maximumEndDate = Math.max(maximumEndDate, endDate);
-            }
+            int startDate = allocation.getStartDate();
+            int endDate = allocation.getEndDate();
+            YIntervalSeries projectSeries = projectSeriesMap.get(allocation.getProject());
+            projectSeries.add(allocation.getId(), (startDate + endDate) / 2.0,
+                    startDate, endDate);
+            maximumEndDate = Math.max(maximumEndDate, endDate);
         }
         NumberAxis domainAxis = new NumberAxis("Job");
         domainAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());

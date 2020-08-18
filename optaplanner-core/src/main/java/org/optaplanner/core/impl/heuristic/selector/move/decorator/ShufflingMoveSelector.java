@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ package org.optaplanner.core.impl.heuristic.selector.move.decorator;
 import java.util.Collections;
 import java.util.Iterator;
 
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.move.Move;
 
 public class ShufflingMoveSelector extends AbstractCachingMoveSelector {
 
@@ -33,10 +33,12 @@ public class ShufflingMoveSelector extends AbstractCachingMoveSelector {
     // Worker methods
     // ************************************************************************
 
+    @Override
     public boolean isNeverEnding() {
         return false;
     }
 
+    @Override
     public Iterator<Move> iterator() {
         Collections.shuffle(cachedMoveList, workingRandom);
         logger.trace("    Shuffled cachedMoveList with size ({}) in moveSelector({}).",

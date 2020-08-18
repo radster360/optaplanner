@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,128 +16,94 @@
 
 package org.optaplanner.examples.common.app;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import java.io.File;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
 import org.optaplanner.core.config.score.director.ScoreDirectorFactoryConfig;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.core.config.solver.SolverConfig;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
-import org.optaplanner.core.config.termination.TerminationConfig;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.examples.common.business.SolutionFileFilter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-
-import static org.junit.Assume.*;
+import org.optaplanner.core.config.solver.termination.TerminationConfig;
+import org.optaplanner.core.impl.score.director.easy.EasyScoreCalculator;
+import org.optaplanner.examples.common.TestSystemProperties;
+import org.optaplanner.examples.common.TurtleTest;
 
 /**
- * Turtle tests are not run by default. They are only run if <code>-DrunTurtleTests=true</code> because it takes days.
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
-@RunWith(Parameterized.class)
-public abstract class SolveAllTurtleTest extends LoggingTest {
+public abstract class SolveAllTurtleTest<Solution_> extends LoggingTest {
 
-    protected static void checkRunTurtleTests() {
-        assumeTrue(ObjectUtils.equals("true", System.getProperty("runTurtleTests")));
-    }
+    interface ProblemFactory<Solution_> extends Function<File, Solution_> {
 
-    protected static Collection<Object[]> getUnsolvedDataFilesAsParameters(SolutionDao solutionDao) {
-        List<Object[]> filesAsParameters = new ArrayList<Object[]>();
-        File dataDir = solutionDao.getDataDir();
-        File unsolvedDataDir = new File(dataDir, "unsolved");
-        if (!unsolvedDataDir.exists()) {
-            throw new IllegalStateException("The directory unsolvedDataDir (" + unsolvedDataDir.getAbsolutePath()
-                    + ") does not exist.");
-        } else {
-            List<File> unsolvedFileList = Arrays.asList(unsolvedDataDir.listFiles(new SolutionFileFilter(solutionDao)));
-            Collections.sort(unsolvedFileList);
-            for (File unsolvedFile : unsolvedFileList) {
-                filesAsParameters.add(new Object[]{unsolvedFile});
-            }
-        }
-        return filesAsParameters;
-    }
-
-    protected SolutionDao solutionDao;
-
-    protected File unsolvedDataFile;
-
-    protected SolveAllTurtleTest(File unsolvedDataFile) {
-        this.unsolvedDataFile = unsolvedDataFile;
-    }
-
-    @Before
-    public void setUp() {
-        solutionDao = createSolutionDao();
-        File dataDir = solutionDao.getDataDir();
-        if (!dataDir.exists()) {
-            throw new IllegalStateException("The directory dataDir (" + dataDir.getAbsolutePath()
-                    + ") does not exist." +
-                    " The working directory should be set to the directory that contains the data directory." +
-                    " This is different in a git clone (optaplanner/optaplanner-examples)" +
-                    " and the release zip (examples).");
+        default Solution_ loadProblem(File f) {
+            return apply(f);
         }
     }
 
-    protected abstract String createSolverConfigResource();
+    private static final String MOVE_THREAD_COUNT_OVERRIDE = System.getProperty(TestSystemProperties.MOVE_THREAD_COUNT);
 
-    protected abstract SolutionDao createSolutionDao();
+    protected abstract List<File> getSolutionFiles(CommonApp<Solution_> commonApp);
 
-    @Test
-    public void runFastAndFullAssert() {
-        checkRunTurtleTests();
-        SolverFactory solverFactory = buildSolverFactory();
-        Solution planningProblem = solutionDao.readSolution(unsolvedDataFile);
+    protected abstract CommonApp<Solution_> createCommonApp();
+
+    protected abstract ProblemFactory<Solution_> createProblemFactory(CommonApp<Solution_> commonApp);
+
+    @TestFactory
+    @TurtleTest
+    Stream<DynamicTest> runFastAndFullAssert() {
+        CommonApp<Solution_> commonApp = createCommonApp();
+        ProblemFactory<Solution_> problemFactory = createProblemFactory(commonApp);
+        return getSolutionFiles(commonApp).stream()
+                .map(solutionFile -> dynamicTest(solutionFile.getName(), () -> runFastAndFullAssert(
+                        buildSolverConfig(commonApp.getSolverConfigResource()),
+                        problemFactory.loadProblem(solutionFile))));
+    }
+
+    public void runFastAndFullAssert(SolverConfig solverConfig, Solution_ problem) {
         // Specifically use NON_INTRUSIVE_FULL_ASSERT instead of FULL_ASSERT to flush out bugs hidden by intrusiveness
         // 1) NON_INTRUSIVE_FULL_ASSERT ASSERT to find CH bugs (but covers little ground)
-        planningProblem = buildAndSolve(solverFactory, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, planningProblem, 2L);
+        problem = buildAndSolve(solverConfig, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, problem, 2L);
         // 2) FAST_ASSERT to run past CH into LS to find easy bugs (but covers much ground)
-        planningProblem = buildAndSolve(solverFactory, EnvironmentMode.FAST_ASSERT, planningProblem, 5L);
+        problem = buildAndSolve(solverConfig, EnvironmentMode.FAST_ASSERT, problem, 5L);
         // 3) NON_INTRUSIVE_FULL_ASSERT ASSERT to find LS bugs (but covers little ground)
-        planningProblem = buildAndSolve(solverFactory, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, planningProblem, 3L);
+        problem = buildAndSolve(solverConfig, EnvironmentMode.NON_INTRUSIVE_FULL_ASSERT, problem, 3L);
     }
 
-    protected Solution buildAndSolve(SolverFactory solverFactory, EnvironmentMode environmentMode,
-            Solution planningProblem, long maximumMinutesSpend) {
-        solverFactory.getSolverConfig().getTerminationConfig().setMaximumMinutesSpend(maximumMinutesSpend);
-        SolverConfig solverConfig = solverFactory.getSolverConfig();
+    private static SolverConfig buildSolverConfig(String solverConfigResource) {
+        SolverConfig solverConfig = SolverConfig.createFromXmlResource(solverConfigResource);
+        // buildAndSolve() fills in minutesSpentLimit
+        solverConfig.setTerminationConfig(new TerminationConfig());
+        if (MOVE_THREAD_COUNT_OVERRIDE != null) {
+            solverConfig.setMoveThreadCount(MOVE_THREAD_COUNT_OVERRIDE);
+        }
+        return solverConfig;
+    }
+
+    private Solution_ buildAndSolve(SolverConfig solverConfig, EnvironmentMode environmentMode,
+            Solution_ problem, long maximumMinutesSpent) {
+        solverConfig.getTerminationConfig().setMinutesSpentLimit(maximumMinutesSpent);
         solverConfig.setEnvironmentMode(environmentMode);
-        ScoreDirectorFactoryConfig assertionScoreDirectorFactory = createOverwritingAssertionScoreDirectorFactory();
-        if (assertionScoreDirectorFactory != null && environmentMode.isAsserted()) {
+        Class<? extends EasyScoreCalculator> easyScoreCalculatorClass = overwritingEasyScoreCalculatorClass();
+        if (easyScoreCalculatorClass != null && environmentMode.isAsserted()) {
+            ScoreDirectorFactoryConfig assertionScoreDirectorFactoryConfig = new ScoreDirectorFactoryConfig();
+            assertionScoreDirectorFactoryConfig.setEasyScoreCalculatorClass(easyScoreCalculatorClass);
             solverConfig.getScoreDirectorFactoryConfig().setAssertionScoreDirectorFactory(
-                    assertionScoreDirectorFactory);
+                    assertionScoreDirectorFactoryConfig);
         }
-        Solver solver = solverFactory.buildSolver();
-        solver.setPlanningProblem(planningProblem);
-        solver.solve();
-        Solution bestSolution = solver.getBestSolution();
-        if (bestSolution == null) {
-            // Solver didn't make it past initialization // TODO remove me once getBestSolution() never returns null
-            bestSolution = planningProblem;
-        }
-        return bestSolution;
+        SolverFactory<Solution_> solverFactory = SolverFactory.create(solverConfig);
+        Solver<Solution_> solver = solverFactory.buildSolver();
+        return solver.solve(problem);
     }
 
-    protected ScoreDirectorFactoryConfig createOverwritingAssertionScoreDirectorFactory()  {
+    protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass() {
         return null;
     }
-
-    protected SolverFactory buildSolverFactory() {
-        SolverFactory solverFactory = new XmlSolverFactory(createSolverConfigResource());
-        TerminationConfig terminationConfig = new TerminationConfig();
-        // buildAndSolve() fills in maximumMinutesSpend
-        solverFactory.getSolverConfig().setTerminationConfig(terminationConfig);
-        return solverFactory;
-    }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,28 @@
 
 package org.optaplanner.examples.nurserostering.domain.solver;
 
-import java.io.Serializable;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingLong;
+
+import java.util.Collections;
 import java.util.Comparator;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
 import org.optaplanner.examples.nurserostering.domain.Shift;
 import org.optaplanner.examples.nurserostering.domain.ShiftAssignment;
+import org.optaplanner.examples.nurserostering.domain.ShiftDate;
+import org.optaplanner.examples.nurserostering.domain.ShiftType;
 
-public class ShiftAssignmentDifficultyComparator implements Comparator<ShiftAssignment>, Serializable {
+public class ShiftAssignmentDifficultyComparator implements Comparator<ShiftAssignment> {
 
+    private static final Comparator<Shift> COMPARATOR = comparing(Shift::getShiftDate,
+            Collections.reverseOrder(comparing(ShiftDate::getDate)))
+                    .thenComparing(Shift::getShiftType, comparingLong(ShiftType::getId).reversed())
+                    .thenComparingInt(Shift::getRequiredEmployeeSize);
+
+    @Override
     public int compare(ShiftAssignment a, ShiftAssignment b) {
         Shift aShift = a.getShift();
         Shift bShift = b.getShift();
-        return new CompareToBuilder()
-                    .append(bShift.getShiftDate(), aShift.getShiftDate()) // Descending
-                    .append(bShift.getShiftType(), aShift.getShiftType()) // Descending
-                    // For construction heuristics, scheduling the shifts in sequence is better
-                    .append(aShift.getRequiredEmployeeSize(), bShift.getRequiredEmployeeSize())
-                    .toComparison();
+        return COMPARATOR.compare(aShift, bShift);
     }
-
 }

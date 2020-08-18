@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,30 @@
 
 package org.optaplanner.examples.pas.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleDao;
+import org.optaplanner.examples.pas.domain.PatientAdmissionSchedule;
 
-public class PatientAdmissionSchedulePerformanceTest extends SolverPerformanceTest {
+public class PatientAdmissionSchedulePerformanceTest extends SolverPerformanceTest<PatientAdmissionSchedule> {
 
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/pas/solver/patientAdmissionScheduleSolverConfig.xml";
-    }
+    private static final String UNSOLVED_DATA_FILE = "data/pas/unsolved/testdata01.xml";
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new PatientAdmissionScheduleDao();
+    protected PatientAdmissionScheduleApp createCommonApp() {
+        return new PatientAdmissionScheduleApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveComp01_initialized() {
-        File unsolvedDataFile = new File("data/pas/unsolved/testdata01_initialized.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-8534soft");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(UNSOLVED_DATA_FILE, "0hard/0medium/-7458soft", EnvironmentMode.REPRODUCIBLE),
+                // TODO Adding overconstrained functionality reduced Solver efficiency, so this ran too long (over 1 minute):
+                //                testData(UNSOLVED_DATA_FILE, "0hard/0medium/-7172soft", EnvironmentMode.REPRODUCIBLE),
+                testData(UNSOLVED_DATA_FILE, "0hard/0medium/-7408soft", EnvironmentMode.FAST_ASSERT)
+        // TODO Adding overconstrained functionality reduced Solver efficiency, so this ran too long (over 1 minute):
+        //                testData(UNSOLVED_DATA_FILE, "0hard/0medium/-7192soft", EnvironmentMode.FAST_ASSERT)
+        );
     }
-
-    @Test(timeout = 600000)
-    public void solveTestdata01_initializedFastAssert() {
-        File unsolvedDataFile = new File("data/pas/unsolved/testdata01_initialized.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-8758soft", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

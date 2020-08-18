@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,27 @@
 
 package org.optaplanner.core.impl.heuristic.selector.value.decorator;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertAllCodesOfValueSelector;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
 
-import org.junit.Test;
+import java.util.Comparator;
+
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
+import org.optaplanner.core.impl.testdata.domain.TestdataObject;
+import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
-
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
 
 public class SortingValueSelectorTest {
 
@@ -58,22 +61,14 @@ public class SortingValueSelectorTest {
                 new TestdataValue("jan"), new TestdataValue("feb"), new TestdataValue("mar"),
                 new TestdataValue("apr"), new TestdataValue("may"), new TestdataValue("jun"));
 
-
-        SelectionSorter<TestdataValue> sorter = new SelectionSorter<TestdataValue>() {
-            public void sort(ScoreDirector scoreDirector, List<TestdataValue> selectionList) {
-                Collections.sort(selectionList, new Comparator<TestdataValue>() {
-                    public int compare(TestdataValue a, TestdataValue b) {
-                        return a.getCode().compareTo(b.getCode());
-                    }
-                });
-            }
-        };
+        SelectionSorter<TestdataSolution, TestdataValue> sorter = (scoreDirector, selectionList) -> selectionList
+                .sort(Comparator.comparing(TestdataObject::getCode));
         EntityIndependentValueSelector valueSelector = new SortingValueSelector(childValueSelector, cacheType, sorter);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         valueSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         valueSelector.phaseStarted(phaseScopeA);
 
@@ -91,7 +86,7 @@ public class SortingValueSelectorTest {
 
         valueSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         valueSelector.phaseStarted(phaseScopeB);
 
@@ -117,7 +112,7 @@ public class SortingValueSelectorTest {
 
         valueSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(childValueSelector, 1, 2, 5);
+        verifyPhaseLifecycle(childValueSelector, 1, 2, 5);
         verify(childValueSelector, times(timesCalled)).iterator();
         verify(childValueSelector, times(timesCalled)).getSize();
     }

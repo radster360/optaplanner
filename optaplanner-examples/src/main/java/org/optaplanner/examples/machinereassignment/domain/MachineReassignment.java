@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,26 +17,25 @@
 package org.optaplanner.examples.machinereassignment.domain;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
+
+import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.solution.ProblemFactProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
+import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore;
+import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.machinereassignment.domain.solver.MrServiceDependency;
+import org.optaplanner.persistence.xstream.api.score.buildin.hardsoftlong.HardSoftLongScoreXStreamConverter;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
-import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
-import org.optaplanner.core.api.score.buildin.hardsoftlong.HardSoftLongScore;
-import org.optaplanner.core.impl.score.buildin.hardsoftlong.HardSoftLongScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.examples.common.domain.AbstractPersistable;
-import org.optaplanner.examples.machinereassignment.domain.solver.MrServiceDependency;
-import org.optaplanner.persistence.xstream.XStreamScoreConverter;
 
 @PlanningSolution
 @XStreamAlias("MachineReassignment")
-public class MachineReassignment extends AbstractPersistable implements Solution<HardSoftLongScore> {
+public class MachineReassignment extends AbstractPersistable {
 
     private MrGlobalPenaltyInfo globalPenaltyInfo;
     private List<MrResource> resourceList;
@@ -50,9 +49,10 @@ public class MachineReassignment extends AbstractPersistable implements Solution
 
     private List<MrProcessAssignment> processAssignmentList;
 
-    @XStreamConverter(value = XStreamScoreConverter.class, types = {HardSoftLongScoreDefinition.class})
+    @XStreamConverter(HardSoftLongScoreXStreamConverter.class)
     private HardSoftLongScore score;
 
+    @ProblemFactProperty
     public MrGlobalPenaltyInfo getGlobalPenaltyInfo() {
         return globalPenaltyInfo;
     }
@@ -61,6 +61,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.globalPenaltyInfo = globalPenaltyInfo;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrResource> getResourceList() {
         return resourceList;
     }
@@ -69,6 +70,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.resourceList = resourceList;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrNeighborhood> getNeighborhoodList() {
         return neighborhoodList;
     }
@@ -77,6 +79,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.neighborhoodList = neighborhoodList;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrLocation> getLocationList() {
         return locationList;
     }
@@ -86,6 +89,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
     }
 
     @ValueRangeProvider(id = "machineRange")
+    @ProblemFactCollectionProperty
     public List<MrMachine> getMachineList() {
         return machineList;
     }
@@ -94,6 +98,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.machineList = machineList;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrMachineCapacity> getMachineCapacityList() {
         return machineCapacityList;
     }
@@ -102,6 +107,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.machineCapacityList = machineCapacityList;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrService> getServiceList() {
         return serviceList;
     }
@@ -110,6 +116,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.serviceList = serviceList;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrProcess> getProcessList() {
         return processList;
     }
@@ -118,6 +125,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.processList = processList;
     }
 
+    @ProblemFactCollectionProperty
     public List<MrBalancePenalty> getBalancePenaltyList() {
         return balancePenaltyList;
     }
@@ -135,6 +143,7 @@ public class MachineReassignment extends AbstractPersistable implements Solution
         this.processAssignmentList = processAssignmentList;
     }
 
+    @PlanningScore
     public HardSoftLongScore getScore() {
         return score;
     }
@@ -147,24 +156,9 @@ public class MachineReassignment extends AbstractPersistable implements Solution
     // Complex methods
     // ************************************************************************
 
-    public Collection<? extends Object> getProblemFacts() {
-        List<Object> facts = new ArrayList<Object>();
-        facts.add(globalPenaltyInfo);
-        facts.addAll(resourceList);
-        facts.addAll(neighborhoodList);
-        facts.addAll(locationList);
-        facts.addAll(machineList);
-        facts.addAll(machineCapacityList);
-        facts.addAll(serviceList);
-        facts.addAll(createServiceDependencyList());
-        facts.addAll(processList);
-        facts.addAll(balancePenaltyList);
-        // Do not add the planning entity's (bedDesignationList) because that will be done automatically
-        return facts;
-    }
-
-    private List<MrServiceDependency> createServiceDependencyList() {
-        List<MrServiceDependency> serviceDependencyList = new ArrayList<MrServiceDependency>(serviceList.size() * 5);
+    @ProblemFactCollectionProperty
+    private List<MrServiceDependency> getServiceDependencyList() {
+        List<MrServiceDependency> serviceDependencyList = new ArrayList<>(serviceList.size() * 5);
         for (MrService service : serviceList) {
             for (MrService toService : service.getToDependencyServiceList()) {
                 MrServiceDependency serviceDependency = new MrServiceDependency();
@@ -174,39 +168,6 @@ public class MachineReassignment extends AbstractPersistable implements Solution
             }
         }
         return serviceDependencyList;
-    }
-
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (id == null || !(o instanceof MachineReassignment)) {
-            return false;
-        } else {
-            MachineReassignment other = (MachineReassignment) o;
-            if (processAssignmentList.size() != other.processAssignmentList.size()) {
-                return false;
-            }
-            for (Iterator<MrProcessAssignment> it = processAssignmentList.iterator(),
-                    otherIt = other.processAssignmentList.iterator(); it.hasNext();) {
-                MrProcessAssignment processAssignment = it.next();
-                MrProcessAssignment otherProcessAssignment = otherIt.next();
-                // Notice: we don't use equals()
-                if (!processAssignment.solutionEquals(otherProcessAssignment)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    public int hashCode() {
-        HashCodeBuilder hashCodeBuilder = new HashCodeBuilder();
-        for (MrProcessAssignment processAssignment : processAssignmentList) {
-            // Notice: we don't use hashCode()
-            hashCodeBuilder.append(processAssignment.solutionHashCode());
-        }
-        return hashCodeBuilder.toHashCode();
     }
 
 }

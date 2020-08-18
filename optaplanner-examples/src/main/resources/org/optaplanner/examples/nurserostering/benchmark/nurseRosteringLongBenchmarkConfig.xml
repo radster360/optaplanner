@@ -2,11 +2,10 @@
 <plannerBenchmark>
   <benchmarkDirectory>local/data/nurserostering/long</benchmarkDirectory>
   <parallelBenchmarkCount>AUTO</parallelBenchmarkCount>
-  <warmUpSecondsSpend>30</warmUpSecondsSpend>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.nurserostering.domain.NurseRoster</xstreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.nurserostering.persistence.NurseRosterXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/nurserostering/unsolved/long01.xml</inputSolutionFile>
       <inputSolutionFile>data/nurserostering/unsolved/long02.xml</inputSolutionFile>
       <!--<inputSolutionFile>data/nurserostering/unsolved/long03.xml</inputSolutionFile>-->
@@ -20,57 +19,70 @@
       <!--<inputSolutionFile>data/nurserostering/unsolved/long_late03.xml</inputSolutionFile>-->
       <!--<inputSolutionFile>data/nurserostering/unsolved/long_late04.xml</inputSolutionFile>-->
       <!--<inputSolutionFile>data/nurserostering/unsolved/long_late05.xml</inputSolutionFile>-->
-      <problemStatisticType>BEST_SCORE</problemStatisticType>
+      <!--<problemStatisticType>BEST_SCORE</problemStatisticType>-->
+      <!--<problemStatisticType>STEP_SCORE</problemStatisticType>-->
+      <!--<problemStatisticType>SCORE_CALCULATION_SPEED</problemStatisticType>-->
+      <!--<problemStatisticType>BEST_SOLUTION_MUTATION</problemStatisticType>-->
+      <!--<problemStatisticType>MOVE_COUNT_PER_STEP</problemStatisticType>-->
+      <!--<problemStatisticType>MEMORY_USE</problemStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_BEST_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_STEP_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_BEST_SCORE_DIFF</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_STEP_SCORE_DIFF</singleStatisticType>-->
     </problemBenchmarks>
 
     <solver>
       <solutionClass>org.optaplanner.examples.nurserostering.domain.NurseRoster</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.nurserostering.domain.ShiftAssignment</planningEntityClass>
+      <entityClass>org.optaplanner.examples.nurserostering.domain.ShiftAssignment</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/nurserostering/solver/nurseRosteringScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/nurserostering/solver/nurseRosteringConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <termination>
-        <!--
-          Official benchmark maximumSecondsSpend allowed on:
-          - ge0ffrey's main pc: sprint 11, medium 700, long 42000
-        -->
-        <maximumSecondsSpend>42000</maximumSecondsSpend>
+        <minutesSpentLimit>5</minutesSpentLimit>
       </termination>
-      <constructionHeuristic>
-        <constructionHeuristicType>BEST_FIT</constructionHeuristicType>
-      </constructionHeuristic>
     </solver>
   </inheritedSolverBenchmark>
 
   <solverBenchmark>
     <name>absolute300SeqLength2and3PillarPart</name>
     <solver>
+      <constructionHeuristic>
+        <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
+      </constructionHeuristic>
       <localSearch>
         <unionMoveSelector>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.EmployeeChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
           <moveListFactory>
             <cacheType>STEP</cacheType>
             <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentPillarPartSwapMoveFactory</moveListFactoryClass>
           </moveListFactory>
-          <moveListFactory>
-          <cacheType>STEP</cacheType>
-          <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSequenceSwitchLength2MoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-          <cacheType>STEP</cacheType>
-          <moveListFactoryClass>org.optaplanner.examples.nurserostering.solver.move.factory.ShiftAssignmentSequenceSwitchLength3MoveFactory</moveListFactoryClass>
-          </moveListFactory>
+          <changeMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </changeMoveSelector>
+          <swapMoveSelector>
+            <entitySelector>
+              <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+            </entitySelector>
+          </swapMoveSelector>
+          <pillarChangeMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarChangeMoveSelector>
+          <pillarSwapMoveSelector>
+            <subPillarType>SEQUENCE</subPillarType>
+            <pillarSelector>
+              <entitySelector>
+                <filterClass>org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter</filterClass>
+              </entitySelector>
+            </pillarSelector>
+          </pillarSwapMoveSelector>
         </unionMoveSelector>
         <acceptor>
-          <solutionTabuSize>1000</solutionTabuSize>
           <entityTabuSize>11</entityTabuSize>
         </acceptor>
         <forager>

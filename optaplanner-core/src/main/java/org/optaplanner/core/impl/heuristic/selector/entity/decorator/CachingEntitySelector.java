@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package org.optaplanner.core.impl.heuristic.selector.entity.decorator;
 import java.util.Iterator;
 import java.util.ListIterator;
 
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.CachedListRandomIterator;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.move.decorator.CachingMoveSelector;
@@ -27,7 +27,7 @@ import org.optaplanner.core.impl.heuristic.selector.value.decorator.CachingValue
 
 /**
  * A {@link EntitySelector} that caches the result of its child {@link EntitySelector}.
- * <p/>
+ * <p>
  * Keep this code in sync with {@link CachingValueSelector} and {@link CachingMoveSelector}.
  */
 public class CachingEntitySelector extends AbstractCachingEntitySelector {
@@ -44,19 +44,22 @@ public class CachingEntitySelector extends AbstractCachingEntitySelector {
     // Worker methods
     // ************************************************************************
 
+    @Override
     public boolean isNeverEnding() {
         // CachedListRandomIterator is neverEnding
         return randomSelection;
     }
 
+    @Override
     public Iterator<Object> iterator() {
         if (!randomSelection) {
             return cachedEntityList.iterator();
         } else {
-            return new CachedListRandomIterator<Object>(cachedEntityList, workingRandom);
+            return new CachedListRandomIterator<>(cachedEntityList, workingRandom);
         }
     }
 
+    @Override
     public ListIterator<Object> listIterator() {
         if (!randomSelection) {
             return cachedEntityList.listIterator();
@@ -66,6 +69,7 @@ public class CachingEntitySelector extends AbstractCachingEntitySelector {
         }
     }
 
+    @Override
     public ListIterator<Object> listIterator(int index) {
         if (!randomSelection) {
             return cachedEntityList.listIterator(index);

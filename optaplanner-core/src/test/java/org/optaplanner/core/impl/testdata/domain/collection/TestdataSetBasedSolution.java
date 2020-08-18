@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,23 @@
 
 package org.optaplanner.core.impl.testdata.domain.collection;
 
-import java.util.Collection;
 import java.util.Set;
 
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.testdata.domain.TestdataObject;
-import org.optaplanner.core.impl.testdata.domain.TestdataUtils;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
 
 @PlanningSolution
-public class TestdataSetBasedSolution extends TestdataObject implements Solution<SimpleScore> {
+public class TestdataSetBasedSolution extends TestdataObject {
 
-    public static SolutionDescriptor buildSolutionDescriptor() {
-        return TestdataUtils.buildSolutionDescriptor(TestdataSetBasedSolution.class, TestdataSetBasedEntity.class);
+    public static SolutionDescriptor<TestdataSetBasedSolution> buildSolutionDescriptor() {
+        return SolutionDescriptor.buildSolutionDescriptor(TestdataSetBasedSolution.class, TestdataSetBasedEntity.class);
     }
 
     private Set<TestdataValue> valueSet;
@@ -49,6 +48,7 @@ public class TestdataSetBasedSolution extends TestdataObject implements Solution
     }
 
     @ValueRangeProvider(id = "valueRange")
+    @ProblemFactCollectionProperty
     public Set<TestdataValue> getValueSet() {
         return valueSet;
     }
@@ -66,6 +66,7 @@ public class TestdataSetBasedSolution extends TestdataObject implements Solution
         this.entitySet = entitySet;
     }
 
+    @PlanningScore
     public SimpleScore getScore() {
         return score;
     }
@@ -77,9 +78,5 @@ public class TestdataSetBasedSolution extends TestdataObject implements Solution
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<? extends Object> getProblemFacts() {
-        return valueSet;
-    }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,44 +17,35 @@
 package org.optaplanner.core.api.score.buildin.simple;
 
 import org.kie.api.runtime.rule.RuleContext;
-import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.api.score.holder.AbstractScoreHolder;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
+import org.optaplanner.core.api.score.holder.ScoreHolder;
 
 /**
  * @see SimpleScore
  */
-public class SimpleScoreHolder extends AbstractScoreHolder {
+public interface SimpleScoreHolder extends ScoreHolder<SimpleScore> {
 
-    protected int score;
+    /**
+     * Penalize a match by the {@link ConstraintWeight} negated and multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void penalize(RuleContext kcontext, int weightMultiplier);
 
-    public SimpleScoreHolder(boolean constraintMatchEnabled) {
-        super(constraintMatchEnabled);
-    }
+    /**
+     * Reward a match by the {@link ConstraintWeight} multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void reward(RuleContext kcontext, int weightMultiplier);
 
-    public int getScore() {
-        return score;
-    }
+    void impactScore(RuleContext kcontext, int weightMultiplier);
 
-    @Deprecated
-    public void setScore(int score) {
-        this.score = score;
-    }
-
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
-
-    public void addConstraintMatch(RuleContext kcontext, final int weight) {
-        score += weight;
-        registerIntConstraintMatch(kcontext, 0, weight, new Runnable() {
-            public void run() {
-                score -= weight;
-            }
-        });
-    }
-
-    public Score extractScore() {
-        return SimpleScore.valueOf(score);
-    }
-
+    /**
+     * @param kcontext never null, the magic variable in DRL
+     * @param weight higher is better, negative for a penalty, positive for a reward
+     */
+    void addConstraintMatch(RuleContext kcontext, int weight);
 }

@@ -2,83 +2,76 @@
 <plannerBenchmark>
   <benchmarkDirectory>local/data/nqueens</benchmarkDirectory>
   <parallelBenchmarkCount>AUTO</parallelBenchmarkCount>
-  <warmUpSecondsSpend>30</warmUpSecondsSpend>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.nqueens.domain.NQueens</xstreamAnnotatedClass>
-      <inputSolutionFile>data/nqueens/unsolved/unsolvedNQueens32.xml</inputSolutionFile>
-      <inputSolutionFile>data/nqueens/unsolved/unsolvedNQueens64.xml</inputSolutionFile>
+      <solutionFileIOClass>org.optaplanner.examples.nqueens.persistence.NQueensXmlSolutionFileIO</solutionFileIOClass>
+      <inputSolutionFile>data/nqueens/unsolved/32queens.xml</inputSolutionFile>
+      <inputSolutionFile>data/nqueens/unsolved/64queens.xml</inputSolutionFile>
       <writeOutputSolutionEnabled>true</writeOutputSolutionEnabled>
-      <problemStatisticType>BEST_SCORE</problemStatisticType>
+      <!--<problemStatisticType>BEST_SCORE</problemStatisticType>-->
+      <!--<problemStatisticType>STEP_SCORE</problemStatisticType>-->
+      <!--<problemStatisticType>SCORE_CALCULATION_SPEED</problemStatisticType>-->
+      <!--<problemStatisticType>BEST_SOLUTION_MUTATION</problemStatisticType>-->
+      <!--<problemStatisticType>MOVE_COUNT_PER_STEP</problemStatisticType>-->
+      <!--<problemStatisticType>MEMORY_USE</problemStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_BEST_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>CONSTRAINT_MATCH_TOTAL_STEP_SCORE</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_BEST_SCORE_DIFF</singleStatisticType>-->
+      <!--<singleStatisticType>PICKED_MOVE_TYPE_STEP_SCORE_DIFF</singleStatisticType>-->
     </problemBenchmarks>
     <solver>
       <solutionClass>org.optaplanner.examples.nqueens.domain.NQueens</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.nqueens.domain.Queen</planningEntityClass>
+      <entityClass>org.optaplanner.examples.nqueens.domain.Queen</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>SIMPLE</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/nqueens/solver/nQueensScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/nqueens/solver/nQueensConstraints.drl</scoreDrl>
+        <initializingScoreTrend>ONLY_DOWN</initializingScoreTrend>
       </scoreDirectorFactory>
       <termination>
         <terminationCompositionStyle>OR</terminationCompositionStyle>
-        <scoreAttained>0</scoreAttained>
-        <maximumSecondsSpend>20</maximumSecondsSpend>
+        <bestScoreLimit>0</bestScoreLimit>
+        <secondsSpentLimit>20</secondsSpentLimit>
       </termination>
     </solver>
   </inheritedSolverBenchmark>
 
   <solverBenchmark>
-    <name>FIRST_FIT</name>
+    <name>First Fit</name>
     <solver>
       <constructionHeuristic>
         <constructionHeuristicType>FIRST_FIT</constructionHeuristicType>
-        <forager>
-          <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-        </forager>
       </constructionHeuristic>
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>FIRST_FIT_DECREASING</name>
+    <name>First Fit Decreasing</name>
     <solver>
       <constructionHeuristic>
         <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
-        <forager>
-          <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-        </forager>
       </constructionHeuristic>
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>BEST_FIT</name>
+    <name>Weakest Fit</name>
     <solver>
       <constructionHeuristic>
-        <constructionHeuristicType>BEST_FIT</constructionHeuristicType>
-        <forager>
-          <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-        </forager>
+        <constructionHeuristicType>WEAKEST_FIT</constructionHeuristicType>
       </constructionHeuristic>
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>BEST_FIT_DECREASING</name>
+    <name>Weakest Fit Decreasing</name>
     <solver>
       <constructionHeuristic>
-        <constructionHeuristicType>BEST_FIT_DECREASING</constructionHeuristicType>
-        <forager>
-          <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-        </forager>
+        <constructionHeuristicType>WEAKEST_FIT_DECREASING</constructionHeuristicType>
       </constructionHeuristic>
     </solver>
   </solverBenchmark>
   <solverBenchmark>
-    <name>Entity tabu</name>
+    <name>Entity Tabu Search</name>
     <solver>
       <constructionHeuristic>
         <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
-        <forager>
-          <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-        </forager>
       </constructionHeuristic>
       <localSearch>
         <changeMoveSelector>

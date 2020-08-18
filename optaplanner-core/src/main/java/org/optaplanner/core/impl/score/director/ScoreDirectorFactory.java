@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,38 +16,21 @@
 
 package org.optaplanner.core.impl.score.director;
 
-import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.score.definition.ScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.score.director.ScoreDirector;
 
 /**
  * Builds a {@link ScoreDirector}.
+ *
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  */
-public interface ScoreDirectorFactory {
-
-    /**
-     * @return never null
-     */
-    SolutionDescriptor getSolutionDescriptor();
-
-    /**
-     * @return never null
-     */
-    ScoreDefinition getScoreDefinition();
+public interface ScoreDirectorFactory<Solution_> {
 
     /**
      * Creates a new {@link ScoreDirector} instance.
+     *
      * @return never null
      */
-    ScoreDirector buildScoreDirector();
-
-    /**
-     * Asserts that if the {@link Score} is calculated for the parameter solution,
-     * it would be equal to the {@link Solution#getScore()} of that parameter.
-     * @param solution never null
-     * @see ScoreDirector#assertWorkingScoreFromScratch(Score)
-     */
-    void assertScoreFromScratch(Solution solution);
+    ScoreDirector<Solution_> buildScoreDirector();
 
 }

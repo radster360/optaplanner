@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,24 @@
 
 package org.optaplanner.examples.curriculumcourse.domain.solver;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
+import static java.util.Comparator.comparingInt;
+
+import java.util.Comparator;
+
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorterWeightFactory;
 import org.optaplanner.examples.curriculumcourse.domain.CourseSchedule;
 import org.optaplanner.examples.curriculumcourse.domain.Room;
 
 public class RoomStrengthWeightFactory implements SelectionSorterWeightFactory<CourseSchedule, Room> {
 
-    public Comparable createSorterWeight(CourseSchedule schedule, Room room) {
+    @Override
+    public RoomStrengthWeight createSorterWeight(CourseSchedule schedule, Room room) {
         return new RoomStrengthWeight(room);
     }
 
     public static class RoomStrengthWeight implements Comparable<RoomStrengthWeight> {
+
+        private static final Comparator<Room> COMPARATOR = comparingInt(Room::getCapacity).thenComparingLong(Room::getId);
 
         private final Room room;
 
@@ -35,13 +41,9 @@ public class RoomStrengthWeightFactory implements SelectionSorterWeightFactory<C
             this.room = room;
         }
 
+        @Override
         public int compareTo(RoomStrengthWeight other) {
-            return new CompareToBuilder()
-                    .append(room.getCapacity(), other.room.getCapacity())
-                    .append(room.getId(), other.room.getId())
-                    .toComparison();
+            return COMPARATOR.compare(room, other.room);
         }
-
     }
-
 }

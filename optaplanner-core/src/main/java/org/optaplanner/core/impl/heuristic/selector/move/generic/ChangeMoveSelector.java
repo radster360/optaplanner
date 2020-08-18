@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,14 +18,18 @@ package org.optaplanner.core.impl.heuristic.selector.move.generic;
 
 import java.util.Iterator;
 
-import org.apache.commons.collections.IteratorUtils;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableDemand;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
+import org.optaplanner.core.impl.domain.variable.supply.SupplyManager;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.IterableSelector;
-import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
+import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractOriginalChangeIterator;
+import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractRandomChangeIterator;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.move.generic.chained.ChainedChangeMove;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.move.Move;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public class ChangeMoveSelector extends GenericMoveSelector {
 
@@ -34,124 +38,106 @@ public class ChangeMoveSelector extends GenericMoveSelector {
     protected final boolean randomSelection;
 
     protected final boolean chained;
+    protected SingletonInverseVariableSupply inverseVariableSupply = null;
 
     public ChangeMoveSelector(EntitySelector entitySelector, ValueSelector valueSelector,
             boolean randomSelection) {
         this.entitySelector = entitySelector;
         this.valueSelector = valueSelector;
         this.randomSelection = randomSelection;
-        PlanningVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
+        GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
         chained = variableDescriptor.isChained();
-        solverPhaseLifecycleSupport.addEventListener(entitySelector);
-        solverPhaseLifecycleSupport.addEventListener(valueSelector);
+        phaseLifecycleSupport.addEventListener(entitySelector);
+        phaseLifecycleSupport.addEventListener(valueSelector);
+    }
+
+    @Override
+    public boolean supportsPhaseAndSolverCaching() {
+        return !chained;
+    }
+
+    @Override
+    public void solvingStarted(SolverScope solverScope) {
+        super.solvingStarted(solverScope);
+        if (chained) {
+            SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
+            inverseVariableSupply = supplyManager.demand(
+                    new SingletonInverseVariableDemand(valueSelector.getVariableDescriptor()));
+        }
+    }
+
+    @Override
+    public void solvingEnded(SolverScope solverScope) {
+        super.solvingEnded(solverScope);
+        if (chained) {
+            inverseVariableSupply = null;
+        }
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return entitySelector.isContinuous() || valueSelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return entitySelector.isCountable() && valueSelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return randomSelection || entitySelector.isNeverEnding() || valueSelector.isNeverEnding();
     }
 
+    @Override
     public long getSize() {
         if (valueSelector instanceof IterableSelector) {
             return entitySelector.getSize() * ((IterableSelector) valueSelector).getSize();
         } else {
             long size = 0;
-            for (java.util.Iterator it = entitySelector.endingIterator(); it.hasNext(); ) {
-                Object entity =  it.next();
+            for (Iterator it = entitySelector.endingIterator(); it.hasNext();) {
+                Object entity = it.next();
                 size += valueSelector.getSize(entity);
             }
             return size;
         }
     }
 
+    @Override
     public Iterator<Move> iterator() {
+        final GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
         if (!randomSelection) {
-            return new OriginalChangeMoveIterator();
-        } else {
-            return new RandomChangeMoveIterator();
-        }
-    }
-
-    private class OriginalChangeMoveIterator extends UpcomingSelectionIterator<Move> {
-
-        private Iterator<Object> entityIterator;
-        private Iterator<Object> valueIterator;
-
-        private Object upcomingEntity;
-
-        private OriginalChangeMoveIterator() {
-            entityIterator = entitySelector.iterator();
-            valueIterator = IteratorUtils.emptyIterator();
-        }
-
-        @Override
-        protected Move createUpcomingSelection() {
-            while (!valueIterator.hasNext()) {
-                if (!entityIterator.hasNext()) {
-                    return noUpcomingSelection();
-                }
-                upcomingEntity = entityIterator.next();
-                valueIterator = valueSelector.iterator(upcomingEntity);
-            }
-            Object toValue = valueIterator.next();
-            return chained
-                    ? new ChainedChangeMove(upcomingEntity, valueSelector.getVariableDescriptor(), toValue)
-                    : new ChangeMove(upcomingEntity, valueSelector.getVariableDescriptor(), toValue);
-        }
-
-    }
-
-    private class RandomChangeMoveIterator extends UpcomingSelectionIterator<Move> {
-
-        private Iterator<Object> entityIterator;
-        private Iterator<Object> valueIterator = null;
-
-        private RandomChangeMoveIterator() {
-            entityIterator = entitySelector.iterator();
-        }
-
-        @Override
-        protected Move createUpcomingSelection() {
-            // Ideally, this code should have read:
-            //     Object entity = entityIterator.next();
-            //     Object toValue = valueIterator.next(entity);
-            // But empty selectors and ending selectors (such as non-random or shuffled) make it more complex
-            if (!entityIterator.hasNext()) {
-                entityIterator = entitySelector.iterator();
-                if (!entityIterator.hasNext()) {
-                    return noUpcomingSelection();
-                }
-            }
-            Object entity = entityIterator.next();
-            valueIterator = valueSelector.iterator(entity);
-            int entityIteratorCreationCount = 0;
-            // This loop is mostly only relevant when the entityIterator or valueIterator is non-random or shuffled
-            while (!valueIterator.hasNext()) {
-                // Try the next entity
-                if (!entityIterator.hasNext()) {
-                    entityIterator = entitySelector.iterator();
-                    entityIteratorCreationCount++;
-                    if (entityIteratorCreationCount >= 2) {
-                        // All entity-value combinations have been tried (some even more than once)
-                        return noUpcomingSelection();
+            if (chained) {
+                return new AbstractOriginalChangeIterator<Move>(entitySelector, valueSelector) {
+                    @Override
+                    protected Move newChangeSelection(Object entity, Object toValue) {
+                        return new ChainedChangeMove(entity, variableDescriptor, inverseVariableSupply, toValue);
                     }
-                }
-                entity = entityIterator.next();
-                valueIterator = valueSelector.iterator(entity);
+                };
+            } else {
+                return new AbstractOriginalChangeIterator<Move>(entitySelector, valueSelector) {
+                    @Override
+                    protected Move newChangeSelection(Object entity, Object toValue) {
+                        return new ChangeMove(entity, variableDescriptor, toValue);
+                    }
+                };
             }
-            Object toValue = valueIterator.next();
-            return chained
-                    ? new ChainedChangeMove(entity, valueSelector.getVariableDescriptor(), toValue)
-                    : new ChangeMove(entity, valueSelector.getVariableDescriptor(), toValue);
+        } else {
+            if (chained) {
+                return new AbstractRandomChangeIterator<Move>(entitySelector, valueSelector) {
+                    @Override
+                    protected Move newChangeSelection(Object entity, Object toValue) {
+                        return new ChainedChangeMove(entity, variableDescriptor, inverseVariableSupply, toValue);
+                    }
+                };
+            } else {
+                return new AbstractRandomChangeIterator<Move>(entitySelector, valueSelector) {
+                    @Override
+                    protected Move newChangeSelection(Object entity, Object toValue) {
+                        return new ChangeMove(entity, variableDescriptor, toValue);
+                    }
+                };
+            }
         }
-
     }
 
     @Override

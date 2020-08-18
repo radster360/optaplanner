@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,26 +17,24 @@
 package org.optaplanner.examples.curriculumcourse.domain;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
+
+import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
+import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScore;
+import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.curriculumcourse.domain.solver.CourseConflict;
+import org.optaplanner.persistence.xstream.api.score.buildin.hardsoft.HardSoftScoreXStreamConverter;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
-import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
-import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScore;
-import org.optaplanner.core.impl.score.buildin.hardsoft.HardSoftScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.examples.common.domain.AbstractPersistable;
-import org.optaplanner.examples.curriculumcourse.domain.solver.CourseConflict;
-import org.optaplanner.persistence.xstream.XStreamScoreConverter;
 
 @PlanningSolution
 @XStreamAlias("CourseSchedule")
-public class CourseSchedule extends AbstractPersistable implements Solution<HardSoftScore> {
+public class CourseSchedule extends AbstractPersistable {
 
     private String name;
 
@@ -52,7 +50,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
 
     private List<Lecture> lectureList;
 
-    @XStreamConverter(value = XStreamScoreConverter.class, types = {HardSoftScoreDefinition.class})
+    @XStreamConverter(HardSoftScoreXStreamConverter.class)
     private HardSoftScore score;
 
     public String getName() {
@@ -63,6 +61,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.name = name;
     }
 
+    @ProblemFactCollectionProperty
     public List<Teacher> getTeacherList() {
         return teacherList;
     }
@@ -71,6 +70,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.teacherList = teacherList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Curriculum> getCurriculumList() {
         return curriculumList;
     }
@@ -79,6 +79,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.curriculumList = curriculumList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Course> getCourseList() {
         return courseList;
     }
@@ -87,6 +88,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.courseList = courseList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Day> getDayList() {
         return dayList;
     }
@@ -95,6 +97,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.dayList = dayList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Timeslot> getTimeslotList() {
         return timeslotList;
     }
@@ -104,6 +107,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
     }
 
     @ValueRangeProvider(id = "periodRange")
+    @ProblemFactCollectionProperty
     public List<Period> getPeriodList() {
         return periodList;
     }
@@ -113,6 +117,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
     }
 
     @ValueRangeProvider(id = "roomRange")
+    @ProblemFactCollectionProperty
     public List<Room> getRoomList() {
         return roomList;
     }
@@ -121,6 +126,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.roomList = roomList;
     }
 
+    @ProblemFactCollectionProperty
     public List<UnavailablePeriodPenalty> getUnavailablePeriodPenaltyList() {
         return unavailablePeriodPenaltyList;
     }
@@ -138,6 +144,7 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
         this.lectureList = lectureList;
     }
 
+    @PlanningScore
     public HardSoftScore getScore() {
         return score;
     }
@@ -150,76 +157,28 @@ public class CourseSchedule extends AbstractPersistable implements Solution<Hard
     // Complex methods
     // ************************************************************************
 
-    public Collection<? extends Object> getProblemFacts() {
-        List<Object> facts = new ArrayList<Object>();
-        facts.addAll(teacherList);
-        facts.addAll(curriculumList);
-        facts.addAll(courseList);
-        facts.addAll(dayList);
-        facts.addAll(timeslotList);
-        facts.addAll(periodList);
-        facts.addAll(roomList);
-        facts.addAll(unavailablePeriodPenaltyList);
-        facts.addAll(precalculateCourseConflictList());
-        // Do not add the planning entity's (lectureList) because that will be done automatically
-        return facts;
-    }
-
-    private List<CourseConflict> precalculateCourseConflictList() {
-        List<CourseConflict> courseConflictList = new ArrayList<CourseConflict>();
+    @ProblemFactCollectionProperty
+    private List<CourseConflict> calculateCourseConflictList() {
+        List<CourseConflict> courseConflictList = new ArrayList<>();
         for (Course leftCourse : courseList) {
             for (Course rightCourse : courseList) {
                 if (leftCourse.getId() < rightCourse.getId()) {
-                    boolean conflicted = false;
+                    int conflictCount = 0;
                     if (leftCourse.getTeacher().equals(rightCourse.getTeacher())) {
-                        conflicted = true;
-                    } else {
-                        for (Curriculum curriculum : leftCourse.getCurriculumList()) {
-                            if (rightCourse.getCurriculumList().contains(curriculum)) {
-                                conflicted = true;
-                                break;
-                            }
+                        conflictCount++;
+                    }
+                    for (Curriculum curriculum : leftCourse.getCurriculumSet()) {
+                        if (rightCourse.getCurriculumSet().contains(curriculum)) {
+                            conflictCount++;
                         }
                     }
-                    if (conflicted) {
-                        courseConflictList.add(new CourseConflict(leftCourse, rightCourse));
+                    if (conflictCount > 0) {
+                        courseConflictList.add(new CourseConflict(leftCourse, rightCourse, conflictCount));
                     }
                 }
             }
         }
         return courseConflictList;
-    }
-
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (id == null || !(o instanceof CourseSchedule)) {
-            return false;
-        } else {
-            CourseSchedule other = (CourseSchedule) o;
-            if (lectureList.size() != other.lectureList.size()) {
-                return false;
-            }
-            for (Iterator<Lecture> it = lectureList.iterator(), otherIt = other.lectureList.iterator(); it.hasNext();) {
-                Lecture lecture = it.next();
-                Lecture otherLecture = otherIt.next();
-                // Notice: we don't use equals()
-                if (!lecture.solutionEquals(otherLecture)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    public int hashCode() {
-        HashCodeBuilder hashCodeBuilder = new HashCodeBuilder();
-        for (Lecture lecture : lectureList) {
-            // Notice: we don't use hashCode()
-            hashCodeBuilder.append(lecture.solutionHashCode());
-        }
-        return hashCodeBuilder.toHashCode();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,83 +20,117 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.CachedListRandomIterator;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
 /**
  * This is the common {@link EntitySelector} implementation.
  */
-public class FromSolutionEntitySelector extends AbstractEntitySelector implements SelectionCacheLifecycleListener {
+public class FromSolutionEntitySelector extends AbstractEntitySelector {
 
-    protected final PlanningEntityDescriptor entityDescriptor;
-    protected final SelectionCacheType cacheType;
+    protected final EntityDescriptor entityDescriptor;
+    protected final SelectionCacheType minimumCacheType;
     protected final boolean randomSelection;
 
     protected List<Object> cachedEntityList = null;
+    protected Long cachedEntityListRevision = null;
+    protected boolean cachedEntityListIsDirty = false;
 
-    public FromSolutionEntitySelector(PlanningEntityDescriptor entityDescriptor,
-            SelectionCacheType cacheType, boolean randomSelection) {
+    public FromSolutionEntitySelector(EntityDescriptor entityDescriptor,
+            SelectionCacheType minimumCacheType, boolean randomSelection) {
         this.entityDescriptor = entityDescriptor;
-        this.cacheType = cacheType;
+        this.minimumCacheType = minimumCacheType;
         this.randomSelection = randomSelection;
-        if (cacheType.isNotCached()) {
-            throw new IllegalArgumentException("The selector (" + this
-                    + ") does not support the cacheType (" + cacheType + ").");
-        }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
-    }
-
-    public PlanningEntityDescriptor getEntityDescriptor() {
-        return entityDescriptor;
     }
 
     @Override
+    public EntityDescriptor getEntityDescriptor() {
+        return entityDescriptor;
+    }
+
+    /**
+     * @return never null, at least {@link SelectionCacheType#STEP}
+     */
+    @Override
     public SelectionCacheType getCacheType() {
-        return cacheType;
+        SelectionCacheType intrinsicCacheType = SelectionCacheType.STEP;
+        return (intrinsicCacheType.compareTo(minimumCacheType) > 0)
+                ? intrinsicCacheType
+                : minimumCacheType;
     }
 
     // ************************************************************************
     // Cache lifecycle methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
-        cachedEntityList = entityDescriptor.extractEntities(solverScope.getWorkingSolution());
+    @Override
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
+        super.phaseStarted(phaseScope);
+        InnerScoreDirector scoreDirector = phaseScope.getScoreDirector();
+        cachedEntityList = entityDescriptor.extractEntities(scoreDirector.getWorkingSolution());
+        cachedEntityListRevision = scoreDirector.getWorkingEntityListRevision();
+        cachedEntityListIsDirty = false;
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void stepStarted(AbstractStepScope stepScope) {
+        super.stepStarted(stepScope);
+        InnerScoreDirector scoreDirector = stepScope.getScoreDirector();
+        if (scoreDirector.isWorkingEntityListDirty(cachedEntityListRevision)) {
+            if (minimumCacheType.compareTo(SelectionCacheType.STEP) > 0) {
+                cachedEntityListIsDirty = true;
+            } else {
+                cachedEntityList = entityDescriptor.extractEntities(scoreDirector.getWorkingSolution());
+                cachedEntityListRevision = scoreDirector.getWorkingEntityListRevision();
+            }
+        }
+    }
+
+    @Override
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
+        super.phaseEnded(phaseScope);
         cachedEntityList = null;
+        cachedEntityListRevision = null;
+        cachedEntityListIsDirty = false;
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         // CachedListRandomIterator is neverEnding
         return randomSelection;
     }
 
+    @Override
     public long getSize() {
         return (long) cachedEntityList.size();
     }
 
+    @Override
     public Iterator<Object> iterator() {
+        checkCachedEntityListIsDirty();
         if (!randomSelection) {
             return cachedEntityList.iterator();
         } else {
-            return new CachedListRandomIterator<Object>(cachedEntityList, workingRandom);
+            return new CachedListRandomIterator<>(cachedEntityList, workingRandom);
         }
     }
 
+    @Override
     public ListIterator<Object> listIterator() {
+        checkCachedEntityListIsDirty();
         if (!randomSelection) {
             return cachedEntityList.listIterator();
         } else {
@@ -105,7 +139,9 @@ public class FromSolutionEntitySelector extends AbstractEntitySelector implement
         }
     }
 
+    @Override
     public ListIterator<Object> listIterator(int index) {
+        checkCachedEntityListIsDirty();
         if (!randomSelection) {
             return cachedEntityList.listIterator(index);
         } else {
@@ -114,13 +150,22 @@ public class FromSolutionEntitySelector extends AbstractEntitySelector implement
         }
     }
 
+    @Override
     public Iterator<Object> endingIterator() {
+        checkCachedEntityListIsDirty();
         return cachedEntityList.iterator();
+    }
+
+    private void checkCachedEntityListIsDirty() {
+        if (cachedEntityListIsDirty) {
+            throw new IllegalStateException("The selector (" + this + ") with minimumCacheType (" + minimumCacheType
+                    + ")'s workingEntityList became dirty between steps but is still used afterwards.");
+        }
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "(" + entityDescriptor.getPlanningEntityClass().getSimpleName() + ")";
+        return getClass().getSimpleName() + "(" + entityDescriptor.getEntityClass().getSimpleName() + ")";
     }
 
 }

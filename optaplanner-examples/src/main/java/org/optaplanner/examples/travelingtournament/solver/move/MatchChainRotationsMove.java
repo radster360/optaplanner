@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.heuristic.move.AbstractMove;
 import org.optaplanner.examples.travelingtournament.domain.Day;
 import org.optaplanner.examples.travelingtournament.domain.Match;
+import org.optaplanner.examples.travelingtournament.domain.TravelingTournament;
 
-public class MatchChainRotationsMove implements Move {
+public class MatchChainRotationsMove extends AbstractMove<TravelingTournament> {
 
     private List<Match> firstMatchList;
     private List<Match> secondMatchList;
@@ -39,26 +39,29 @@ public class MatchChainRotationsMove implements Move {
         this.secondMatchList = secondMatchList;
     }
 
-    public boolean isMoveDoable(ScoreDirector scoreDirector) {
+    @Override
+    public boolean isMoveDoable(ScoreDirector<TravelingTournament> scoreDirector) {
         return true;
     }
 
-    public Move createUndoMove(ScoreDirector scoreDirector) {
-        List<Match> inverseFirstMatchList = new ArrayList<Match>(firstMatchList);
+    @Override
+    public MatchChainRotationsMove createUndoMove(ScoreDirector<TravelingTournament> scoreDirector) {
+        List<Match> inverseFirstMatchList = new ArrayList<>(firstMatchList);
         Collections.reverse(inverseFirstMatchList);
-        List<Match> inverseSecondMatchList = new ArrayList<Match>(secondMatchList);
+        List<Match> inverseSecondMatchList = new ArrayList<>(secondMatchList);
         Collections.reverse(inverseSecondMatchList);
         return new MatchChainRotationsMove(inverseFirstMatchList, inverseSecondMatchList);
     }
 
-    public void doMove(ScoreDirector scoreDirector) {
+    @Override
+    protected void doMoveOnGenuineVariables(ScoreDirector<TravelingTournament> scoreDirector) {
         rotateList(scoreDirector, firstMatchList);
         if (!secondMatchList.isEmpty()) { // TODO create SingleMatchListRotateMove
             rotateList(scoreDirector, secondMatchList);
         }
     }
 
-    private void rotateList(ScoreDirector scoreDirector, List<Match> matchList) {
+    private void rotateList(ScoreDirector<TravelingTournament> scoreDirector, List<Match> matchList) {
         Iterator<Match> it = matchList.iterator();
         Match previousMatch = it.next();
         Match match = null;
@@ -71,15 +74,23 @@ public class MatchChainRotationsMove implements Move {
         TravelingTournamentMoveHelper.moveDay(scoreDirector, match, firstDay);
     }
 
+    @Override
+    public MatchChainRotationsMove rebase(ScoreDirector<TravelingTournament> destinationScoreDirector) {
+        return new MatchChainRotationsMove(rebaseList(firstMatchList, destinationScoreDirector),
+                rebaseList(secondMatchList, destinationScoreDirector));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
-        List<Match> entities = new ArrayList<Match>(firstMatchList.size() + secondMatchList.size());
+        List<Match> entities = new ArrayList<>(firstMatchList.size() + secondMatchList.size());
         entities.addAll(firstMatchList);
         entities.addAll(secondMatchList);
         return entities;
     }
 
+    @Override
     public Collection<? extends Object> getPlanningValues() {
-        List<Day> values = new ArrayList<Day>(firstMatchList.size() + secondMatchList.size());
+        List<Day> values = new ArrayList<>(firstMatchList.size() + secondMatchList.size());
         for (Match match : firstMatchList) {
             values.add(match.getDay());
         }
@@ -89,29 +100,27 @@ public class MatchChainRotationsMove implements Move {
         return values;
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof MatchChainRotationsMove) {
-            MatchChainRotationsMove other = (MatchChainRotationsMove) o;
-            return new EqualsBuilder()
-                    .append(firstMatchList, other.firstMatchList)
-                    .append(secondMatchList, other.secondMatchList)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final MatchChainRotationsMove other = (MatchChainRotationsMove) o;
+        return Objects.equals(firstMatchList, other.firstMatchList) &&
+                Objects.equals(secondMatchList, other.secondMatchList);
     }
 
+    @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(firstMatchList)
-                .append(secondMatchList)
-                .toHashCode();
+        return Objects.hash(firstMatchList, secondMatchList);
     }
 
+    @Override
     public String toString() {
-        return firstMatchList + " & " + secondMatchList;
+        return "Rotation " + firstMatchList + " & Rotation " + secondMatchList;
     }
 
 }

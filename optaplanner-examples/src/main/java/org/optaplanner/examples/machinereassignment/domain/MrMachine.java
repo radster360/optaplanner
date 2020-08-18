@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,13 @@ package org.optaplanner.examples.machinereassignment.domain;
 import java.util.List;
 import java.util.Map;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.common.swingui.components.Labeled;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("MrMachine")
-public class MrMachine extends AbstractPersistable {
+public class MrMachine extends AbstractPersistable implements Labeled {
 
     private MrNeighborhood neighborhood;
     private MrLocation location;
@@ -31,6 +33,18 @@ public class MrMachine extends AbstractPersistable {
     // Order is equal to resourceList so resource.getIndex() can be used
     private List<MrMachineCapacity> machineCapacityList;
     private Map<MrMachine, Integer> machineMoveCostMap; // key is toMachine
+
+    public MrMachine() {
+    }
+
+    public MrMachine(long id) {
+        super(id);
+    }
+
+    public MrMachine(long id, MrLocation location) {
+        super(id);
+        this.location = location;
+    }
 
     public MrNeighborhood getNeighborhood() {
         return neighborhood;
@@ -68,6 +82,7 @@ public class MrMachine extends AbstractPersistable {
         this.machineMoveCostMap = machineMoveCostMap;
     }
 
+    @Override
     public String getLabel() {
         return "Machine " + getId();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,13 +20,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionFilter;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
 import org.optaplanner.core.impl.heuristic.selector.entity.AbstractEntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 
 public class FilteringEntitySelector extends AbstractEntitySelector {
 
@@ -40,7 +40,7 @@ public class FilteringEntitySelector extends AbstractEntitySelector {
         this.childEntitySelector = childEntitySelector;
         this.filterList = filterList;
         bailOutEnabled = childEntitySelector.isNeverEnding();
-        solverPhaseLifecycleSupport.addEventListener(childEntitySelector);
+        phaseLifecycleSupport.addEventListener(childEntitySelector);
     }
 
     // ************************************************************************
@@ -48,49 +48,56 @@ public class FilteringEntitySelector extends AbstractEntitySelector {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractSolverPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractSolverPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
 
-    public PlanningEntityDescriptor getEntityDescriptor() {
+    @Override
+    public EntityDescriptor getEntityDescriptor() {
         return childEntitySelector.getEntityDescriptor();
     }
 
-    public boolean isContinuous() {
-        return childEntitySelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return childEntitySelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return childEntitySelector.isNeverEnding();
     }
 
+    @Override
     public long getSize() {
         return childEntitySelector.getSize();
     }
 
+    @Override
     public Iterator<Object> iterator() {
-        return new JustInTimeFilteringEntityIterator(childEntitySelector.iterator());
+        return new JustInTimeFilteringEntityIterator(childEntitySelector.iterator(), determineBailOutSize());
     }
 
-    private class JustInTimeFilteringEntityIterator extends UpcomingSelectionIterator<Object> {
+    protected class JustInTimeFilteringEntityIterator extends UpcomingSelectionIterator<Object> {
 
         private final Iterator<Object> childEntityIterator;
+        private final long bailOutSize;
 
-        public JustInTimeFilteringEntityIterator(Iterator<Object> childEntityIterator) {
+        public JustInTimeFilteringEntityIterator(Iterator<Object> childEntityIterator, long bailOutSize) {
             this.childEntityIterator = childEntityIterator;
+            this.bailOutSize = bailOutSize;
         }
 
         @Override
         protected Object createUpcomingSelection() {
             Object next;
-            long attemptsBeforeBailOut = bailOutEnabled ? determineBailOutSize() : 0L;
+            long attemptsBeforeBailOut = bailOutSize;
             do {
                 if (!childEntityIterator.hasNext()) {
                     return noUpcomingSelection();
@@ -111,25 +118,31 @@ public class FilteringEntitySelector extends AbstractEntitySelector {
 
     }
 
-    protected long determineBailOutSize() {
-        return childEntitySelector.getSize() * 10L;
-    }
-
+    @Override
     public ListIterator<Object> listIterator() {
         // TODO Not yet implemented
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public ListIterator<Object> listIterator(int index) {
         // TODO Not yet implemented
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public Iterator<Object> endingIterator() {
-        return new JustInTimeFilteringEntityIterator(childEntitySelector.endingIterator());
+        return new JustInTimeFilteringEntityIterator(childEntitySelector.endingIterator(), determineBailOutSize());
     }
 
-    private boolean accept(ScoreDirector scoreDirector, Object entity) {
+    protected long determineBailOutSize() {
+        if (!bailOutEnabled) {
+            return -1L;
+        }
+        return childEntitySelector.getSize() * 10L;
+    }
+
+    protected boolean accept(ScoreDirector scoreDirector, Object entity) {
         for (SelectionFilter filter : filterList) {
             if (!filter.accept(scoreDirector, entity)) {
                 return false;

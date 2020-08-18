@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,24 @@
 
 package org.optaplanner.examples.pas.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.common.swingui.components.Labeled;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("Bed")
-public class Bed extends AbstractPersistable {
+public class Bed extends AbstractPersistable implements Labeled {
 
     private Room room;
     private int indexInRoom;
+
+    public Bed() {
+    }
+
+    public Bed(Room room, int indexInRoom) {
+        this.room = room;
+        this.indexInRoom = indexInRoom;
+    }
 
     public Room getRoom() {
         return room;
@@ -41,9 +51,21 @@ public class Bed extends AbstractPersistable {
         this.indexInRoom = indexInRoom;
     }
 
+    public String getLabelInRoom() {
+        if (indexInRoom > 'Z') {
+            return Integer.toString(indexInRoom);
+        }
+        return Character.toString((char) ('A' + indexInRoom));
+    }
+
+    @Override
+    public String getLabel() {
+        return room.getDepartment().getName() + " " + room.getName() + " " + getLabelInRoom();
+    }
+
     @Override
     public String toString() {
-        return room + "_" + indexInRoom;
+        return room + "(" + indexInRoom + ")";
     }
 
 }

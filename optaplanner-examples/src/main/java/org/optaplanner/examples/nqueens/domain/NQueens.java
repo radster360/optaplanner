@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,35 +16,32 @@
 
 package org.optaplanner.examples.nqueens.domain;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
+
+import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
+import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
+import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.persistence.xstream.api.score.buildin.simple.SimpleScoreXStreamConverter;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
-import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
-import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
-import org.optaplanner.core.impl.score.buildin.simple.SimpleScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.examples.common.domain.AbstractPersistable;
-import org.optaplanner.persistence.xstream.XStreamScoreConverter;
 
 @PlanningSolution
 @XStreamAlias("NQueens")
-public class NQueens extends AbstractPersistable implements Solution<SimpleScore> {
+public class NQueens extends AbstractPersistable {
 
     private int n;
 
-    // Problem facts
     private List<Column> columnList;
     private List<Row> rowList;
 
-    // Planning entities
     private List<Queen> queenList;
 
-    @XStreamConverter(value = XStreamScoreConverter.class, types = {SimpleScoreDefinition.class})
+    @XStreamConverter(SimpleScoreXStreamConverter.class)
     private SimpleScore score;
 
     public int getN() {
@@ -55,6 +52,7 @@ public class NQueens extends AbstractPersistable implements Solution<SimpleScore
         this.n = n;
     }
 
+    @ProblemFactCollectionProperty
     public List<Column> getColumnList() {
         return columnList;
     }
@@ -64,6 +62,7 @@ public class NQueens extends AbstractPersistable implements Solution<SimpleScore
     }
 
     @ValueRangeProvider(id = "rowRange")
+    @ProblemFactCollectionProperty
     public List<Row> getRowList() {
         return rowList;
     }
@@ -81,6 +80,7 @@ public class NQueens extends AbstractPersistable implements Solution<SimpleScore
         this.queenList = queenList;
     }
 
+    @PlanningScore
     public SimpleScore getScore() {
         return score;
     }
@@ -92,13 +92,5 @@ public class NQueens extends AbstractPersistable implements Solution<SimpleScore
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<? extends Object> getProblemFacts() {
-        List<Object> facts = new ArrayList<Object>();
-        facts.addAll(columnList);
-        facts.addAll(rowList);
-        // Do not add the planning entity's (queenList) because that will be done automatically
-        return facts;
-    }
 
 }

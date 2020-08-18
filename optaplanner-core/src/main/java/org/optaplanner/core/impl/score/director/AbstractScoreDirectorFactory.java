@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,65 +16,93 @@
 
 package org.optaplanner.core.impl.score.director;
 
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.score.definition.ScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.impl.score.trend.InitializingScoreTrend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Abstract superclass for {@link ScoreDirectorFactory}.
+ *
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  * @see ScoreDirectorFactory
  */
-public abstract class AbstractScoreDirectorFactory implements ScoreDirectorFactory {
+public abstract class AbstractScoreDirectorFactory<Solution_> implements InnerScoreDirectorFactory<Solution_> {
 
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 
-    protected SolutionDescriptor solutionDescriptor;
-    protected ScoreDefinition scoreDefinition;
+    protected SolutionDescriptor<Solution_> solutionDescriptor;
 
-    protected ScoreDirectorFactory assertionScoreDirectorFactory = null;
+    protected InitializingScoreTrend initializingScoreTrend;
 
-    public SolutionDescriptor getSolutionDescriptor() {
-        return solutionDescriptor;
-    }
+    protected InnerScoreDirectorFactory<Solution_> assertionScoreDirectorFactory = null;
 
-    public void setSolutionDescriptor(SolutionDescriptor solutionDescriptor) {
+    protected boolean assertClonedSolution = false;
+
+    public AbstractScoreDirectorFactory(SolutionDescriptor<Solution_> solutionDescriptor) {
         this.solutionDescriptor = solutionDescriptor;
     }
 
+    @Override
+    public SolutionDescriptor<Solution_> getSolutionDescriptor() {
+        return solutionDescriptor;
+    }
+
+    @Override
     public ScoreDefinition getScoreDefinition() {
-        return scoreDefinition;
+        return solutionDescriptor.getScoreDefinition();
     }
 
-    public void setScoreDefinition(ScoreDefinition scoreDefinition) {
-        this.scoreDefinition = scoreDefinition;
+    @Override
+    public InitializingScoreTrend getInitializingScoreTrend() {
+        return initializingScoreTrend;
     }
 
-    public ScoreDirectorFactory getAssertionScoreDirectorFactory() {
+    public void setInitializingScoreTrend(InitializingScoreTrend initializingScoreTrend) {
+        this.initializingScoreTrend = initializingScoreTrend;
+    }
+
+    public InnerScoreDirectorFactory<Solution_> getAssertionScoreDirectorFactory() {
         return assertionScoreDirectorFactory;
     }
 
-    public void setAssertionScoreDirectorFactory(ScoreDirectorFactory assertionScoreDirectorFactory) {
+    public void setAssertionScoreDirectorFactory(InnerScoreDirectorFactory<Solution_> assertionScoreDirectorFactory) {
         this.assertionScoreDirectorFactory = assertionScoreDirectorFactory;
+    }
+
+    public boolean isAssertClonedSolution() {
+        return assertClonedSolution;
+    }
+
+    public void setAssertClonedSolution(boolean assertClonedSolution) {
+        this.assertClonedSolution = assertClonedSolution;
     }
 
     // ************************************************************************
     // Complex methods
     // ************************************************************************
 
-    public void assertScoreFromScratch(Solution solution) {
+    @Override
+    public InnerScoreDirector<Solution_> buildScoreDirector() {
+        return buildScoreDirector(true, true);
+    }
+
+    @Override
+    public void assertScoreFromScratch(Solution_ solution) {
         // Get the score before uncorruptedScoreDirector.calculateScore() modifies it
-        Score score = solution.getScore();
-        ScoreDirector uncorruptedScoreDirector = buildScoreDirector();
-        uncorruptedScoreDirector.setWorkingSolution(solution);
-        Score uncorruptedScore = uncorruptedScoreDirector.calculateScore();
-        uncorruptedScoreDirector.dispose();
-        if (!score.equals(uncorruptedScore)) {
-            throw new IllegalStateException(
-                    "Score corruption: the solution's score (" + score + ") is not the uncorruptedScore ("
-                            + uncorruptedScore + ").");
+        Score score = getSolutionDescriptor().getScore(solution);
+        try (InnerScoreDirector<Solution_> uncorruptedScoreDirector = buildScoreDirector(false, true)) {
+            uncorruptedScoreDirector.setWorkingSolution(solution);
+            Score uncorruptedScore = uncorruptedScoreDirector.calculateScore();
+            if (!score.equals(uncorruptedScore)) {
+                throw new IllegalStateException(
+                        "Score corruption (" + score.subtract(uncorruptedScore).toShortString()
+                                + "): the solution's score (" + score + ") is not the uncorruptedScore ("
+                                + uncorruptedScore + ").");
+            }
         }
     }
 

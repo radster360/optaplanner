@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,32 +16,26 @@
 
 package org.optaplanner.core.config.heuristic.selector.move.generic;
 
-import java.util.Collection;
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamImplicit;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
-import org.optaplanner.core.config.heuristic.selector.common.SelectionOrder;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementWrapper;
+
 import org.optaplanner.core.config.heuristic.selector.entity.EntitySelectorConfig;
 import org.optaplanner.core.config.heuristic.selector.move.MoveSelectorConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.heuristic.selector.move.generic.SwapMoveSelector;
 
-@XStreamAlias("swapMoveSelector")
-public class SwapMoveSelectorConfig extends MoveSelectorConfig {
+public class SwapMoveSelectorConfig extends MoveSelectorConfig<SwapMoveSelectorConfig> {
 
-    @XStreamAlias("entitySelector")
+    public static final String XML_ELEMENT_NAME = "swapMoveSelector";
+
+    @XmlElement(name = "entitySelector")
     private EntitySelectorConfig entitySelectorConfig = null;
-    @XStreamAlias("secondaryEntitySelector")
+    @XmlElement(name = "secondaryEntitySelector")
     private EntitySelectorConfig secondaryEntitySelectorConfig = null;
 
-    // TODO jaxb use @XmlElementWrapper and wrap in variableNameIncludes
-    @XStreamImplicit(itemFieldName = "variableNameInclude")
+    @XmlElementWrapper(name = "variableNameIncludes")
+    @XmlElement(name = "variableNameInclude")
     private List<String> variableNameIncludeList = null;
 
     public EntitySelectorConfig getEntitySelectorConfig() {
@@ -68,42 +62,20 @@ public class SwapMoveSelectorConfig extends MoveSelectorConfig {
         this.variableNameIncludeList = variableNameIncludeList;
     }
 
-    // ************************************************************************
-    // Builder methods
-    // ************************************************************************
-
-    public MoveSelector buildBaseMoveSelector(HeuristicConfigPolicy configPolicy,
-            SelectionCacheType minimumCacheType, boolean randomSelection) {
-        EntitySelectorConfig entitySelectorConfig_ = entitySelectorConfig == null ? new EntitySelectorConfig()
-                : entitySelectorConfig;
-        EntitySelector leftEntitySelector = entitySelectorConfig_.buildEntitySelector(
-                configPolicy,
-                minimumCacheType, SelectionOrder.fromRandomSelectionBoolean(randomSelection));
-        EntitySelectorConfig rightEntitySelectorConfig = secondaryEntitySelectorConfig == null
-                ? entitySelectorConfig_ : secondaryEntitySelectorConfig;
-        EntitySelector rightEntitySelector = rightEntitySelectorConfig.buildEntitySelector(
-                configPolicy,
-                minimumCacheType, SelectionOrder.fromRandomSelectionBoolean(randomSelection));
-        Collection<PlanningVariableDescriptor> variableDescriptors = deduceVariableDescriptors(
-                leftEntitySelector.getEntityDescriptor(), variableNameIncludeList);
-        return new SwapMoveSelector(leftEntitySelector, rightEntitySelector, variableDescriptors,
-                randomSelection);
-    }
-
-    public void inherit(SwapMoveSelectorConfig inheritedConfig) {
+    @Override
+    public SwapMoveSelectorConfig inherit(SwapMoveSelectorConfig inheritedConfig) {
         super.inherit(inheritedConfig);
-        if (entitySelectorConfig == null) {
-            entitySelectorConfig = inheritedConfig.getEntitySelectorConfig();
-        } else if (inheritedConfig.getEntitySelectorConfig() != null) {
-            entitySelectorConfig.inherit(inheritedConfig.getEntitySelectorConfig());
-        }
-        if (secondaryEntitySelectorConfig == null) {
-            secondaryEntitySelectorConfig = inheritedConfig.getSecondaryEntitySelectorConfig();
-        } else if (inheritedConfig.getSecondaryEntitySelectorConfig() != null) {
-            secondaryEntitySelectorConfig.inherit(inheritedConfig.getSecondaryEntitySelectorConfig());
-        }
+        entitySelectorConfig = ConfigUtils.inheritConfig(entitySelectorConfig, inheritedConfig.getEntitySelectorConfig());
+        secondaryEntitySelectorConfig = ConfigUtils.inheritConfig(secondaryEntitySelectorConfig,
+                inheritedConfig.getSecondaryEntitySelectorConfig());
         variableNameIncludeList = ConfigUtils.inheritMergeableListProperty(
                 variableNameIncludeList, inheritedConfig.getVariableNameIncludeList());
+        return this;
+    }
+
+    @Override
+    public SwapMoveSelectorConfig copyConfig() {
+        return new SwapMoveSelectorConfig().inherit(this);
     }
 
     @Override

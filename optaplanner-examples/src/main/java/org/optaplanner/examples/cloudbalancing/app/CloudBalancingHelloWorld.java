@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,27 +18,28 @@ package org.optaplanner.examples.cloudbalancing.app;
 
 import org.optaplanner.core.api.solver.Solver;
 import org.optaplanner.core.api.solver.SolverFactory;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.cloudbalancing.domain.CloudBalance;
 import org.optaplanner.examples.cloudbalancing.domain.CloudComputer;
 import org.optaplanner.examples.cloudbalancing.domain.CloudProcess;
+import org.optaplanner.examples.cloudbalancing.optional.benchmark.CloudBalancingBenchmarkHelloWorld;
 import org.optaplanner.examples.cloudbalancing.persistence.CloudBalancingGenerator;
 
+/**
+ * To benchmark this solver config, run {@link CloudBalancingBenchmarkHelloWorld} instead.
+ */
 public class CloudBalancingHelloWorld {
 
     public static void main(String[] args) {
         // Build the Solver
-        SolverFactory solverFactory = new XmlSolverFactory(
-                "/org/optaplanner/examples/cloudbalancing/solver/cloudBalancingSolverConfig.xml");
-        Solver solver = solverFactory.buildSolver();
+        SolverFactory<CloudBalance> solverFactory = SolverFactory.createFromXmlResource(
+                "org/optaplanner/examples/cloudbalancing/solver/cloudBalancingSolverConfig.xml");
+        Solver<CloudBalance> solver = solverFactory.buildSolver();
 
         // Load a problem with 400 computers and 1200 processes
         CloudBalance unsolvedCloudBalance = new CloudBalancingGenerator().createCloudBalance(400, 1200);
 
         // Solve the problem
-        solver.setPlanningProblem(unsolvedCloudBalance);
-        solver.solve();
-        CloudBalance solvedCloudBalance = (CloudBalance) solver.getBestSolution();
+        CloudBalance solvedCloudBalance = solver.solve(unsolvedCloudBalance);
 
         // Display the result
         System.out.println("\nSolved cloudBalance with 400 computers and 1200 processes:\n"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package org.optaplanner.examples.machinereassignment.domain;
 
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("MrProcess")
 public class MrProcess extends AbstractPersistable {
@@ -29,6 +30,22 @@ public class MrProcess extends AbstractPersistable {
 
     // Order is equal to resourceList so resource.getIndex() can be used
     private List<MrProcessRequirement> processRequirementList;
+
+    public MrProcess() {
+    }
+
+    public MrProcess(long id) {
+        this.id = id;
+    }
+
+    public MrProcess(MrService service) {
+        this.service = service;
+    }
+
+    public MrProcess(long id, MrService service) {
+        super(id);
+        this.service = service;
+    }
 
     public MrService getService() {
         return service;
@@ -59,7 +76,8 @@ public class MrProcess extends AbstractPersistable {
     }
 
     public long getUsage(MrResource resource) {
-        return processRequirementList.get(resource.getIndex()).getUsage();
+        return resource.getIndex() >= processRequirementList.size() ? 0L
+                : processRequirementList.get(resource.getIndex()).getUsage();
     }
 
     public int getUsageMultiplicand() {

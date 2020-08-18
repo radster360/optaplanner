@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,24 +16,29 @@
 
 package org.optaplanner.core.impl.heuristic.selector.entity.decorator;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertCode;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
+
 import java.util.Iterator;
 import java.util.Random;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionProbabilityWeightFactory;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
+import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 
 public class ProbabilityEntitySelectorTest {
 
@@ -42,19 +47,19 @@ public class ProbabilityEntitySelectorTest {
         EntitySelector childEntitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.class,
                 new TestdataEntity("e1"), new TestdataEntity("e2"), new TestdataEntity("e3"), new TestdataEntity("e4"));
 
-        SelectionProbabilityWeightFactory<TestdataEntity> probabilityWeightFactory = new SelectionProbabilityWeightFactory<TestdataEntity>() {
-            public double createProbabilityWeight(ScoreDirector scoreDirector, TestdataEntity entity) {
-                if (entity.getCode().equals("e1")) {
+        SelectionProbabilityWeightFactory<TestdataSolution, TestdataEntity> probabilityWeightFactory = (scoreDirector,
+                entity) -> {
+            switch (entity.getCode()) {
+                case "e1":
                     return 1000.0;
-                } else if (entity.getCode().equals("e2")) {
+                case "e2":
                     return 200.0;
-                } else if (entity.getCode().equals("e3")) {
+                case "e3":
                     return 30.0;
-                } else if (entity.getCode().equals("e4")) {
+                case "e4":
                     return 4.0;
-                } else {
+                default:
                     throw new IllegalStateException("Unknown entity (" + entity + ").");
-                }
             }
         };
         EntitySelector entitySelector = new ProbabilityEntitySelector(childEntitySelector, SelectionCacheType.STEP,
@@ -63,10 +68,10 @@ public class ProbabilityEntitySelectorTest {
         Random workingRandom = mock(Random.class);
         when(workingRandom.nextDouble()).thenReturn(1222.0 / 1234.0, 111.0 / 1234.0, 0.0, 1230.0 / 1234.0, 1199.0 / 1234.0);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getWorkingRandom()).thenReturn(workingRandom);
         entitySelector.solvingStarted(solverScope);
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         when(phaseScopeA.getWorkingRandom()).thenReturn(workingRandom);
         entitySelector.phaseStarted(phaseScopeA);
@@ -75,28 +80,84 @@ public class ProbabilityEntitySelectorTest {
         when(stepScopeA1.getWorkingRandom()).thenReturn(workingRandom);
         entitySelector.stepStarted(stepScopeA1);
 
-        assertEquals(false, entitySelector.isContinuous());
-        assertEquals(true, entitySelector.isNeverEnding());
-        assertEquals(4L, entitySelector.getSize());
+        assertThat(entitySelector.isCountable()).isTrue();
+        assertThat(entitySelector.isNeverEnding()).isTrue();
+        assertThat(entitySelector.getSize()).isEqualTo(4L);
         Iterator<Object> iterator = entitySelector.iterator();
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
         assertCode("e3", iterator.next());
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
         assertCode("e1", iterator.next());
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
         assertCode("e1", iterator.next());
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
         assertCode("e4", iterator.next());
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
         assertCode("e2", iterator.next());
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
 
         entitySelector.stepEnded(stepScopeA1);
         entitySelector.phaseEnded(phaseScopeA);
         entitySelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(childEntitySelector, 1, 1, 1);
+        verifyPhaseLifecycle(childEntitySelector, 1, 1, 1);
         verify(childEntitySelector, times(1)).iterator();
+    }
+
+    @Test
+    public void isCountable() {
+        EntitySelector childEntitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.class);
+        EntitySelector entitySelector = new ProbabilityEntitySelector(childEntitySelector, SelectionCacheType.STEP, null);
+        assertThat(entitySelector.isCountable()).isTrue();
+    }
+
+    @Test
+    public void isNeverEnding() {
+        EntitySelector childEntitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.class);
+        EntitySelector entitySelector = new ProbabilityEntitySelector(childEntitySelector, SelectionCacheType.STEP, null);
+        assertThat(entitySelector.isNeverEnding()).isTrue();
+    }
+
+    @Test
+    public void getSize() {
+        EntitySelector childEntitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.class,
+                new TestdataEntity("e1"), new TestdataEntity("e2"), new TestdataEntity("e3"), new TestdataEntity("e4"));
+        SelectionProbabilityWeightFactory<TestdataSolution, TestdataEntity> probabilityWeightFactory = (scoreDirector,
+                entity) -> {
+            switch (entity.getCode()) {
+                case "e1":
+                    return 1000.0;
+                case "e2":
+                    return 200.0;
+                case "e3":
+                    return 30.0;
+                case "e4":
+                    return 4.0;
+                default:
+                    throw new IllegalStateException("Unknown entity (" + entity + ").");
+            }
+        };
+        ProbabilityEntitySelector entitySelector = new ProbabilityEntitySelector(childEntitySelector, SelectionCacheType.STEP,
+                probabilityWeightFactory);
+        entitySelector.constructCache(mock(SolverScope.class));
+        assertThat(entitySelector.getSize()).isEqualTo(4);
+    }
+
+    @Test
+    public void withNeverEndingSelection() {
+        EntitySelector childEntitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.class);
+        when(childEntitySelector.isNeverEnding()).thenReturn(true);
+        SelectionProbabilityWeightFactory prob = mock(SelectionProbabilityWeightFactory.class);
+        assertThatIllegalStateException().isThrownBy(
+                () -> new ProbabilityEntitySelector(childEntitySelector, SelectionCacheType.STEP, prob));
+    }
+
+    @Test
+    public void withoutCachedSelectionType() {
+        EntitySelector childEntitySelector = SelectorTestUtils.mockEntitySelector(TestdataEntity.class);
+        SelectionProbabilityWeightFactory prob = mock(SelectionProbabilityWeightFactory.class);
+        assertThatIllegalArgumentException().isThrownBy(
+                () -> new ProbabilityEntitySelector(childEntitySelector, SelectionCacheType.JUST_IN_TIME, prob));
     }
 
 }

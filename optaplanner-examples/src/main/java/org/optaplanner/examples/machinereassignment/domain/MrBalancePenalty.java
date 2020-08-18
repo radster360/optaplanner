@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.optaplanner.examples.machinereassignment.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("MrBalancePenalty")
 public class MrBalancePenalty extends AbstractPersistable {
@@ -26,6 +27,24 @@ public class MrBalancePenalty extends AbstractPersistable {
     private MrResource targetResource;
     private int multiplicand;
     private int weight;
+
+    public MrBalancePenalty() {
+    }
+
+    public MrBalancePenalty(MrResource originResource, MrResource targetResource, int multiplicand, int weight) {
+        this.originResource = originResource;
+        this.targetResource = targetResource;
+        this.multiplicand = multiplicand;
+        this.weight = weight;
+    }
+
+    public MrBalancePenalty(long id, MrResource originResource, MrResource targetResource, int multiplicand, int weight) {
+        super(id);
+        this.originResource = originResource;
+        this.targetResource = targetResource;
+        this.multiplicand = multiplicand;
+        this.weight = weight;
+    }
 
     public MrResource getOriginResource() {
         return originResource;

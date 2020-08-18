@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,45 +16,46 @@
 
 package org.optaplanner.core.impl.constructionheuristic.placer;
 
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.event.SolverPhaseLifecycleSupport;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.event.PhaseLifecycleSupport;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Abstract superclass for {@link EntityPlacer}.
+ *
  * @see EntityPlacer
  */
 public abstract class AbstractEntityPlacer {
 
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 
-    protected SolverPhaseLifecycleSupport solverPhaseLifecycleSupport = new SolverPhaseLifecycleSupport();
+    protected PhaseLifecycleSupport phaseLifecycleSupport = new PhaseLifecycleSupport();
 
-    public void solvingStarted(DefaultSolverScope solverScope) {
-        solverPhaseLifecycleSupport.fireSolvingStarted(solverScope);
+    public void solvingStarted(SolverScope solverScope) {
+        phaseLifecycleSupport.fireSolvingStarted(solverScope);
     }
 
-    public void phaseStarted(AbstractSolverPhaseScope solverPhaseScope) {
-        solverPhaseLifecycleSupport.firePhaseStarted(solverPhaseScope);
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
+        phaseLifecycleSupport.firePhaseStarted(phaseScope);
     }
 
     public void stepStarted(AbstractStepScope stepScope) {
-        solverPhaseLifecycleSupport.fireStepStarted(stepScope);
+        phaseLifecycleSupport.fireStepStarted(stepScope);
     }
 
     public void stepEnded(AbstractStepScope stepScope) {
-        solverPhaseLifecycleSupport.fireStepEnded(stepScope);
+        phaseLifecycleSupport.fireStepEnded(stepScope);
     }
 
-    public void phaseEnded(AbstractSolverPhaseScope solverPhaseScope) {
-        solverPhaseLifecycleSupport.firePhaseEnded(solverPhaseScope);
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
+        phaseLifecycleSupport.firePhaseEnded(phaseScope);
     }
 
-    public void solvingEnded(DefaultSolverScope solverScope) {
-        solverPhaseLifecycleSupport.fireSolvingEnded(solverScope);
+    public void solvingEnded(SolverScope solverScope) {
+        phaseLifecycleSupport.fireSolvingEnded(solverScope);
     }
 
 }

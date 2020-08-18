@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@ package org.optaplanner.examples.machinereassignment.domain;
 
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("MrService")
 public class MrService extends AbstractPersistable {
@@ -28,6 +29,13 @@ public class MrService extends AbstractPersistable {
     private List<MrService> fromDependencyServiceList;
 
     private int locationSpread;
+
+    public MrService() {
+    }
+
+    public MrService(long id) {
+        super(id);
+    }
 
     public List<MrService> getToDependencyServiceList() {
         return toDependencyServiceList;

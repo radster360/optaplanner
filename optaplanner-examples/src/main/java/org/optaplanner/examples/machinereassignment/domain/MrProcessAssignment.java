@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package org.optaplanner.examples.machinereassignment.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
+import java.util.Objects;
+
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.machinereassignment.domain.solver.MrProcessAssignmentDifficultyComparator;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @PlanningEntity(difficultyComparatorClass = MrProcessAssignmentDifficultyComparator.class)
 @XStreamAlias("MrProcessAssignment")
@@ -31,8 +31,32 @@ public class MrProcessAssignment extends AbstractPersistable {
 
     private MrProcess process;
     private MrMachine originalMachine;
-
     private MrMachine machine;
+
+    public MrProcessAssignment() {
+    }
+
+    public MrProcessAssignment(MrProcess process) {
+        this.process = process;
+    }
+
+    public MrProcessAssignment(long id, MrProcess process) {
+        super(id);
+        this.process = process;
+    }
+
+    public MrProcessAssignment(long id, MrProcess process, MrMachine machine) {
+        super(id);
+        this.process = process;
+        this.machine = machine;
+    }
+
+    public MrProcessAssignment(long id, MrProcess process, MrMachine originalMachine, MrMachine machine) {
+        super(id);
+        this.process = process;
+        this.originalMachine = originalMachine;
+        this.machine = machine;
+    }
 
     public MrProcess getProcess() {
         return process;
@@ -50,7 +74,7 @@ public class MrProcessAssignment extends AbstractPersistable {
         this.originalMachine = originalMachine;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"machineRange"}) // TODO strengthComparatorClass = BedStrengthComparator.class)
+    @PlanningVariable(valueRangeProviderRefs = { "machineRange" })
     public MrMachine getMachine() {
         return machine;
     }
@@ -68,7 +92,10 @@ public class MrProcessAssignment extends AbstractPersistable {
     }
 
     public boolean isMoved() {
-        return !ObjectUtils.equals(originalMachine, machine);
+        if (machine == null) {
+            return false;
+        }
+        return !Objects.equals(originalMachine, machine);
     }
 
     public int getProcessMoveCost() {
@@ -76,7 +103,7 @@ public class MrProcessAssignment extends AbstractPersistable {
     }
 
     public int getMachineMoveCost() {
-        return machine == null ? 0 : originalMachine.getMoveCostTo(machine);
+        return (machine == null || originalMachine == null) ? 0 : originalMachine.getMoveCostTo(machine);
     }
 
     public MrNeighborhood getNeighborhood() {
@@ -86,7 +113,7 @@ public class MrProcessAssignment extends AbstractPersistable {
     public MrLocation getLocation() {
         return machine == null ? null : machine.getLocation();
     }
-    
+
     public long getUsage(MrResource resource) {
         return process.getUsage(resource);
     }
@@ -95,40 +122,9 @@ public class MrProcessAssignment extends AbstractPersistable {
         return "Process " + getId();
     }
 
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionHashCode()
-     */
-    public boolean solutionEquals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof MrProcessAssignment) {
-            MrProcessAssignment other = (MrProcessAssignment) o;
-            return new EqualsBuilder()
-                    .append(process, other.process)
-                    .append(machine, other.machine)
-                    .isEquals();
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionEquals(Object)
-     */
-    public int solutionHashCode() {
-        return new HashCodeBuilder()
-                .append(process)
-                .append(machine)
-                .toHashCode();
-    }
-
     @Override
     public String toString() {
-        return process + " @ " + machine;
+        return process.toString();
     }
 
 }

@@ -1,28 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <solver>
-  <!--<environmentMode>FAST_ASSERT</environmentMode>-->
+  <!--<environmentMode>FULL_ASSERT</environmentMode>--><!-- To slowly prove there are no bugs in this code -->
+  <!--<moveThreadCount>AUTO</moveThreadCount>--><!-- To solve faster by saturating multiple CPU cores -->
+
   <solutionClass>org.optaplanner.examples.nqueens.domain.NQueens</solutionClass>
-  <planningEntityClass>org.optaplanner.examples.nqueens.domain.Queen</planningEntityClass>
+  <entityClass>org.optaplanner.examples.nqueens.domain.Queen</entityClass>
 
   <scoreDirectorFactory>
-    <scoreDefinitionType>SIMPLE</scoreDefinitionType>
-    <!--<simpleScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensSimpleScoreCalculator</simpleScoreCalculatorClass>-->
+    <!--<easyScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensEasyScoreCalculator</easyScoreCalculatorClass>-->
+    <!--<easyScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensMapBasedEasyScoreCalculator</easyScoreCalculatorClass>-->
+    <!--<constraintProviderClass>org.optaplanner.examples.nqueens.solver.score.NQueensConstraintProvider</constraintProviderClass>-->
     <!--<incrementalScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensBasicIncrementalScoreCalculator</incrementalScoreCalculatorClass>-->
     <!--<incrementalScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensAdvancedIncrementalScoreCalculator</incrementalScoreCalculatorClass>-->
-    <scoreDrl>/org/optaplanner/examples/nqueens/solver/nQueensScoreRules.drl</scoreDrl>
+    <scoreDrl>org/optaplanner/examples/nqueens/solver/nQueensConstraints.drl</scoreDrl>
+    <initializingScoreTrend>ONLY_DOWN</initializingScoreTrend>
     <!--<assertionScoreDirectorFactory>-->
-      <!--<simpleScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensSimpleScoreCalculator</simpleScoreCalculatorClass>-->
+      <!--<easyScoreCalculatorClass>org.optaplanner.examples.nqueens.solver.score.NQueensEasyScoreCalculator</easyScoreCalculatorClass>-->
     <!--</assertionScoreDirectorFactory>-->
   </scoreDirectorFactory>
 
   <termination>
-    <scoreAttained>0</scoreAttained>
+    <bestScoreLimit>0</bestScoreLimit>
   </termination>
   <constructionHeuristic>
     <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
-    <forager>
-      <pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>
-    </forager>
   </constructionHeuristic>
   <localSearch>
     <changeMoveSelector>
@@ -36,15 +37,12 @@
       <entityTabuSize>5</entityTabuSize>
     </acceptor>
     <forager>
-      <!-- Real world problems require to use of <acceptedCountLimit> -->
+      <!-- Real world problems require use of <acceptedCountLimit> -->
     </forager>
   </localSearch>
+
   <!-- To scale out, replace <localSearch> with this configuration: -->
   <!--<localSearch>-->
-    <!--<unionMoveSelector>-->
-      <!--<changeMoveSelector/>-->
-      <!--<swapMoveSelector/>-->
-    <!--</unionMoveSelector>-->
     <!--<acceptor>-->
       <!--<entityTabuSize>11</entityTabuSize>-->
     <!--</acceptor>-->
@@ -53,4 +51,9 @@
       <!--<pickEarlyType>FIRST_BEST_SCORE_IMPROVING</pickEarlyType>-->
     <!--</forager>-->
   <!--</localSearch>-->
+
+  <!-- To super scale out, replace <constructionHeuristic> and <localSearch> with this configuration: -->
+  <!--<customPhase>-->
+    <!--<customPhaseCommandClass>org.optaplanner.examples.nqueens.solver.solution.CheatingNQueensPhaseCommand</customPhaseCommandClass>-->
+  <!--</customPhase>-->
 </solver>

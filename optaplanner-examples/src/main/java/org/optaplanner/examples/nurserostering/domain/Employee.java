@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,18 @@ package org.optaplanner.examples.nurserostering.domain;
 
 import java.util.Map;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.common.swingui.components.Labeled;
 import org.optaplanner.examples.nurserostering.domain.contract.Contract;
 import org.optaplanner.examples.nurserostering.domain.request.DayOffRequest;
 import org.optaplanner.examples.nurserostering.domain.request.DayOnRequest;
 import org.optaplanner.examples.nurserostering.domain.request.ShiftOffRequest;
 import org.optaplanner.examples.nurserostering.domain.request.ShiftOnRequest;
 
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+
 @XStreamAlias("Employee")
-public class Employee extends AbstractPersistable {
+public class Employee extends AbstractPersistable implements Labeled, Comparable<Employee> {
 
     private String code;
     private String name;
@@ -98,13 +100,21 @@ public class Employee extends AbstractPersistable {
         this.shiftOnRequestMap = shiftOnRequestMap;
     }
 
+    @Override
     public String getLabel() {
         return "Employee " + name;
     }
 
     @Override
     public String toString() {
-        return code + "(" + name + ")";
+        if (name == null) {
+            return super.toString();
+        }
+        return name;
     }
 
+    @Override
+    public int compareTo(Employee employee) {
+        return name.compareTo(employee.name);
+    }
 }

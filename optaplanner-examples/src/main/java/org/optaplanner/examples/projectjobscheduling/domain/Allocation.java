@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,24 @@
 
 package org.optaplanner.examples.projectjobscheduling.domain;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
+import org.optaplanner.core.api.domain.valuerange.CountableValueRange;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeFactory;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
+import org.optaplanner.core.api.domain.variable.CustomShadowVariable;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
+import org.optaplanner.core.api.domain.variable.PlanningVariableReference;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.projectjobscheduling.domain.solver.DelayStrengthComparator;
 import org.optaplanner.examples.projectjobscheduling.domain.solver.ExecutionModeStrengthWeightFactory;
 import org.optaplanner.examples.projectjobscheduling.domain.solver.NotSourceOrSinkAllocationFilter;
 import org.optaplanner.examples.projectjobscheduling.domain.solver.PredecessorsDoneDateUpdatingVariableListener;
 
-@PlanningEntity(movableEntitySelectionFilter = NotSourceOrSinkAllocationFilter.class)
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+
+@PlanningEntity(pinningFilter = NotSourceOrSinkAllocationFilter.class)
 @XStreamAlias("PjsAllocation")
 public class Allocation extends AbstractPersistable {
 
@@ -87,9 +91,8 @@ public class Allocation extends AbstractPersistable {
         this.successorAllocationList = successorAllocationList;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"executionModeRange"},
-            strengthWeightFactoryClass = ExecutionModeStrengthWeightFactory.class,
-            variableListenerClasses = {PredecessorsDoneDateUpdatingVariableListener.class})
+    @PlanningVariable(valueRangeProviderRefs = {
+            "executionModeRange" }, strengthWeightFactoryClass = ExecutionModeStrengthWeightFactory.class)
     public ExecutionMode getExecutionMode() {
         return executionMode;
     }
@@ -98,9 +101,7 @@ public class Allocation extends AbstractPersistable {
         this.executionMode = executionMode;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"delayRange"},
-            strengthComparatorClass = DelayStrengthComparator.class,
-            variableListenerClasses = {PredecessorsDoneDateUpdatingVariableListener.class})
+    @PlanningVariable(valueRangeProviderRefs = { "delayRange" }, strengthComparatorClass = DelayStrengthComparator.class)
     public Integer getDelay() {
         return delay;
     }
@@ -109,6 +110,9 @@ public class Allocation extends AbstractPersistable {
         this.delay = delay;
     }
 
+    @CustomShadowVariable(variableListenerClass = PredecessorsDoneDateUpdatingVariableListener.class, sources = {
+            @PlanningVariableReference(variableName = "executionMode"),
+            @PlanningVariableReference(variableName = "delay") })
     public Integer getPredecessorsDoneDate() {
         return predecessorsDoneDate;
     }
@@ -122,21 +126,30 @@ public class Allocation extends AbstractPersistable {
     // ************************************************************************
 
     public Integer getStartDate() {
-        if (predecessorsDoneDate == null || delay == null) {
+        if (predecessorsDoneDate == null) {
             return null;
         }
-        return predecessorsDoneDate + delay;
+        return predecessorsDoneDate + (delay == null ? 0 : delay);
     }
 
     public Integer getEndDate() {
-        if (predecessorsDoneDate == null || delay == null || executionMode == null) {
+        if (predecessorsDoneDate == null) {
             return null;
         }
-        return predecessorsDoneDate + delay + executionMode.getDuration();
+        return predecessorsDoneDate + (delay == null ? 0 : delay)
+                + (executionMode == null ? 0 : executionMode.getDuration());
     }
 
     public Project getProject() {
         return job.getProject();
+    }
+
+    public int getProjectCriticalPathEndDate() {
+        return job.getProject().getCriticalPathEndDate();
+    }
+
+    public JobType getJobType() {
+        return job.getJobType();
     }
 
     public String getLabel() {
@@ -152,17 +165,9 @@ public class Allocation extends AbstractPersistable {
         return job.getExecutionModeList();
     }
 
-    private List<Integer> delayRange; // TODO remove this HACK
     @ValueRangeProvider(id = "delayRange")
-    public List<Integer> getDelayRange() {
-        // TODO IMPROVE ME
-        if (delayRange == null) {
-            delayRange = new ArrayList<Integer>(50);
-            for (int i = 0; i < 50; i++) {
-                delayRange.add(i);
-            }
-        }
-        return delayRange;
+    public CountableValueRange<Integer> getDelayRange() {
+        return ValueRangeFactory.createIntValueRange(0, 500);
     }
 
 }

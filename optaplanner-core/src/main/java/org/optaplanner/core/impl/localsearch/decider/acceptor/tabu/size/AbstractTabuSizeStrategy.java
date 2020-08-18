@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,9 @@ public abstract class AbstractTabuSizeStrategy implements TabuSizeStrategy {
 
     protected int protectTabuSizeCornerCases(int totalSize, int tabuSize) {
         if (tabuSize < 1) {
-            // At least one object should be tabu
+            // At least one object should be tabu, even if totalSize is 0
             tabuSize = 1;
-        }
-        if (tabuSize > totalSize - 1) {
+        } else if (tabuSize > totalSize - 1) {
             // At least one object should not be tabu
             tabuSize = totalSize - 1;
         }

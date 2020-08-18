@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,29 @@
 
 package org.optaplanner.examples.cloudbalancing.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.examples.common.swingui.components.Labeled;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("CloudComputer")
-public class CloudComputer extends AbstractPersistable {
+public class CloudComputer extends AbstractPersistable implements Labeled {
 
     private int cpuPower; // in gigahertz
     private int memory; // in gigabyte RAM
     private int networkBandwidth; // in gigabyte per hour
     private int cost; // in euro per month
+
+    public CloudComputer() {
+    }
+
+    public CloudComputer(long id, int cpuPower, int memory, int networkBandwidth, int cost) {
+        super(id);
+        this.cpuPower = cpuPower;
+        this.memory = memory;
+        this.networkBandwidth = networkBandwidth;
+        this.cost = cost;
+    }
 
     public int getCpuPower() {
         return cpuPower;
@@ -67,6 +80,7 @@ public class CloudComputer extends AbstractPersistable {
         return cpuPower * memory * networkBandwidth;
     }
 
+    @Override
     public String getLabel() {
         return "Computer " + id;
     }

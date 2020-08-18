@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,42 +16,63 @@
 
 package org.optaplanner.examples.common.business;
 
+import static java.util.stream.Collectors.toList;
+
 import java.io.File;
-import java.io.FileFilter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
 import javax.swing.SwingUtilities;
 
-import org.apache.commons.io.filefilter.DirectoryFileFilter;
+import org.apache.commons.io.FileUtils;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
+import org.optaplanner.core.api.score.ScoreManager;
 import org.optaplanner.core.api.score.constraint.ConstraintMatchTotal;
+import org.optaplanner.core.api.score.constraint.Indictment;
+import org.optaplanner.core.api.solver.ProblemFactChange;
 import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.impl.event.BestSolutionChangedEvent;
-import org.optaplanner.core.impl.event.SolverEventListener;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.score.director.ScoreDirectorFactory;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.core.impl.solver.ProblemFactChange;
+import org.optaplanner.core.api.solver.SolverFactory;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableDemand;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
+import org.optaplanner.core.impl.domain.variable.supply.SupplyManager;
+import org.optaplanner.core.impl.heuristic.move.Move;
+import org.optaplanner.core.impl.heuristic.selector.move.generic.ChangeMove;
+import org.optaplanner.core.impl.heuristic.selector.move.generic.SwapMove;
+import org.optaplanner.core.impl.heuristic.selector.move.generic.chained.ChainedChangeMove;
+import org.optaplanner.core.impl.heuristic.selector.move.generic.chained.ChainedSwapMove;
+import org.optaplanner.core.impl.score.constraint.DefaultConstraintMatchTotal;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
+import org.optaplanner.core.impl.solver.DefaultSolverFactory;
+import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
 import org.optaplanner.examples.common.swingui.SolverAndPersistenceFrame;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SolutionBusiness {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public class SolutionBusiness<Solution_> {
 
     private static final ProblemFileComparator FILE_COMPARATOR = new ProblemFileComparator();
 
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 
-    private SolutionDao solutionDao;
+    private final CommonApp app;
+    private File dataDir;
+    private SolutionFileIO<Solution_> solutionFileIO;
 
-    private AbstractSolutionImporter importer;
-    private AbstractSolutionExporter exporter;
+    private AbstractSolutionImporter<Solution_>[] importers;
+    private AbstractSolutionExporter<Solution_> exporter;
 
     private File importDataDir;
     private File unsolvedDataDir;
@@ -59,31 +80,59 @@ public class SolutionBusiness {
     private File exportDataDir;
 
     // volatile because the solve method doesn't come from the event thread (like every other method call)
-    private volatile Solver solver;
-    private ScoreDirector guiScoreDirector;
+    private volatile Solver<Solution_> solver;
+    private String solutionFileName = null;
+    private InnerScoreDirector<Solution_> guiScoreDirector;
+    private ScoreManager<Solution_> scoreManager;
 
-    public void setSolutionDao(SolutionDao solutionDao) {
-        this.solutionDao = solutionDao;
+    private final AtomicReference<Solution_> skipToBestSolutionRef = new AtomicReference<>();
+
+    public SolutionBusiness(CommonApp app) {
+        this.app = app;
     }
 
-    public void setImporter(AbstractSolutionImporter importer) {
-        this.importer = importer;
+    public String getAppName() {
+        return app.getName();
     }
 
-    public void setExporter(AbstractSolutionExporter exporter) {
-        this.exporter = exporter;
+    public String getAppDescription() {
+        return app.getDescription();
+    }
+
+    public String getAppIconResource() {
+        return app.getIconResource();
     }
 
     public File getDataDir() {
-        return solutionDao.getDataDir();
+        return dataDir;
     }
 
-    public String getDirName() {
-        return solutionDao.getDirName();
+    public void setDataDir(File dataDir) {
+        this.dataDir = dataDir;
+    }
+
+    public SolutionFileIO<Solution_> getSolutionFileIO() {
+        return solutionFileIO;
+    }
+
+    public void setSolutionFileIO(SolutionFileIO<Solution_> solutionFileIO) {
+        this.solutionFileIO = solutionFileIO;
+    }
+
+    public AbstractSolutionImporter<Solution_>[] getImporters() {
+        return importers;
+    }
+
+    public void setImporters(AbstractSolutionImporter<Solution_>[] importers) {
+        this.importers = importers;
+    }
+
+    public void setExporter(AbstractSolutionExporter<Solution_> exporter) {
+        this.exporter = exporter;
     }
 
     public boolean hasImporter() {
-        return importer != null;
+        return importers.length > 0;
     }
 
     public boolean hasExporter() {
@@ -91,16 +140,8 @@ public class SolutionBusiness {
     }
 
     public void updateDataDirs() {
-        File dataDir = getDataDir();
-        if (!dataDir.exists()) {
-            throw new IllegalStateException("The directory dataDir (" + dataDir.getAbsolutePath()
-                    + ") does not exist." +
-                    " The working directory should be set to the directory that contains the data directory." +
-                    " This is different in a git clone (optaplanner/optaplanner-examples)" +
-                    " and the release zip (examples).");
-        }
         if (hasImporter()) {
-            importDataDir = new File(dataDir, "input");
+            importDataDir = new File(dataDir, "import");
             if (!importDataDir.exists()) {
                 throw new IllegalStateException("The directory importDataDir (" + importDataDir.getAbsolutePath()
                         + ") does not exist.");
@@ -117,7 +158,7 @@ public class SolutionBusiness {
                     + ") does not exist and could not be created.");
         }
         if (hasExporter()) {
-            exportDataDir = new File(dataDir, "output");
+            exportDataDir = new File(dataDir, "export");
             if (!exportDataDir.exists() && !exportDataDir.mkdir()) {
                 throw new IllegalStateException("The directory exportDataDir (" + exportDataDir.getAbsolutePath()
                         + ") does not exist and could not be created.");
@@ -127,14 +168,6 @@ public class SolutionBusiness {
 
     public File getImportDataDir() {
         return importDataDir;
-    }
-
-    public boolean acceptImportFile(File file) {
-        return importer.acceptInputFile(file);
-    }
-
-    public String getImportFileSuffix() {
-        return importer.getInputFileSuffix();
     }
 
     public File getUnsolvedDataDir() {
@@ -149,42 +182,49 @@ public class SolutionBusiness {
         return exportDataDir;
     }
 
-    public void setSolver(Solver solver) {
-        this.solver = solver;
-        ScoreDirectorFactory scoreDirectorFactory = solver.getScoreDirectorFactory();
-        guiScoreDirector = scoreDirectorFactory.buildScoreDirector();
+    public String getExportFileSuffix() {
+        return exporter.getOutputFileSuffix();
+    }
+
+    public void setSolver(SolverFactory<Solution_> solverFactory) {
+        this.solver = solverFactory.buildSolver();
+        this.scoreManager = ScoreManager.create(solverFactory);
+        this.guiScoreDirector =
+                ((DefaultSolverFactory<Solution_>) solverFactory).getScoreDirectorFactory().buildScoreDirector();
     }
 
     public List<File> getUnsolvedFileList() {
-        List<File> fileList = extractFileList(unsolvedDataDir);
+        List<File> fileList = new ArrayList<>(
+                FileUtils.listFiles(unsolvedDataDir, new String[] { solutionFileIO.getInputFileExtension() }, true));
         Collections.sort(fileList, FILE_COMPARATOR);
         return fileList;
     }
 
     public List<File> getSolvedFileList() {
-        List<File> fileList = extractFileList(solvedDataDir);
+        List<File> fileList = new ArrayList<>(
+                FileUtils.listFiles(solvedDataDir, new String[] { solutionFileIO.getOutputFileExtension() }, true));
         Collections.sort(fileList, FILE_COMPARATOR);
         return fileList;
     }
 
-    public List<File> extractFileList(File directory) {
-        List<File> fileList = Arrays.asList(directory.listFiles(new SolutionFileFilter(solutionDao)));
-        for (File subDirectory : directory.listFiles((FileFilter) DirectoryFileFilter.INSTANCE)) {
-            fileList.addAll(extractFileList(subDirectory));
-        }
-        return fileList;
-    }
-
-    public Solution getSolution() {
+    public Solution_ getSolution() {
         return guiScoreDirector.getWorkingSolution();
     }
 
-    public void setSolution(Solution solution) {
+    public void setSolution(Solution_ solution) {
         guiScoreDirector.setWorkingSolution(solution);
     }
 
+    public String getSolutionFileName() {
+        return solutionFileName;
+    }
+
+    public void setSolutionFileName(String solutionFileName) {
+        this.solutionFileName = solutionFileName;
+    }
+
     public Score getScore() {
-        return guiScoreDirector.calculateScore();
+        return scoreManager.updateScore(getSolution());
     }
 
     public boolean isSolving() {
@@ -192,23 +232,27 @@ public class SolutionBusiness {
     }
 
     public void registerForBestSolutionChanges(final SolverAndPersistenceFrame solverAndPersistenceFrame) {
-        solver.addEventListener(new SolverEventListener() {
-            // Not called on the event thread
-            public void bestSolutionChanged(BestSolutionChangedEvent event) {
-                // Avoid ConcurrentModificationException when there is an unprocessed ProblemFactChange
-                // because the paint method uses the problem facts instances as the solver
-                // unlike the planning entities which are cloned
-                if (solver.isEveryProblemFactChangeProcessed()) {
-                    // final is also needed for thread visibility
-                    final Solution latestBestSolution = event.getNewBestSolution();
-                    // Migrate it to the event thread
-                    SwingUtilities.invokeLater(new Runnable() {
-                        public void run() {
-                            guiScoreDirector.setWorkingSolution(latestBestSolution);
-                            solverAndPersistenceFrame.bestSolutionChanged();
-                        }
-                    });
-                }
+        solver.addEventListener(event -> {
+            // Called on the Solver thread, so not on the Swing Event thread
+            /*
+             * Avoid ConcurrentModificationException when there is an unprocessed ProblemFactChange
+             * because the paint method uses the same problem facts instances as the Solver's workingSolution
+             * unlike the planning entities of the bestSolution which are cloned from the Solver's workingSolution
+             */
+            if (solver.isEveryProblemFactChangeProcessed()) {
+                // The final is also needed for thread visibility
+                final Solution_ newBestSolution = event.getNewBestSolution();
+                skipToBestSolutionRef.set(newBestSolution);
+                SwingUtilities.invokeLater(() -> {
+                    // Called on the Swing Event thread
+                    Solution_ skipToBestSolution = skipToBestSolutionRef.get();
+                    // Skip this event if a newer one arrived meanwhile to avoid flooding the Swing Event thread
+                    if (newBestSolution != skipToBestSolution) {
+                        return;
+                    }
+                    guiScoreDirector.setWorkingSolution(newBestSolution);
+                    solverAndPersistenceFrame.bestSolutionChanged();
+                });
             }
         });
     }
@@ -218,33 +262,54 @@ public class SolutionBusiness {
     }
 
     public List<ConstraintMatchTotal> getConstraintMatchTotalList() {
-        List<ConstraintMatchTotal> constraintMatchTotalList = new ArrayList<ConstraintMatchTotal>(
-                guiScoreDirector.getConstraintMatchTotals());
-        Collections.sort(constraintMatchTotalList);
-        return constraintMatchTotalList;
+        return scoreManager.explainScore(getSolution())
+                .getConstraintMatchTotalMap()
+                .values()
+                .stream()
+                .map(constraintMatchTotal -> (DefaultConstraintMatchTotal) constraintMatchTotal)
+                .sorted()
+                .collect(toList());
+    }
+
+    public Map<Object, Indictment> getIndictmentMap() {
+        return scoreManager.explainScore(getSolution()).getIndictmentMap();
     }
 
     public void importSolution(File file) {
-        Solution solution = importer.readSolution(file);
+        AbstractSolutionImporter<Solution_> importer = determineImporter(file);
+        Solution_ solution = importer.readSolution(file);
+        solutionFileName = file.getName();
         guiScoreDirector.setWorkingSolution(solution);
     }
 
+    private AbstractSolutionImporter<Solution_> determineImporter(File file) {
+        for (AbstractSolutionImporter<Solution_> importer : importers) {
+            if (importer.acceptInputFile(file)) {
+                return importer;
+            }
+        }
+        return importers[0];
+    }
+
     public void openSolution(File file) {
-        Solution solution = solutionDao.readSolution(file);
+        Solution_ solution = solutionFileIO.read(file);
+        logger.info("Opened: {}", file);
+        solutionFileName = file.getName();
         guiScoreDirector.setWorkingSolution(solution);
     }
 
     public void saveSolution(File file) {
-        Solution solution = guiScoreDirector.getWorkingSolution();
-        solutionDao.writeSolution(solution, file);
+        Solution_ solution = guiScoreDirector.getWorkingSolution();
+        solutionFileIO.write(solution, file);
+        logger.info("Saved: {}", file);
     }
 
     public void exportSolution(File file) {
-        Solution solution = guiScoreDirector.getWorkingSolution();
+        Solution_ solution = guiScoreDirector.getWorkingSolution();
         exporter.writeSolution(solution, file);
     }
 
-    public void doMove(Move move) {
+    public void doMove(Move<Solution_> move) {
         if (solver.isSolving()) {
             logger.error("Not doing user move ({}) because the solver is solving.", move);
             return;
@@ -255,31 +320,82 @@ public class SolutionBusiness {
         }
         logger.info("Doing user move ({}).", move);
         move.doMove(guiScoreDirector);
+        guiScoreDirector.calculateScore();
     }
 
-    public void doProblemFactChange(ProblemFactChange problemFactChange) {
+    public void doProblemFactChange(ProblemFactChange<Solution_> problemFactChange) {
         if (solver.isSolving()) {
             solver.addProblemFactChange(problemFactChange);
         } else {
             problemFactChange.doChange(guiScoreDirector);
+            guiScoreDirector.calculateScore();
         }
     }
 
     /**
      * Can be called on any thread.
-     * <p/>
+     * <p>
      * Note: This method does not change the guiScoreDirector because that can only be changed on the event thread.
-     * @param planningProblem never null
+     *
+     * @param problem never null
      * @return never null
      */
-    public Solution solve(Solution planningProblem) {
-        solver.setPlanningProblem(planningProblem);
-        solver.solve();
-        return solver.getBestSolution();
+    public Solution_ solve(Solution_ problem) {
+        return solver.solve(problem);
     }
 
     public void terminateSolvingEarly() {
         solver.terminateEarly();
     }
 
+    public ChangeMove<Solution_> createChangeMove(Object entity, String variableName, Object toPlanningValue) {
+        // TODO Solver should support building a ChangeMove
+        InnerScoreDirector<Solution_> guiInnerScoreDirector = (InnerScoreDirector<Solution_>) this.guiScoreDirector;
+        SolutionDescriptor<Solution_> solutionDescriptor = guiInnerScoreDirector.getSolutionDescriptor();
+        GenuineVariableDescriptor<Solution_> variableDescriptor = solutionDescriptor.findGenuineVariableDescriptorOrFail(
+                entity, variableName);
+        if (variableDescriptor.isChained()) {
+            SupplyManager supplyManager = guiInnerScoreDirector.getSupplyManager();
+            SingletonInverseVariableSupply inverseVariableSupply = supplyManager.demand(
+                    new SingletonInverseVariableDemand(variableDescriptor));
+            return new ChainedChangeMove<>(entity, variableDescriptor, inverseVariableSupply, toPlanningValue);
+        } else {
+            return new ChangeMove<>(entity, variableDescriptor, toPlanningValue);
+        }
+    }
+
+    public void doChangeMove(Object entity, String variableName, Object toPlanningValue) {
+        ChangeMove<Solution_> move = createChangeMove(entity, variableName, toPlanningValue);
+        doMove(move);
+    }
+
+    public SwapMove<Solution_> createSwapMove(Object leftEntity, Object rightEntity) {
+        // TODO Solver should support building a SwapMove
+        InnerScoreDirector<Solution_> guiInnerScoreDirector = (InnerScoreDirector<Solution_>) this.guiScoreDirector;
+        SolutionDescriptor<Solution_> solutionDescriptor = guiInnerScoreDirector.getSolutionDescriptor();
+        EntityDescriptor<Solution_> entityDescriptor = solutionDescriptor.findEntityDescriptor(leftEntity.getClass());
+        List<GenuineVariableDescriptor<Solution_>> variableDescriptorList = entityDescriptor.getGenuineVariableDescriptorList();
+        if (entityDescriptor.hasAnyChainedGenuineVariables()) {
+            List<SingletonInverseVariableSupply> inverseVariableSupplyList = new ArrayList<>(variableDescriptorList.size());
+            SupplyManager supplyManager = guiInnerScoreDirector.getSupplyManager();
+            for (GenuineVariableDescriptor variableDescriptor : variableDescriptorList) {
+                SingletonInverseVariableSupply inverseVariableSupply;
+                if (variableDescriptor.isChained()) {
+                    inverseVariableSupply = supplyManager.demand(
+                            new SingletonInverseVariableDemand(variableDescriptor));
+                } else {
+                    inverseVariableSupply = null;
+                }
+                inverseVariableSupplyList.add(inverseVariableSupply);
+            }
+            return new ChainedSwapMove<>(variableDescriptorList, inverseVariableSupplyList, leftEntity, rightEntity);
+        } else {
+            return new SwapMove<>(variableDescriptorList, leftEntity, rightEntity);
+        }
+    }
+
+    public void doSwapMove(Object leftEntity, Object rightEntity) {
+        SwapMove<Solution_> move = createSwapMove(leftEntity, rightEntity);
+        doMove(move);
+    }
 }

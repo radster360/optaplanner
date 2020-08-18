@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,51 +16,27 @@
 
 package org.optaplanner.core.config.constructionheuristic.placer;
 
-import java.util.Collection;
+import javax.xml.bind.annotation.XmlSeeAlso;
 
-import com.thoughtworks.xstream.annotations.XStreamInclude;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
+import org.optaplanner.core.config.AbstractConfig;
 import org.optaplanner.core.impl.constructionheuristic.placer.EntityPlacer;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.termination.Termination;
+import org.optaplanner.core.impl.heuristic.HeuristicConfigPolicy;
 
 /**
- * General superclass for {@link QueuedEntityPlacerConfig} // TODO and {@link PooledEntityPlacerConfig}.
+ * General superclass for {@link QueuedEntityPlacerConfig} and {@link PooledEntityPlacerConfig}.
  */
-@XStreamInclude({
-        QueuedEntityPlacerConfig.class
+
+@XmlSeeAlso({
+        QueuedEntityPlacerConfig.class,
+        QueuedValuePlacerConfig.class,
+        PooledEntityPlacerConfig.class
 })
-public abstract class EntityPlacerConfig {
-
-    // ************************************************************************
-    // Helper methods
-    // ************************************************************************
-
-    protected PlanningEntityDescriptor deduceEntityDescriptor(SolutionDescriptor solutionDescriptor) {
-        Collection<PlanningEntityDescriptor> entityDescriptors = solutionDescriptor.getGenuineEntityDescriptors();
-        if (entityDescriptors.size() != 1) {
-            throw new IllegalArgumentException("The entityPlacerConfig (" + this
-                    + ") has no entitySelector configured"
-                    + " and because there are multiple in the planningEntityClassSet ("
-                    + solutionDescriptor.getPlanningEntityClassSet()
-                    + "), it can not be deducted automatically.");
-        }
-        return entityDescriptors.iterator().next();
-    }
+public abstract class EntityPlacerConfig<C extends EntityPlacerConfig> extends AbstractConfig<C> {
 
     // ************************************************************************
     // Builder methods
     // ************************************************************************
 
-    public abstract EntityPlacer buildEntityPlacer(HeuristicConfigPolicy configPolicy, Termination phaseTermination);
-
-    protected void inherit(EntityPlacerConfig inheritedConfig) {
-    }
-
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + "()";
-    }
+    public abstract EntityPlacer buildEntityPlacer(HeuristicConfigPolicy configPolicy);
 
 }

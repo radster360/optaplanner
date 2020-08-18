@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,24 @@
 
 package org.optaplanner.core.impl.heuristic.selector.value.decorator;
 
+import java.util.Collections;
 import java.util.Iterator;
 
-import org.apache.commons.collections.IteratorUtils;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionFilter;
 import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
+import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 
 /**
- * Returns no values if the variable is already initialized.
+ * Prevents reassigning of already initialized variables during Construction Heuristics and Exhaustive Search.
+ * <p>
+ * Returns no values for an entity's variable if the variable is already initialized.
+ * <p>
+ * Does not implement {@link EntityIndependentValueSelector} because if used like that,
+ * it shouldn't be added during configuration in the first place.
  */
 public class ReinitializeVariableValueSelector extends AbstractValueSelector {
 
@@ -40,7 +46,7 @@ public class ReinitializeVariableValueSelector extends AbstractValueSelector {
         this.childValueSelector = childValueSelector;
         this.reinitializeVariableEntityFilter = childValueSelector.getVariableDescriptor()
                 .getReinitializeVariableEntityFilter();
-        solverPhaseLifecycleSupport.addEventListener(childValueSelector);
+        phaseLifecycleSupport.addEventListener(childValueSelector);
     }
 
     // ************************************************************************
@@ -48,29 +54,33 @@ public class ReinitializeVariableValueSelector extends AbstractValueSelector {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractSolverPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractSolverPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
 
-    public PlanningVariableDescriptor getVariableDescriptor() {
+    @Override
+    public GenuineVariableDescriptor getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 
-    public boolean isContinuous() {
-        return childValueSelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return childValueSelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return childValueSelector.isNeverEnding();
     }
 
+    @Override
     public long getSize(Object entity) {
         if (!reinitializeVariableEntityFilter.accept(scoreDirector, entity)) {
             return 0L;
@@ -78,11 +88,20 @@ public class ReinitializeVariableValueSelector extends AbstractValueSelector {
         return childValueSelector.getSize(entity);
     }
 
+    @Override
     public Iterator<Object> iterator(Object entity) {
         if (!reinitializeVariableEntityFilter.accept(scoreDirector, entity)) {
-            return IteratorUtils.emptyIterator();
+            return Collections.emptyIterator();
         }
         return childValueSelector.iterator(entity);
+    }
+
+    @Override
+    public Iterator<Object> endingIterator(Object entity) {
+        if (!reinitializeVariableEntityFilter.accept(scoreDirector, entity)) {
+            return Collections.emptyIterator();
+        }
+        return childValueSelector.endingIterator(entity);
     }
 
     @Override

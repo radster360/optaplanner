@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,104 +16,155 @@
 
 package org.optaplanner.core.impl.heuristic.selector.value;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.impl.heuristic.selector.common.iterator.CachedListRandomIterator;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.api.domain.valuerange.CountableValueRange;
+import org.optaplanner.core.api.domain.valuerange.ValueRange;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.valuerange.descriptor.EntityIndependentValueRangeDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
 /**
  * This is the common {@link ValueSelector} implementation.
  */
 public class FromSolutionPropertyValueSelector extends AbstractValueSelector
-        implements EntityIndependentValueSelector, SelectionCacheLifecycleListener {
+        implements EntityIndependentValueSelector {
 
-    protected final PlanningVariableDescriptor variableDescriptor;
-    protected final SelectionCacheType cacheType;
+    protected final EntityIndependentValueRangeDescriptor valueRangeDescriptor;
+    protected final SelectionCacheType minimumCacheType;
     protected final boolean randomSelection;
+    protected final boolean valueRangeMightContainEntity;
 
-    protected List<Object> cachedValueList = null;
+    protected ValueRange<Object> cachedValueRange = null;
+    protected Long cachedEntityListRevision = null;
+    protected boolean cachedEntityListIsDirty = false;
 
-    public FromSolutionPropertyValueSelector(PlanningVariableDescriptor variableDescriptor,
-            SelectionCacheType cacheType, boolean randomSelection) {
-        this.variableDescriptor = variableDescriptor;
-        this.cacheType = cacheType;
+    public FromSolutionPropertyValueSelector(EntityIndependentValueRangeDescriptor valueRangeDescriptor,
+            SelectionCacheType minimumCacheType, boolean randomSelection) {
+        this.valueRangeDescriptor = valueRangeDescriptor;
+        this.minimumCacheType = minimumCacheType;
         this.randomSelection = randomSelection;
-        if (cacheType.isNotCached()) {
-            throw new IllegalArgumentException("The selector (" + this
-                    + ") does not support the cacheType (" + cacheType + ").");
-        }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        valueRangeMightContainEntity = valueRangeDescriptor.mightContainEntity();
     }
 
-    public PlanningVariableDescriptor getVariableDescriptor() {
-        return variableDescriptor;
+    @Override
+    public GenuineVariableDescriptor getVariableDescriptor() {
+        return valueRangeDescriptor.getVariableDescriptor();
     }
 
     @Override
     public SelectionCacheType getCacheType() {
-        return cacheType;
+        SelectionCacheType intrinsicCacheType = valueRangeMightContainEntity
+                ? SelectionCacheType.STEP
+                : SelectionCacheType.PHASE;
+        return (intrinsicCacheType.compareTo(minimumCacheType) > 0)
+                ? intrinsicCacheType
+                : minimumCacheType;
     }
 
     // ************************************************************************
     // Cache lifecycle methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
-        // TODO FIXME extractAllPlanningValues filters out uninitialized entities of another variable
-        Collection<?> planningValues = variableDescriptor.extractAllPlanningValues(solverScope.getWorkingSolution());
-        cachedValueList = new ArrayList<Object>(planningValues.size() + 1);
-        cachedValueList.addAll(planningValues);
-        if (variableDescriptor.isNullable()) {
-            cachedValueList.add(null);
+    @Override
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
+        super.phaseStarted(phaseScope);
+        InnerScoreDirector scoreDirector = phaseScope.getScoreDirector();
+        cachedValueRange = (ValueRange<Object>) valueRangeDescriptor.extractValueRange(scoreDirector.getWorkingSolution());
+        if (valueRangeMightContainEntity) {
+            cachedEntityListRevision = scoreDirector.getWorkingEntityListRevision();
+            cachedEntityListIsDirty = false;
         }
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
-        cachedValueList = null;
+    @Override
+    public void stepStarted(AbstractStepScope stepScope) {
+        super.stepStarted(stepScope);
+        if (valueRangeMightContainEntity) {
+            InnerScoreDirector scoreDirector = stepScope.getScoreDirector();
+            if (scoreDirector.isWorkingEntityListDirty(cachedEntityListRevision)) {
+                if (minimumCacheType.compareTo(SelectionCacheType.STEP) > 0) {
+                    cachedEntityListIsDirty = true;
+                } else {
+                    cachedValueRange = (ValueRange<Object>) valueRangeDescriptor
+                            .extractValueRange(scoreDirector.getWorkingSolution());
+                    cachedEntityListRevision = scoreDirector.getWorkingEntityListRevision();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
+        super.phaseEnded(phaseScope);
+        cachedValueRange = null;
+        if (valueRangeMightContainEntity) {
+            cachedEntityListRevision = null;
+            cachedEntityListIsDirty = false;
+        }
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return variableDescriptor.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return valueRangeDescriptor.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
-        return randomSelection || isContinuous();
+        return randomSelection || !isCountable();
     }
 
+    @Override
     public long getSize(Object entity) {
         return getSize();
     }
 
+    @Override
     public long getSize() {
-        return (long) cachedValueList.size();
+        return ((CountableValueRange<?>) cachedValueRange).getSize();
     }
 
+    @Override
     public Iterator<Object> iterator(Object entity) {
         return iterator();
     }
 
+    @Override
     public Iterator<Object> iterator() {
+        checkCachedEntityListIsDirty();
         if (!randomSelection) {
-            return cachedValueList.iterator();
+            return ((CountableValueRange<Object>) cachedValueRange).createOriginalIterator();
         } else {
-            return new CachedListRandomIterator<Object>(cachedValueList, workingRandom);
+            return cachedValueRange.createRandomIterator(workingRandom);
+        }
+    }
+
+    @Override
+    public Iterator<Object> endingIterator(Object entity) {
+        return endingIterator();
+    }
+
+    public Iterator<Object> endingIterator() {
+        return ((CountableValueRange<Object>) cachedValueRange).createOriginalIterator();
+    }
+
+    private void checkCachedEntityListIsDirty() {
+        if (cachedEntityListIsDirty) {
+            throw new IllegalStateException("The selector (" + this + ") with minimumCacheType (" + minimumCacheType
+                    + ")'s workingEntityList became dirty between steps but is still used afterwards.");
         }
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "(" + variableDescriptor.getVariableName() + ")";
+        return getClass().getSimpleName() + "(" + getVariableDescriptor().getVariableName() + ")";
     }
 
 }

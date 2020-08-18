@@ -1,22 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plannerBenchmark>
   <benchmarkDirectory>local/data/vehiclerouting/stepLimit</benchmarkDirectory>
+  <warmUpSecondsSpentLimit>0</warmUpSecondsSpentLimit>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.vehiclerouting.domain.VrpSchedule</xstreamAnnotatedClass>
-      <inputSolutionFile>data/vehiclerouting/unsolved/A-n32-k5.xml</inputSolutionFile>
+      <solutionFileIOClass>org.optaplanner.examples.vehiclerouting.persistence.VehicleRoutingFileIO</solutionFileIOClass>
+      <inputSolutionFile>data/vehiclerouting/import/vrpweb/basic/air/A-n32-k5.vrp</inputSolutionFile>
     </problemBenchmarks>
 
     <solver>
       <!--<environmentMode>FAST_ASSERT</environmentMode>-->
-      <solutionClass>org.optaplanner.examples.vehiclerouting.domain.VrpSchedule</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.vehiclerouting.domain.VrpCustomer</planningEntityClass>
-      <planningEntityClass>org.optaplanner.examples.vehiclerouting.domain.VrpStandstill</planningEntityClass>
+      <solutionClass>org.optaplanner.examples.vehiclerouting.domain.VehicleRoutingSolution</solutionClass>
+      <entityClass>org.optaplanner.examples.vehiclerouting.domain.Standstill</entityClass>
+      <entityClass>org.optaplanner.examples.vehiclerouting.domain.Customer</entityClass>
+      <entityClass>org.optaplanner.examples.vehiclerouting.domain.timewindowed.TimeWindowedCustomer</entityClass>
 
       <scoreDirectorFactory>
-        <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/vehiclerouting/solver/vehicleRoutingScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/vehiclerouting/solver/vehicleRoutingConstraints.drl</scoreDrl>
+        <initializingScoreTrend>ONLY_DOWN</initializingScoreTrend>
       </scoreDirectorFactory>
     </solver>
   </inheritedSolverBenchmark>
@@ -28,7 +30,7 @@
       </constructionHeuristic>
       <localSearch>
         <termination>
-          <maximumStepCount>100</maximumStepCount>
+          <stepCountLimit>100</stepCountLimit>
         </termination>
         <unionMoveSelector>
           <changeMoveSelector/>

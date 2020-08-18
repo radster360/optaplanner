@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,9 @@
 
 package org.optaplanner.examples.machinereassignment.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("MrResource")
 public class MrResource extends AbstractPersistable {
@@ -25,6 +26,22 @@ public class MrResource extends AbstractPersistable {
     private int index;
     private boolean transientlyConsumed;
     private int loadCostWeight;
+
+    public MrResource() {
+    }
+
+    public MrResource(int index, boolean transientlyConsumed, int loadCostWeight) {
+        this.index = index;
+        this.transientlyConsumed = transientlyConsumed;
+        this.loadCostWeight = loadCostWeight;
+    }
+
+    public MrResource(long id, int index, boolean transientlyConsumed, int loadCostWeight) {
+        super(id);
+        this.index = index;
+        this.transientlyConsumed = transientlyConsumed;
+        this.loadCostWeight = loadCostWeight;
+    }
 
     public int getIndex() {
         return index;

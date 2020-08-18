@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,52 +18,60 @@ package org.optaplanner.core.impl.heuristic.selector;
 
 import java.util.Random;
 
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.event.SolverPhaseLifecycleSupport;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.phase.event.PhaseLifecycleSupport;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Abstract superclass for {@link Selector}.
+ *
  * @see Selector
  */
 public abstract class AbstractSelector implements Selector {
 
     protected final transient Logger logger = LoggerFactory.getLogger(getClass());
 
-    protected SolverPhaseLifecycleSupport solverPhaseLifecycleSupport = new SolverPhaseLifecycleSupport();
+    protected PhaseLifecycleSupport phaseLifecycleSupport = new PhaseLifecycleSupport();
 
     protected Random workingRandom = null;
 
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    @Override
+    public void solvingStarted(SolverScope solverScope) {
         workingRandom = solverScope.getWorkingRandom();
-        solverPhaseLifecycleSupport.fireSolvingStarted(solverScope);
+        phaseLifecycleSupport.fireSolvingStarted(solverScope);
     }
 
-    public void phaseStarted(AbstractSolverPhaseScope phaseScope) {
-        solverPhaseLifecycleSupport.firePhaseStarted(phaseScope);
+    @Override
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
+        phaseLifecycleSupport.firePhaseStarted(phaseScope);
     }
 
+    @Override
     public void stepStarted(AbstractStepScope stepScope) {
-        solverPhaseLifecycleSupport.fireStepStarted(stepScope);
+        phaseLifecycleSupport.fireStepStarted(stepScope);
     }
 
+    @Override
     public void stepEnded(AbstractStepScope stepScope) {
-        solverPhaseLifecycleSupport.fireStepEnded(stepScope);
+        phaseLifecycleSupport.fireStepEnded(stepScope);
     }
 
-    public void phaseEnded(AbstractSolverPhaseScope phaseScope) {
-        solverPhaseLifecycleSupport.firePhaseEnded(phaseScope);
+    @Override
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
+        phaseLifecycleSupport.firePhaseEnded(phaseScope);
     }
 
-    public void solvingEnded(DefaultSolverScope solverScope) {
-        solverPhaseLifecycleSupport.fireSolvingEnded(solverScope);
+    @Override
+    public void solvingEnded(SolverScope solverScope) {
+        phaseLifecycleSupport.fireSolvingEnded(solverScope);
         workingRandom = null;
     }
 
+    @Override
     public SelectionCacheType getCacheType() {
         return SelectionCacheType.JUST_IN_TIME;
     }

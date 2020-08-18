@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,46 +16,51 @@
 
 package org.optaplanner.examples.projectjobscheduling.app;
 
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.common.swingui.SolutionPanel;
-import org.optaplanner.examples.projectjobscheduling.persistence.ProjectJobSchedulingDao;
-import org.optaplanner.examples.projectjobscheduling.persistence.ProjectJobSchedulingSolutionImporter;
+import org.optaplanner.examples.projectjobscheduling.domain.Schedule;
+import org.optaplanner.examples.projectjobscheduling.persistence.ProjectJobSchedulingImporter;
+import org.optaplanner.examples.projectjobscheduling.persistence.ProjectJobSchedulingXmlSolutionFileIO;
 import org.optaplanner.examples.projectjobscheduling.swingui.ProjectJobSchedulingPanel;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
-public class ProjectJobSchedulingApp extends CommonApp {
+public class ProjectJobSchedulingApp extends CommonApp<Schedule> {
 
-    public static final String SOLVER_CONFIG
-            = "/org/optaplanner/examples/projectjobscheduling/solver/projectJobSchedulingSolverConfig.xml";
+    public static final String SOLVER_CONFIG =
+            "org/optaplanner/examples/projectjobscheduling/solver/projectJobSchedulingSolverConfig.xml";
+
+    public static final String DATA_DIR_NAME = "projectjobscheduling";
 
     public static void main(String[] args) {
-        fixateLookAndFeel();
+        prepareSwingEnvironment();
         new ProjectJobSchedulingApp().init();
     }
 
-    @Override
-    protected Solver createSolver() {
-        XmlSolverFactory solverFactory = new XmlSolverFactory();
-        solverFactory.configure(SOLVER_CONFIG);
-        return solverFactory.buildSolver();
+    public ProjectJobSchedulingApp() {
+        super("Project job scheduling",
+                "Official competition name:" +
+                        " multi-mode resource-constrained multi-project scheduling problem (MRCMPSP)\n\n" +
+                        "Schedule all jobs in time and execution mode.\n\n" +
+                        "Minimize project delays.",
+                SOLVER_CONFIG, DATA_DIR_NAME,
+                ProjectJobSchedulingPanel.LOGO_PATH);
     }
 
     @Override
-    protected SolutionPanel createSolutionPanel() {
+    protected ProjectJobSchedulingPanel createSolutionPanel() {
         return new ProjectJobSchedulingPanel();
     }
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new ProjectJobSchedulingDao();
+    public SolutionFileIO<Schedule> createSolutionFileIO() {
+        return new ProjectJobSchedulingXmlSolutionFileIO();
     }
 
     @Override
-    protected AbstractSolutionImporter createSolutionImporter() {
-        return new ProjectJobSchedulingSolutionImporter();
+    protected AbstractSolutionImporter[] createSolutionImporters() {
+        return new AbstractSolutionImporter[] {
+                new ProjectJobSchedulingImporter()
+        };
     }
 
 }

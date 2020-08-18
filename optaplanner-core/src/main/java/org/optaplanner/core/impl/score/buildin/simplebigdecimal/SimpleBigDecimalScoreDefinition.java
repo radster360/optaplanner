@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,61 +17,98 @@
 package org.optaplanner.core.impl.score.buildin.simplebigdecimal;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 
-import org.optaplanner.core.api.score.Score;
 import org.optaplanner.core.api.score.buildin.simplebigdecimal.SimpleBigDecimalScore;
-import org.optaplanner.core.api.score.buildin.simplebigdecimal.SimpleBigDecimalScoreHolder;
-import org.optaplanner.core.api.score.holder.ScoreHolder;
 import org.optaplanner.core.impl.score.definition.AbstractScoreDefinition;
+import org.optaplanner.core.impl.score.trend.InitializingScoreTrend;
 
 public class SimpleBigDecimalScoreDefinition extends AbstractScoreDefinition<SimpleBigDecimalScore> {
 
-    private SimpleBigDecimalScore perfectMaximumScore = SimpleBigDecimalScore.valueOf(BigDecimal.ZERO);
-    private SimpleBigDecimalScore perfectMinimumScore = null;
-
-    @Override
-    public SimpleBigDecimalScore getPerfectMaximumScore() {
-        return perfectMaximumScore;
-    }
-
-    public void setPerfectMaximumScore(SimpleBigDecimalScore perfectMaximumScore) {
-        this.perfectMaximumScore = perfectMaximumScore;
-    }
-
-    @Override
-    public SimpleBigDecimalScore getPerfectMinimumScore() {
-        return perfectMinimumScore;
-    }
-
-    public void setPerfectMinimumScore(SimpleBigDecimalScore perfectMinimumScore) {
-        this.perfectMinimumScore = perfectMinimumScore;
+    public SimpleBigDecimalScoreDefinition() {
+        super(new String[] { "score" });
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
+    @Override
+    public int getLevelsSize() {
+        return 1;
+    }
+
+    @Override
+    public int getFeasibleLevelsSize() {
+        return 0;
+    }
+
+    @Override
     public Class<SimpleBigDecimalScore> getScoreClass() {
         return SimpleBigDecimalScore.class;
     }
 
-    public Score parseScore(String scoreString) {
+    @Override
+    public SimpleBigDecimalScore getZeroScore() {
+        return SimpleBigDecimalScore.ZERO;
+    }
+
+    @Override
+    public SimpleBigDecimalScore getOneSoftestScore() {
+        return SimpleBigDecimalScore.ONE;
+    }
+
+    @Override
+    public SimpleBigDecimalScore parseScore(String scoreString) {
         return SimpleBigDecimalScore.parseScore(scoreString);
     }
 
-    public double calculateTimeGradient(SimpleBigDecimalScore startScore, SimpleBigDecimalScore endScore, SimpleBigDecimalScore score) {
-        if (score.getScore().compareTo(endScore.getScore()) >= 0) {
-            return 1.0;
-        } else if (startScore.getScore().compareTo(score.getScore()) >= 0) {
-            return 0.0;
+    @Override
+    public SimpleBigDecimalScore fromLevelNumbers(int initScore, Number[] levelNumbers) {
+        if (levelNumbers.length != getLevelsSize()) {
+            throw new IllegalStateException("The levelNumbers (" + Arrays.toString(levelNumbers)
+                    + ")'s length (" + levelNumbers.length + ") must equal the levelSize (" + getLevelsSize() + ").");
         }
-        BigDecimal scoreTotal = endScore.getScore().subtract(startScore.getScore());
-        BigDecimal scoreDelta = score.getScore().subtract(startScore.getScore());
-        return scoreDelta.divide(scoreTotal).doubleValue();
+        return SimpleBigDecimalScore.ofUninitialized(initScore, (BigDecimal) levelNumbers[0]);
     }
 
-    public ScoreHolder buildScoreHolder(boolean constraintMatchEnabled) {
-        return new SimpleBigDecimalScoreHolder(constraintMatchEnabled);
+    @Override
+    public SimpleBigDecimalScoreInliner buildScoreInliner(boolean constraintMatchEnabled) {
+        return new SimpleBigDecimalScoreInliner(constraintMatchEnabled);
     }
 
+    @Override
+    public SimpleBigDecimalScoreHolderImpl buildScoreHolder(boolean constraintMatchEnabled) {
+        return new SimpleBigDecimalScoreHolderImpl(constraintMatchEnabled);
+    }
+
+    @Override
+    public SimpleBigDecimalScore buildOptimisticBound(InitializingScoreTrend initializingScoreTrend,
+            SimpleBigDecimalScore score) {
+        // TODO https://issues.redhat.com/browse/PLANNER-232
+        throw new UnsupportedOperationException("PLANNER-232: BigDecimalScore does not support bounds" +
+                " because a BigDecimal cannot represent infinity.");
+    }
+
+    @Override
+    public SimpleBigDecimalScore buildPessimisticBound(InitializingScoreTrend initializingScoreTrend,
+            SimpleBigDecimalScore score) {
+        // TODO https://issues.redhat.com/browse/PLANNER-232
+        throw new UnsupportedOperationException("PLANNER-232: BigDecimalScore does not support bounds" +
+                " because a BigDecimal cannot represent infinity.");
+    }
+
+    @Override
+    public SimpleBigDecimalScore divideBySanitizedDivisor(SimpleBigDecimalScore dividend,
+            SimpleBigDecimalScore divisor) {
+        int dividendInitScore = dividend.getInitScore();
+        int divisorInitScore = sanitize(divisor.getInitScore());
+        BigDecimal dividendScore = dividend.getScore();
+        BigDecimal divisorScore = sanitize(divisor.getScore());
+        return fromLevelNumbers(
+                divide(dividendInitScore, divisorInitScore),
+                new Number[] {
+                        divide(dividendScore, divisorScore)
+                });
+    }
 }

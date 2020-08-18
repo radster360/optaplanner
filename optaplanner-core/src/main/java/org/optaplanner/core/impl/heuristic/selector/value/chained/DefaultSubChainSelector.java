@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,20 +19,22 @@ package org.optaplanner.core.impl.heuristic.selector.value.chained;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableDemand;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
+import org.optaplanner.core.impl.domain.variable.supply.SupplyManager;
 import org.optaplanner.core.impl.heuristic.selector.AbstractSelector;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-import org.optaplanner.core.impl.util.RandomUtils;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
+import org.optaplanner.core.impl.solver.random.RandomUtils;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 /**
  * This is the common {@link SubChainSelector} implementation.
@@ -45,6 +47,9 @@ public class DefaultSubChainSelector extends AbstractSelector
     protected final EntityIndependentValueSelector valueSelector;
     protected final boolean randomSelection;
 
+    protected SingletonInverseVariableSupply inverseVariableSupply;
+
+    // The sub selection here is a sequence. For example from ABCDE, it can select BCD, but not ACD.
     protected final int minimumSubChainSize;
     protected final int maximumSubChainSize;
 
@@ -54,8 +59,6 @@ public class DefaultSubChainSelector extends AbstractSelector
             int minimumSubChainSize, int maximumSubChainSize) {
         this.valueSelector = valueSelector;
         this.randomSelection = randomSelection;
-        this.minimumSubChainSize = minimumSubChainSize;
-        this.maximumSubChainSize = maximumSubChainSize;
         if (!valueSelector.getVariableDescriptor().isChained()) {
             throw new IllegalArgumentException("The selector (" + this
                     + ")'s valueSelector (" + valueSelector
@@ -67,8 +70,10 @@ public class DefaultSubChainSelector extends AbstractSelector
                     + ") has a valueSelector (" + valueSelector
                     + ") with neverEnding (" + valueSelector.isNeverEnding() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(valueSelector);
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(CACHE_TYPE, this));
+        phaseLifecycleSupport.addEventListener(valueSelector);
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(CACHE_TYPE, this));
+        this.minimumSubChainSize = minimumSubChainSize;
+        this.maximumSubChainSize = maximumSubChainSize;
         if (minimumSubChainSize < 1) {
             throw new IllegalStateException("The selector (" + this
                     + ")'s minimumSubChainSize (" + minimumSubChainSize
@@ -80,7 +85,8 @@ public class DefaultSubChainSelector extends AbstractSelector
         }
     }
 
-    public PlanningVariableDescriptor getVariableDescriptor() {
+    @Override
+    public GenuineVariableDescriptor getVariableDescriptor() {
         return valueSelector.getVariableDescriptor();
     }
 
@@ -89,14 +95,28 @@ public class DefaultSubChainSelector extends AbstractSelector
         return CACHE_TYPE;
     }
 
+    @Override
+    public void solvingStarted(SolverScope solverScope) {
+        super.solvingStarted(solverScope);
+        SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
+        GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
+        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand(variableDescriptor));
+    }
+
+    @Override
+    public void solvingEnded(SolverScope solverScope) {
+        super.solvingEnded(solverScope);
+        inverseVariableSupply = null;
+    }
+
     // ************************************************************************
     // Cache lifecycle methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
-        ScoreDirector scoreDirector = solverScope.getScoreDirector();
-        PlanningVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
-        Class<?> entityClass = variableDescriptor.getEntityDescriptor().getPlanningEntityClass();
+    @Override
+    public void constructCache(SolverScope solverScope) {
+        InnerScoreDirector scoreDirector = solverScope.getScoreDirector();
+        GenuineVariableDescriptor variableDescriptor = valueSelector.getVariableDescriptor();
         long valueSize = valueSelector.getSize();
         // Fail-fast when anchorTrailingChainList.size() could ever be too big
         if (valueSize > (long) Integer.MAX_VALUE) {
@@ -105,21 +125,21 @@ public class DefaultSubChainSelector extends AbstractSelector
                     + ") with valueSize (" + valueSize
                     + ") which is higher than Integer.MAX_VALUE.");
         }
-        // Temporary LinkedList to avoid using a bad initialCapacity
-        List<Object> anchorList = new LinkedList<Object>();
+        List<Object> anchorList = new ArrayList<>();
         for (Object value : valueSelector) {
-            if (!entityClass.isAssignableFrom(value.getClass())) {
+            if (variableDescriptor.isValuePotentialAnchor(value)) {
                 anchorList.add(value);
             }
         }
-        anchorTrailingChainList = new ArrayList<SubChain>(anchorList.size());
-        int anchorChainInitialCapacity = ((int) valueSize / anchorList.size()) + 1;
+        int anchorListSize = Math.max(anchorList.size(), 1);
+        anchorTrailingChainList = new ArrayList<>(anchorListSize);
+        int anchorChainInitialCapacity = ((int) valueSize / anchorListSize) + 1;
         for (Object anchor : anchorList) {
-            List<Object> anchorChain = new ArrayList<Object>(anchorChainInitialCapacity);
-            Object trailingEntity = scoreDirector.getTrailingEntity(variableDescriptor, anchor);
+            List<Object> anchorChain = new ArrayList<>(anchorChainInitialCapacity);
+            Object trailingEntity = inverseVariableSupply.getInverseSingleton(anchor);
             while (trailingEntity != null) {
                 anchorChain.add(trailingEntity);
-                trailingEntity = scoreDirector.getTrailingEntity(variableDescriptor, trailingEntity);
+                trailingEntity = inverseVariableSupply.getInverseSingleton(trailingEntity);
             }
             if (anchorChain.size() >= minimumSubChainSize) {
                 anchorTrailingChainList.add(new SubChain(anchorChain));
@@ -127,7 +147,8 @@ public class DefaultSubChainSelector extends AbstractSelector
         }
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         anchorTrailingChainList = null;
     }
 
@@ -135,14 +156,17 @@ public class DefaultSubChainSelector extends AbstractSelector
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         return randomSelection;
     }
 
+    @Override
     public long getSize() {
         long selectionSize = 0L;
         for (SubChain anchorTrailingChain : anchorTrailingChainList) {
@@ -151,35 +175,39 @@ public class DefaultSubChainSelector extends AbstractSelector
         return selectionSize;
     }
 
-    private long calculateSubChainSelectionSize(SubChain anchorTrailingChain) {
+    protected long calculateSubChainSelectionSize(SubChain anchorTrailingChain) {
         long anchorTrailingChainSize = (long) anchorTrailingChain.getSize();
         long n = anchorTrailingChainSize - (long) minimumSubChainSize + 1L;
         long m = (maximumSubChainSize >= anchorTrailingChainSize)
-                ? 0L : anchorTrailingChainSize - (long) maximumSubChainSize;
+                ? 0L
+                : anchorTrailingChainSize - (long) maximumSubChainSize;
         return (n * (n + 1L) / 2L) - (m * (m + 1L) / 2L);
     }
 
+    @Override
     public Iterator<SubChain> iterator() {
         if (!randomSelection) {
-            return new OriginalSubChainIterator(anchorTrailingChainList.iterator());
+            return new OriginalSubChainIterator(anchorTrailingChainList.listIterator());
         } else {
             return new RandomSubChainIterator();
         }
     }
 
+    @Override
     public ListIterator<SubChain> listIterator() {
         if (!randomSelection) {
-            return new OriginalSubChainIterator(anchorTrailingChainList.iterator());
+            return new OriginalSubChainIterator(anchorTrailingChainList.listIterator());
         } else {
             throw new IllegalStateException("The selector (" + this
                     + ") does not support a ListIterator with randomSelection (" + randomSelection + ").");
         }
     }
 
+    @Override
     public ListIterator<SubChain> listIterator(int index) {
         if (!randomSelection) {
-            // TODO Implement more efficient ListIterator https://issues.jboss.org/browse/PLANNER-37
-            OriginalSubChainIterator it = new OriginalSubChainIterator(anchorTrailingChainList.iterator());
+            // TODO Implement more efficient ListIterator https://issues.redhat.com/browse/PLANNER-37
+            OriginalSubChainIterator it = new OriginalSubChainIterator(anchorTrailingChainList.listIterator());
             for (int i = 0; i < index; i++) {
                 it.next();
             }
@@ -193,14 +221,14 @@ public class DefaultSubChainSelector extends AbstractSelector
     private class OriginalSubChainIterator extends UpcomingSelectionIterator<SubChain>
             implements ListIterator<SubChain> {
 
-        private final Iterator<SubChain> anchorTrailingChainIterator;
+        private final ListIterator<SubChain> anchorTrailingChainIterator;
         private List<Object> anchorTrailingChain;
         private int fromIndex; // Inclusive
         private int toIndex; // Exclusive
 
         private int nextListIteratorIndex;
 
-        public OriginalSubChainIterator(Iterator<SubChain> anchorTrailingChainIterator) {
+        public OriginalSubChainIterator(ListIterator<SubChain> anchorTrailingChainIterator) {
             this.anchorTrailingChainIterator = anchorTrailingChainIterator;
             fromIndex = 0;
             toIndex = 1;
@@ -233,29 +261,35 @@ public class DefaultSubChainSelector extends AbstractSelector
             return super.next();
         }
 
+        @Override
         public int nextIndex() {
             return nextListIteratorIndex;
         }
 
+        @Override
         public boolean hasPrevious() {
             throw new UnsupportedOperationException("The operation hasPrevious() is not supported."
-                    + " See https://issues.jboss.org/browse/PLANNER-37");
+                    + " See https://issues.redhat.com/browse/PLANNER-37");
         }
 
+        @Override
         public SubChain previous() {
             throw new UnsupportedOperationException("The operation previous() is not supported."
-                    + " See https://issues.jboss.org/browse/PLANNER-37");
+                    + " See https://issues.redhat.com/browse/PLANNER-37");
         }
 
+        @Override
         public int previousIndex() {
             throw new UnsupportedOperationException("The operation previousIndex() is not supported."
-                    + " See https://issues.jboss.org/browse/PLANNER-37");
+                    + " See https://issues.redhat.com/browse/PLANNER-37");
         }
 
+        @Override
         public void set(SubChain subChain) {
             throw new UnsupportedOperationException("The optional operation set() is not supported.");
         }
 
+        @Override
         public void add(SubChain subChain) {
             throw new UnsupportedOperationException("The optional operation add() is not supported.");
         }
@@ -273,7 +307,8 @@ public class DefaultSubChainSelector extends AbstractSelector
         @Override
         protected SubChain createUpcomingSelection() {
             SubChain anchorTrailingChain = selectAnchorTrailingChain();
-            // Every SubChain must have same probability. A random fromIndex and random toIndex would not be fair.
+            // Every SubChain has the same probability (from this point on at least).
+            // A random fromIndex and random toIndex would not be fair.
             long selectionSize = calculateSubChainSelectionSize(anchorTrailingChain);
             long selectionIndex = RandomUtils.nextLong(workingRandom, selectionSize);
             // Black magic to translate selectionIndex into fromIndex and toIndex
@@ -292,7 +327,8 @@ public class DefaultSubChainSelector extends AbstractSelector
         }
 
         private SubChain selectAnchorTrailingChain() {
-            // TODO support SelectionProbabilityWeightFactory, such as FairSelectorProbabilityWeightFactory too
+            // Known issue/compromise: Every SubChain should have same probability, but doesn't.
+            // Instead, every anchorTrailingChain has the same probability.
             int anchorTrailingChainListIndex = workingRandom.nextInt(anchorTrailingChainList.size());
             return anchorTrailingChainList.get(anchorTrailingChainListIndex);
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,73 +16,73 @@
 
 package org.optaplanner.core.api.score.constraint;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
-import org.kie.api.runtime.rule.RuleContext;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintConfiguration;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.variable.PlanningVariable;
+import org.optaplanner.core.api.score.Score;
+import org.optaplanner.core.api.score.ScoreExplanation;
 
-public abstract class ConstraintMatchTotal implements Serializable, Comparable<ConstraintMatchTotal> {
+/**
+ * Explains the {@link Score} of a {@link PlanningSolution}, from the opposite side than {@link Indictment}.
+ * Retrievable from {@link ScoreExplanation#getConstraintMatchTotalMap()}.
+ */
+public interface ConstraintMatchTotal {
 
-    protected final String constraintPackage;
-    protected final String constraintName;
-    protected final int scoreLevel;
-
-    protected ConstraintMatchTotal(String constraintPackage, String constraintName, int scoreLevel) {
-        this.constraintPackage = constraintPackage;
-        this.constraintName = constraintName;
-        this.scoreLevel = scoreLevel;
+    /**
+     * @param constraintPackage never null
+     * @param constraintName never null
+     * @return never null
+     */
+    static String composeConstraintId(String constraintPackage, String constraintName) {
+        return constraintPackage + "/" + constraintName;
     }
 
-    public String getConstraintPackage() {
-        return constraintPackage;
+    /**
+     * @return never null
+     */
+    String getConstraintPackage();
+
+    /**
+     * @return never null
+     */
+    String getConstraintName();
+
+    /**
+     * The value of the {@link ConstraintWeight} annotated member of the {@link ConstraintConfiguration}.
+     * It's independent to the state of the {@link PlanningVariable planning variables}.
+     * Do not confuse with {@link #getScore()}.
+     *
+     * @return null if {@link ConstraintWeight} isn't used for this constraint
+     */
+    Score getConstraintWeight();
+
+    /**
+     * @return never null
+     */
+    Set<ConstraintMatch> getConstraintMatchSet();
+
+    /**
+     * @return {@code >= 0}
+     */
+    default int getConstraintMatchCount() {
+        return getConstraintMatchSet().size();
     }
 
-    public String getConstraintName() {
-        return constraintName;
-    }
+    /**
+     * Sum of the {@link #getConstraintMatchSet()}'s {@link ConstraintMatch#getScore()}.
+     *
+     * @return never null
+     */
+    Score getScore();
 
-    public int getScoreLevel() {
-        return scoreLevel;
-    }
-
-    public abstract Set<? extends ConstraintMatch> getConstraintMatchSet();
-
-    public abstract Number getWeightTotalAsNumber();
-
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
-
-    protected List<Object> extractJustificationList(RuleContext kcontext) {
-        List<Object> droolsMatchObjects = kcontext.getMatch().getObjects();
-        // Drools always returns the rule matches in reverse order
-        // TODO performance leak: use a reversed view instead, for example guava's Lists.reverse(List)
-        List<Object> justificationList = new ArrayList<Object>(droolsMatchObjects);
-        Collections.reverse(justificationList);
-        return justificationList;
-    }
-
-    public String getIdentificationString() {
-        return constraintPackage + "/" + constraintName + "/level" + scoreLevel;
-    }
-
-    @Override
-    public int compareTo(ConstraintMatchTotal other) {
-        return new CompareToBuilder()
-                .append(getConstraintPackage(), other.getConstraintPackage())
-                .append(getConstraintName(), other.getConstraintName())
-                .append(getScoreLevel(), other.getScoreLevel())
-                .append(getWeightTotalAsNumber(), other.getWeightTotalAsNumber())
-                .toComparison();
-    }
-
-    @Override
-    public String toString() {
-        return getIdentificationString() + "=" + getWeightTotalAsNumber();
-    }
+    /**
+     * To create a constraintId, use {@link #composeConstraintId(String, String)}.
+     *
+     * @return never null
+     */
+    String getConstraintId();
 
 }

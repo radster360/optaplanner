@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,18 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.composite;
 
+import java.util.Collection;
 import java.util.List;
 
+import org.optaplanner.core.api.domain.valuerange.CountableValueRange;
+import org.optaplanner.core.api.domain.valuerange.ValueRange;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 
 /**
  * Abstract superclass for every composite {@link MoveSelector}.
+ *
  * @see MoveSelector
  */
 public abstract class CompositeMoveSelector extends AbstractMoveSelector {
@@ -34,35 +39,51 @@ public abstract class CompositeMoveSelector extends AbstractMoveSelector {
         this.childMoveSelectorList = childMoveSelectorList;
         this.randomSelection = randomSelection;
         for (MoveSelector childMoveSelector : childMoveSelectorList) {
-            solverPhaseLifecycleSupport.addEventListener(childMoveSelector);
+            phaseLifecycleSupport.addEventListener(childMoveSelector);
         }
         if (!randomSelection) {
             // Only the last childMoveSelector can be neverEnding
             if (!childMoveSelectorList.isEmpty()) {
-                for (MoveSelector childMoveSelector
-                        : childMoveSelectorList.subList(0, childMoveSelectorList.size() - 1)) {
+                for (MoveSelector childMoveSelector : childMoveSelectorList.subList(0, childMoveSelectorList.size() - 1)) {
                     if (childMoveSelector.isNeverEnding()) {
                         throw new IllegalStateException("The selector (" + this
                                 + ")'s non-last childMoveSelector (" + childMoveSelector
                                 + ") has neverEnding (" + childMoveSelector.isNeverEnding()
-                                + ") with randomSelection (" + randomSelection + ").");
+                                + ") with randomSelection (" + randomSelection + ")."
+                                + (childMoveSelector.isCountable() ? ""
+                                        : "\nThe selector is not countable, check the "
+                                                + ValueRange.class.getSimpleName() + "s involved.\n"
+                                                + "Verify that a " + ValueRangeProvider.class.getSimpleName()
+                                                + " does not return " + ValueRange.class.getSimpleName()
+                                                + " when it can return " + CountableValueRange.class.getSimpleName()
+                                                + " or " + Collection.class.getSimpleName() + "."));
                     }
                 }
             }
         }
     }
 
+    public List<MoveSelector> getChildMoveSelectorList() {
+        return childMoveSelectorList;
+    }
+
+    @Override
+    public boolean supportsPhaseAndSolverCaching() {
+        return true;
+    }
+
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
+    @Override
+    public boolean isCountable() {
         for (MoveSelector moveSelector : childMoveSelectorList) {
-            if (moveSelector.isContinuous()) {
-                return true;
+            if (!moveSelector.isCountable()) {
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     @Override

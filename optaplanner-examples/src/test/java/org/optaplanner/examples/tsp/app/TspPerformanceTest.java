@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,25 @@
 
 package org.optaplanner.examples.tsp.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.tsp.persistence.TspDao;
+import org.optaplanner.examples.tsp.domain.TspSolution;
 
-public class TspPerformanceTest extends SolverPerformanceTest {
+public class TspPerformanceTest extends SolverPerformanceTest<TspSolution> {
 
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/tsp/solver/tspSolverConfig.xml";
-    }
+    private static final String UNSOLVED_DATA_FILE = "data/tsp/unsolved/europe40.xml";
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new TspDao();
+    protected TspApp createCommonApp() {
+        return new TspApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveModel_a2_1() {
-        File unsolvedDataFile = new File("data/tsp/unsolved/europe40.xml");
-        runSpeedTest(unsolvedDataFile, "-217957");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(UNSOLVED_DATA_FILE, "-217957000", EnvironmentMode.REPRODUCIBLE),
+                testData(UNSOLVED_DATA_FILE, "-219637000", EnvironmentMode.FAST_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveModel_a2_1FastAssert() {
-        File unsolvedDataFile = new File("data/tsp/unsolved/europe40.xml");
-        runSpeedTest(unsolvedDataFile, "-219637", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

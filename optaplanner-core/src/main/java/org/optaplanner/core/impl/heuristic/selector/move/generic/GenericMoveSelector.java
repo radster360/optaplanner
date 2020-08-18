@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 
 /**
  * Abstract superclass for every generic {@link MoveSelector}.
+ *
  * @see MoveSelector
  */
 public abstract class GenericMoveSelector extends AbstractMoveSelector {

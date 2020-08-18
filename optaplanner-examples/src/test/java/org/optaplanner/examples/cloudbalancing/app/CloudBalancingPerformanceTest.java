@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,25 @@
 
 package org.optaplanner.examples.cloudbalancing.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
-import org.optaplanner.examples.cloudbalancing.persistence.CloudBalancingDao;
+import org.optaplanner.examples.cloudbalancing.domain.CloudBalance;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
 
-public class CloudBalancingPerformanceTest extends SolverPerformanceTest {
+public class CloudBalancingPerformanceTest extends SolverPerformanceTest<CloudBalance> {
 
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/cloudbalancing/solver/cloudBalancingSolverConfig.xml";
-    }
+    private static final String UNSOLVED_DATA_FILE = "data/cloudbalancing/unsolved/200computers-600processes.xml";
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new CloudBalancingDao();
+    protected CloudBalancingApp createCommonApp() {
+        return new CloudBalancingApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveModel_cb_0200comp_0600() {
-        File unsolvedDataFile = new File("data/cloudbalancing/unsolved/cb-0200comp-0600proc.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-218850soft");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(UNSOLVED_DATA_FILE, "0hard/-218850soft", EnvironmentMode.REPRODUCIBLE),
+                testData(UNSOLVED_DATA_FILE, "0hard/-223260soft", EnvironmentMode.FAST_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveModel_cb_0200comp_0600FastAssert() {
-        File unsolvedDataFile = new File("data/cloudbalancing/unsolved/cb-0200comp-0600proc.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-223260soft", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

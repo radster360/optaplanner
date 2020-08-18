@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 package org.optaplanner.core.impl.constructionheuristic.decider.forager;
 
-import org.optaplanner.core.impl.constructionheuristic.event.ConstructionHeuristicSolverPhaseLifecycleListenerAdapter;
+import org.optaplanner.core.impl.constructionheuristic.event.ConstructionHeuristicPhaseLifecycleListenerAdapter;
 
 public abstract class AbstractConstructionHeuristicForager
-        extends ConstructionHeuristicSolverPhaseLifecycleListenerAdapter
+        extends ConstructionHeuristicPhaseLifecycleListenerAdapter
         implements ConstructionHeuristicForager {
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,23 @@
 
 package org.optaplanner.core.impl.domain.solution.mutation;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.Test;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
 import org.optaplanner.core.impl.testdata.domain.TestdataEntity;
 import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 import org.optaplanner.core.impl.testdata.domain.TestdataValue;
-
-import static org.junit.Assert.*;
 
 public class MutationCounterTest {
 
     @Test
     public void countMutationsNone() {
-        SolutionDescriptor solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
-        MutationCounter mutationCounter = new MutationCounter(solutionDescriptor);
+        SolutionDescriptor<TestdataSolution> solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
+        MutationCounter<TestdataSolution> mutationCounter = new MutationCounter<>(solutionDescriptor);
 
         TestdataValue val1 = new TestdataValue("1");
         TestdataValue val2 = new TestdataValue("2");
@@ -59,13 +59,13 @@ public class MutationCounterTest {
         b.setValueList(valueList);
         b.setEntityList(bEntityList);
 
-        assertEquals(0, mutationCounter.countMutations(a, b));
+        assertThat(mutationCounter.countMutations(a, b)).isEqualTo(0);
     }
 
     @Test
     public void countMutationsSome() {
-        SolutionDescriptor solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
-        MutationCounter mutationCounter = new MutationCounter(solutionDescriptor);
+        SolutionDescriptor<TestdataSolution> solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
+        MutationCounter<TestdataSolution> mutationCounter = new MutationCounter<>(solutionDescriptor);
 
         TestdataValue val1 = new TestdataValue("1");
         TestdataValue val2 = new TestdataValue("2");
@@ -92,13 +92,13 @@ public class MutationCounterTest {
         b.setValueList(valueList);
         b.setEntityList(bEntityList);
 
-        assertEquals(2, mutationCounter.countMutations(a, b));
+        assertThat(mutationCounter.countMutations(a, b)).isEqualTo(2);
     }
 
     @Test
     public void countMutationsAll() {
-        SolutionDescriptor solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
-        MutationCounter mutationCounter = new MutationCounter(solutionDescriptor);
+        SolutionDescriptor<TestdataSolution> solutionDescriptor = TestdataSolution.buildSolutionDescriptor();
+        MutationCounter<TestdataSolution> mutationCounter = new MutationCounter<>(solutionDescriptor);
 
         TestdataValue val1 = new TestdataValue("1");
         TestdataValue val2 = new TestdataValue("2");
@@ -125,7 +125,7 @@ public class MutationCounterTest {
         b.setValueList(valueList);
         b.setEntityList(bEntityList);
 
-        assertEquals(4, mutationCounter.countMutations(a, b));
+        assertThat(mutationCounter.countMutations(a, b)).isEqualTo(4);
     }
 
 }

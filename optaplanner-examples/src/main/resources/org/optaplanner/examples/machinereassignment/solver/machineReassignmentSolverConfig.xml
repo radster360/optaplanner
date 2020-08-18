@@ -1,27 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <solver>
-  <!--<environmentMode>FAST_ASSERT</environmentMode>-->
+  <!--<environmentMode>FULL_ASSERT</environmentMode>--><!-- To slowly prove there are no bugs in this code -->
+  <!--<moveThreadCount>AUTO</moveThreadCount>--><!-- To solve faster by saturating multiple CPU cores -->
+
   <solutionClass>org.optaplanner.examples.machinereassignment.domain.MachineReassignment</solutionClass>
-  <planningEntityClass>org.optaplanner.examples.machinereassignment.domain.MrProcessAssignment</planningEntityClass>
+  <entityClass>org.optaplanner.examples.machinereassignment.domain.MrProcessAssignment</entityClass>
 
   <scoreDirectorFactory>
-    <scoreDefinitionType>HARD_SOFT_LONG</scoreDefinitionType>
     <incrementalScoreCalculatorClass>org.optaplanner.examples.machinereassignment.solver.score.MachineReassignmentIncrementalScoreCalculator</incrementalScoreCalculatorClass>
-    <!--<scoreDrl>/org/optaplanner/examples/machinereassignment/solver/machineReassignmentScoreRules.drl</scoreDrl>-->
+    <!--<constraintProviderClass>org.optaplanner.examples.machinereassignment.solver.score.MachineReassignmentConstraintProvider</constraintProviderClass>-->
+    <!--<scoreDrl>org/optaplanner/examples/machinereassignment/solver/machineReassignmentConstraints.drl</scoreDrl>-->
+    <!-- TODO incrementalScoreCalculator and scoreDRL give different scores, so assertionScoreDirectorFactory fails -->
+    <!--<assertionScoreDirectorFactory>-->
+      <!--<scoreDrl>org/optaplanner/examples/machinereassignment/solver/machineReassignmentConstraints.drl</scoreDrl>-->
+    <!--</assertionScoreDirectorFactory>-->
   </scoreDirectorFactory>
   <termination>
-    <maximumMinutesSpend>5</maximumMinutesSpend>
+    <minutesSpentLimit>5</minutesSpentLimit>
   </termination>
   
   <!--<constructionHeuristic>-->
     <!--<constructionHeuristicType>FIRST_FIT</constructionHeuristicType>-->
-    <!--<forager>-->
-      <!--<pickEarlyType>FIRST_NON_DETERIORATING_SCORE</pickEarlyType>-->
-    <!--</forager>-->
   <!--</constructionHeuristic>-->
-  <customSolverPhase>
-    <customSolverPhaseCommandClass>org.optaplanner.examples.machinereassignment.solver.solution.initializer.MrOriginalMachineSolutionInitializer</customSolverPhaseCommandClass>
-  </customSolverPhase>
+  <customPhase>
+    <customPhaseCommandClass>org.optaplanner.examples.machinereassignment.solver.solution.initializer.ToOriginalMachineSolutionInitializer</customPhaseCommandClass>
+  </customPhase>
   <localSearch>
     <unionMoveSelector>
       <changeMoveSelector/>

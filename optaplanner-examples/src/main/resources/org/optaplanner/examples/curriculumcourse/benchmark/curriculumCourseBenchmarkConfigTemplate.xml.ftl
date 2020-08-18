@@ -2,11 +2,10 @@
 <plannerBenchmark>
   <benchmarkDirectory>local/data/curriculumcourse/template</benchmarkDirectory>
   <parallelBenchmarkCount>AUTO</parallelBenchmarkCount>
-  <warmUpSecondsSpend>30</warmUpSecondsSpend>
 
   <inheritedSolverBenchmark>
     <problemBenchmarks>
-      <xstreamAnnotatedClass>org.optaplanner.examples.curriculumcourse.domain.CourseSchedule</xstreamAnnotatedClass>
+      <solutionFileIOClass>org.optaplanner.examples.curriculumcourse.persistence.CurriculumCourseXmlSolutionFileIO</solutionFileIOClass>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp01.xml</inputSolutionFile>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp02.xml</inputSolutionFile>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp03.xml</inputSolutionFile>
@@ -21,18 +20,16 @@
       <inputSolutionFile>data/curriculumcourse/unsolved/comp12.xml</inputSolutionFile>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp13.xml</inputSolutionFile>
       <inputSolutionFile>data/curriculumcourse/unsolved/comp14.xml</inputSolutionFile>
-      <problemStatisticType>BEST_SCORE</problemStatisticType>
     </problemBenchmarks>
 
     <solver>
       <solutionClass>org.optaplanner.examples.curriculumcourse.domain.CourseSchedule</solutionClass>
-      <planningEntityClass>org.optaplanner.examples.curriculumcourse.domain.Lecture</planningEntityClass>
+      <entityClass>org.optaplanner.examples.curriculumcourse.domain.Lecture</entityClass>
       <scoreDirectorFactory>
-        <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-        <scoreDrl>/org/optaplanner/examples/curriculumcourse/solver/curriculumCourseScoreRules.drl</scoreDrl>
+        <scoreDrl>org/optaplanner/examples/curriculumcourse/solver/curriculumCourseConstraints.drl</scoreDrl>
       </scoreDirectorFactory>
       <termination>
-        <maximumSecondsSpend>300</maximumSecondsSpend>
+          <minutesSpentLimit>5</minutesSpentLimit>
       </termination>
       <constructionHeuristic>
         <constructionHeuristicType>FIRST_FIT_DECREASING</constructionHeuristicType>
@@ -40,68 +37,73 @@
     </solver>
   </inheritedSolverBenchmark>
 
-  <#list [50, 100, 200, 400, 800] as lateAcceptanceSize>
-  <solverBenchmark>
-    <name>Late Acceptance ${lateAcceptanceSize}</name>
-    <solver>
-      <localSearch>
-        <unionMoveSelector>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <selectionOrder>SHUFFLED</selectionOrder>
-            <moveListFactoryClass>org.optaplanner.examples.curriculumcourse.solver.move.factory.PeriodChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <selectionOrder>SHUFFLED</selectionOrder>
-            <moveListFactoryClass>org.optaplanner.examples.curriculumcourse.solver.move.factory.RoomChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <selectionOrder>SHUFFLED</selectionOrder>
-            <moveListFactoryClass>org.optaplanner.examples.curriculumcourse.solver.move.factory.LectureSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-        </unionMoveSelector>
-        <acceptor>
-          <lateAcceptanceSize>${lateAcceptanceSize}</lateAcceptanceSize>
-        </acceptor>
-        <forager>
-          <acceptedCountLimit>4</acceptedCountLimit>
-        </forager>
-      </localSearch>
-    </solver>
-  </solverBenchmark>
+  <#list [9] as entityTabuSize>
+    <#list [900] as acceptedCountLimit>
+      <solverBenchmark>
+        <name>Entity Tabu ${entityTabuSize} (acceptedCount ${acceptedCountLimit})</name>
+        <solver>
+          <localSearch>
+            <unionMoveSelector>
+              <changeMoveSelector/>
+              <swapMoveSelector>
+                <filterClass>org.optaplanner.examples.curriculumcourse.solver.move.DifferentCourseSwapMoveFilter</filterClass>
+              </swapMoveSelector>
+            </unionMoveSelector>
+            <acceptor>
+              <entityTabuSize>${entityTabuSize}</entityTabuSize>
+            </acceptor>
+            <forager>
+              <acceptedCountLimit>${acceptedCountLimit}</acceptedCountLimit>
+            </forager>
+          </localSearch>
+        </solver>
+      </solverBenchmark>
+    </#list>
   </#list>
-  <#list [50, 100, 200, 400, 800] as lateSimulatedAnnealingSize>
-  <solverBenchmark>
-    <name>Late Simulated Annealing ${lateSimulatedAnnealingSize}</name>
-    <solver>
-      <localSearch>
-        <unionMoveSelector>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <selectionOrder>SHUFFLED</selectionOrder>
-            <moveListFactoryClass>org.optaplanner.examples.curriculumcourse.solver.move.factory.PeriodChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <selectionOrder>SHUFFLED</selectionOrder>
-            <moveListFactoryClass>org.optaplanner.examples.curriculumcourse.solver.move.factory.RoomChangeMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-          <moveListFactory>
-            <cacheType>PHASE</cacheType>
-            <selectionOrder>SHUFFLED</selectionOrder>
-            <moveListFactoryClass>org.optaplanner.examples.curriculumcourse.solver.move.factory.LectureSwapMoveFactory</moveListFactoryClass>
-          </moveListFactory>
-        </unionMoveSelector>
-        <acceptor>
-          <lateSimulatedAnnealingSize>${lateSimulatedAnnealingSize}</lateSimulatedAnnealingSize>
-        </acceptor>
-        <forager>
-          <acceptedCountLimit>4</acceptedCountLimit>
-        </forager>
-      </localSearch>
-    </solver>
-  </solverBenchmark>
+  <#list [600] as lateAcceptanceSize>
+    <#list [4] as acceptedCountLimit>
+      <solverBenchmark>
+        <name>Late Acceptance ${lateAcceptanceSize} (acceptedCount ${acceptedCountLimit})</name>
+        <solver>
+          <localSearch>
+            <unionMoveSelector>
+              <changeMoveSelector/>
+              <swapMoveSelector>
+                <filterClass>org.optaplanner.examples.curriculumcourse.solver.move.DifferentCourseSwapMoveFilter</filterClass>
+              </swapMoveSelector>
+            </unionMoveSelector>
+            <acceptor>
+              <lateAcceptanceSize>${lateAcceptanceSize}</lateAcceptanceSize>
+            </acceptor>
+            <forager>
+              <acceptedCountLimit>${acceptedCountLimit}</acceptedCountLimit>
+            </forager>
+          </localSearch>
+        </solver>
+      </solverBenchmark>
+    </#list>
+  </#list>
+  <#list [200] as stepCountingHillClimbingSize>
+    <#list [1] as acceptedCountLimit>
+      <solverBenchmark>
+        <name>Step Counting Hill Climbing ${stepCountingHillClimbingSize} (acceptedCount ${acceptedCountLimit})</name>
+        <solver>
+          <localSearch>
+            <unionMoveSelector>
+              <changeMoveSelector/>
+              <swapMoveSelector>
+                <filterClass>org.optaplanner.examples.curriculumcourse.solver.move.DifferentCourseSwapMoveFilter</filterClass>
+              </swapMoveSelector>
+            </unionMoveSelector>
+            <acceptor>
+              <stepCountingHillClimbingSize>${stepCountingHillClimbingSize}</stepCountingHillClimbingSize>
+            </acceptor>
+            <forager>
+              <acceptedCountLimit>${acceptedCountLimit}</acceptedCountLimit>
+            </forager>
+          </localSearch>
+        </solver>
+      </solverBenchmark>
+    </#list>
   </#list>
 </plannerBenchmark>

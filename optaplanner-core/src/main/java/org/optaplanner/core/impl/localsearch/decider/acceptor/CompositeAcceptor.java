@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 package org.optaplanner.core.impl.localsearch.decider.acceptor;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchMoveScope;
-import org.optaplanner.core.impl.localsearch.scope.LocalSearchSolverPhaseScope;
+import org.optaplanner.core.impl.localsearch.scope.LocalSearchPhaseScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 /**
  * Combines several acceptors into one.
@@ -30,10 +31,14 @@ import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
  */
 public class CompositeAcceptor extends AbstractAcceptor {
 
-    protected List<Acceptor> acceptorList;
+    protected final List<Acceptor> acceptorList;
 
-    public void setAcceptorList(List<Acceptor> acceptorList) {
+    public CompositeAcceptor(List<Acceptor> acceptorList) {
         this.acceptorList = acceptorList;
+    }
+
+    public CompositeAcceptor(Acceptor... acceptors) {
+        this(Arrays.asList(acceptors));
     }
 
     // ************************************************************************
@@ -41,14 +46,14 @@ public class CompositeAcceptor extends AbstractAcceptor {
     // ************************************************************************
 
     @Override
-    public void solvingStarted(DefaultSolverScope solverScope) {
+    public void solvingStarted(SolverScope solverScope) {
         for (Acceptor acceptor : acceptorList) {
             acceptor.solvingStarted(solverScope);
         }
     }
 
     @Override
-    public void phaseStarted(LocalSearchSolverPhaseScope phaseScope) {
+    public void phaseStarted(LocalSearchPhaseScope phaseScope) {
         for (Acceptor acceptor : acceptorList) {
             acceptor.phaseStarted(phaseScope);
         }
@@ -61,6 +66,7 @@ public class CompositeAcceptor extends AbstractAcceptor {
         }
     }
 
+    @Override
     public boolean isAccepted(LocalSearchMoveScope moveScope) {
         for (Acceptor acceptor : acceptorList) {
             boolean accepted = acceptor.isAccepted(moveScope);
@@ -79,14 +85,14 @@ public class CompositeAcceptor extends AbstractAcceptor {
     }
 
     @Override
-    public void phaseEnded(LocalSearchSolverPhaseScope phaseScope) {
+    public void phaseEnded(LocalSearchPhaseScope phaseScope) {
         for (Acceptor acceptor : acceptorList) {
             acceptor.phaseEnded(phaseScope);
         }
     }
 
     @Override
-    public void solvingEnded(DefaultSolverScope solverScope) {
+    public void solvingEnded(SolverScope solverScope) {
         for (Acceptor acceptor : acceptorList) {
             acceptor.solvingEnded(solverScope);
         }

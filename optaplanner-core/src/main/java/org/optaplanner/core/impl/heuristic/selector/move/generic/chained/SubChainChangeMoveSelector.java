@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,19 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.generic.chained;
 
+import java.util.Collections;
 import java.util.Iterator;
 
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableDemand;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
+import org.optaplanner.core.impl.domain.variable.supply.SupplyManager;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
 import org.optaplanner.core.impl.heuristic.selector.move.generic.GenericMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChain;
 import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChainSelector;
-import org.optaplanner.core.impl.move.Move;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public class SubChainChangeMoveSelector extends GenericMoveSelector {
 
@@ -31,6 +36,8 @@ public class SubChainChangeMoveSelector extends GenericMoveSelector {
     protected final EntityIndependentValueSelector valueSelector;
     protected final boolean randomSelection;
     protected final boolean selectReversingMoveToo;
+
+    protected SingletonInverseVariableSupply inverseVariableSupply = null;
 
     public SubChainChangeMoveSelector(SubChainSelector subChainSelector, EntityIndependentValueSelector valueSelector,
             boolean randomSelection, boolean selectReversingMoveToo) {
@@ -43,7 +50,7 @@ public class SubChainChangeMoveSelector extends GenericMoveSelector {
                     + ") has a subChainSelector (" + subChainSelector
                     + ") with variableDescriptor (" + subChainSelector.getVariableDescriptor()
                     + ") which is not the same as the valueSelector (" + valueSelector
-                    +")'s variableDescriptor(" + valueSelector.getVariableDescriptor() + ").");
+                    + ")'s variableDescriptor(" + valueSelector.getVariableDescriptor() + ").");
         }
         if (!randomSelection) {
             if (subChainSelector.isNeverEnding()) {
@@ -57,26 +64,43 @@ public class SubChainChangeMoveSelector extends GenericMoveSelector {
                         + ") with neverEnding (" + valueSelector.isNeverEnding() + ").");
             }
         }
-        solverPhaseLifecycleSupport.addEventListener(subChainSelector);
-        solverPhaseLifecycleSupport.addEventListener(valueSelector);
+        phaseLifecycleSupport.addEventListener(subChainSelector);
+        phaseLifecycleSupport.addEventListener(valueSelector);
+    }
+
+    @Override
+    public void solvingStarted(SolverScope solverScope) {
+        super.solvingStarted(solverScope);
+        SupplyManager supplyManager = solverScope.getScoreDirector().getSupplyManager();
+        inverseVariableSupply = supplyManager.demand(new SingletonInverseVariableDemand(valueSelector.getVariableDescriptor()));
+    }
+
+    @Override
+    public void solvingEnded(SolverScope solverScope) {
+        super.solvingEnded(solverScope);
+        inverseVariableSupply = null;
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return subChainSelector.isContinuous() || valueSelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return subChainSelector.isCountable() && valueSelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return randomSelection;
     }
 
+    @Override
     public long getSize() {
         return subChainSelector.getSize() * valueSelector.getSize();
     }
 
+    @Override
     public Iterator<Move> iterator() {
         if (!randomSelection) {
             return new OriginalSubChainChangeMoveIterator();
@@ -96,35 +120,36 @@ public class SubChainChangeMoveSelector extends GenericMoveSelector {
 
         private OriginalSubChainChangeMoveIterator() {
             subChainIterator = subChainSelector.iterator();
-            valueIterator = valueSelector.iterator();
-            // valueIterator.hasNext() returns true if there is a next for any entity parameter
-            if (!subChainIterator.hasNext() || !valueIterator.hasNext()) {
-                upcomingSelection = noUpcomingSelection();
-                upcomingCreated = true;
-            } else {
-                upcomingSubChain = subChainIterator.next();
-            }
+            // Don't do hasNext() in constructor (to avoid upcoming selections breaking mimic recording)
+            valueIterator = Collections.emptyIterator();
         }
 
+        @Override
         protected Move createUpcomingSelection() {
             if (selectReversingMoveToo && nextReversingSelection != null) {
                 Move upcomingSelection = nextReversingSelection;
                 nextReversingSelection = null;
                 return upcomingSelection;
             }
-            while (!valueIterator.hasNext()) {
+
+            if (!valueIterator.hasNext()) {
                 if (!subChainIterator.hasNext()) {
                     return noUpcomingSelection();
                 }
                 upcomingSubChain = subChainIterator.next();
                 valueIterator = valueSelector.iterator();
+                if (!valueIterator.hasNext()) {
+                    // valueSelector is completely empty
+                    return noUpcomingSelection();
+                }
             }
             Object toValue = valueIterator.next();
+
             Move upcomingSelection = new SubChainChangeMove(
-                    upcomingSubChain, valueSelector.getVariableDescriptor(), toValue);
+                    upcomingSubChain, valueSelector.getVariableDescriptor(), inverseVariableSupply, toValue);
             if (selectReversingMoveToo) {
                 nextReversingSelection = new SubChainReversingChangeMove(
-                        upcomingSubChain, valueSelector.getVariableDescriptor(), toValue);
+                        upcomingSubChain, valueSelector.getVariableDescriptor(), inverseVariableSupply, toValue);
             }
             return upcomingSelection;
         }
@@ -139,45 +164,39 @@ public class SubChainChangeMoveSelector extends GenericMoveSelector {
         private RandomSubChainChangeMoveIterator() {
             subChainIterator = subChainSelector.iterator();
             valueIterator = valueSelector.iterator();
-            // valueIterator.hasNext() returns true if there is a next for any subChain parameter
-            if (!subChainIterator.hasNext() || !valueIterator.hasNext()) {
-                upcomingSelection = noUpcomingSelection();
-                upcomingCreated = true;
-            }
+            // Don't do hasNext() in constructor (to avoid upcoming selections breaking mimic recording)
+            valueIterator = Collections.emptyIterator();
         }
 
+        @Override
         protected Move createUpcomingSelection() {
             // Ideally, this code should have read:
             //     SubChain subChain = subChainIterator.next();
-            //     Object toValue = valueIterator.next(subChain);
+            //     Object toValue = valueIterator.next();
             // But empty selectors and ending selectors (such as non-random or shuffled) make it more complex
             if (!subChainIterator.hasNext()) {
                 subChainIterator = subChainSelector.iterator();
+                if (!subChainIterator.hasNext()) {
+                    // subChainSelector is completely empty
+                    return noUpcomingSelection();
+                }
             }
             SubChain subChain = subChainIterator.next();
-            int subChainIteratorCreationCount = 0;
-            // This loop is mostly only relevant when the subChainIterator or valueIterator is non-random or shuffled
-            while (!valueIterator.hasNext()) {
-                // First try to reset the valueIterator to get a next value
+
+            if (!valueIterator.hasNext()) {
                 valueIterator = valueSelector.iterator();
-                // If that's not sufficient (that subChain has an empty value list), then use the next subChain
                 if (!valueIterator.hasNext()) {
-                    if (!subChainIterator.hasNext()) {
-                        subChainIterator = subChainSelector.iterator();
-                        subChainIteratorCreationCount++;
-                        if (subChainIteratorCreationCount >= 2) {
-                            // All subChain-value combinations have been tried (some even more than once)
-                            return noUpcomingSelection();
-                        }
-                    }
-                    subChain = subChainIterator.next();
+                    // valueSelector is completely empty
+                    return noUpcomingSelection();
                 }
             }
             Object toValue = valueIterator.next();
-            boolean reversing = selectReversingMoveToo ? workingRandom.nextBoolean() : false;
+
+            boolean reversing = selectReversingMoveToo && workingRandom.nextBoolean();
             return reversing
-                    ? new SubChainReversingChangeMove(subChain, valueSelector.getVariableDescriptor(), toValue)
-                    : new SubChainChangeMove(subChain, valueSelector.getVariableDescriptor(), toValue);
+                    ? new SubChainReversingChangeMove(subChain, valueSelector.getVariableDescriptor(), inverseVariableSupply,
+                            toValue)
+                    : new SubChainChangeMove(subChain, valueSelector.getVariableDescriptor(), inverseVariableSupply, toValue);
         }
 
     }

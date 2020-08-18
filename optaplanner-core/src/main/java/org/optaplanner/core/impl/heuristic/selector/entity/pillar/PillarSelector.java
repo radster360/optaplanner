@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,13 +18,15 @@ package org.optaplanner.core.impl.heuristic.selector.entity.pillar;
 
 import java.util.List;
 
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.ListIterableSelector;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 
 /**
- * A pillar is a {@link List} of entities that are somehow related.
- * Selects a {@link List} of somehow related entities that are moved together.
+ * A pillar is a {@link List} of entities that have the same planning value for each (or a subset)
+ * of their planning values.
+ * Selects a {@link List} of such entities that are moved together.
+ *
  * @see EntitySelector
  */
 public interface PillarSelector extends ListIterableSelector<List<Object>> {
@@ -32,6 +34,6 @@ public interface PillarSelector extends ListIterableSelector<List<Object>> {
     /**
      * @return never null
      */
-    PlanningEntityDescriptor getEntityDescriptor();
+    EntityDescriptor getEntityDescriptor();
 
 }

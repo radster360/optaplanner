@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,43 +16,21 @@
 
 package org.optaplanner.examples.vehiclerouting.app;
 
-import java.io.File;
-import java.util.Collection;
+import org.optaplanner.core.impl.score.director.easy.EasyScoreCalculator;
+import org.optaplanner.examples.common.app.CommonApp;
+import org.optaplanner.examples.common.app.ImportDirSolveAllTurtleTest;
+import org.optaplanner.examples.vehiclerouting.domain.VehicleRoutingSolution;
+import org.optaplanner.examples.vehiclerouting.solver.score.VehicleRoutingEasyScoreCalculator;
 
-import org.junit.runners.Parameterized;
-import org.optaplanner.core.config.score.director.ScoreDirectorFactoryConfig;
-import org.optaplanner.examples.common.app.SolveAllTurtleTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.tsp.solver.score.TspSimpleScoreCalculator;
-import org.optaplanner.examples.vehiclerouting.persistence.VehicleRoutingDao;
-import org.optaplanner.examples.vehiclerouting.solver.score.VehicleRoutingSimpleScoreCalculator;
+public class VehicleRoutingSolveAllTurtleTest extends ImportDirSolveAllTurtleTest<VehicleRoutingSolution> {
 
-public class VehicleRoutingSolveAllTurtleTest extends SolveAllTurtleTest {
-
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<Object[]> getSolutionFilesAsParameters() {
-        return getUnsolvedDataFilesAsParameters(new VehicleRoutingDao());
-    }
-
-    public VehicleRoutingSolveAllTurtleTest(File unsolvedDataFile) {
-        super(unsolvedDataFile);
+    @Override
+    protected CommonApp<VehicleRoutingSolution> createCommonApp() {
+        return new VehicleRoutingApp();
     }
 
     @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/vehiclerouting/solver/vehicleRoutingSolverConfig.xml";
+    protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass() {
+        return VehicleRoutingEasyScoreCalculator.class;
     }
-
-    @Override
-    protected ScoreDirectorFactoryConfig createOverwritingAssertionScoreDirectorFactory() {
-        ScoreDirectorFactoryConfig assertionScoreDirectorFactoryConfig = new ScoreDirectorFactoryConfig();
-        assertionScoreDirectorFactoryConfig.setSimpleScoreCalculatorClass(VehicleRoutingSimpleScoreCalculator.class);
-        return assertionScoreDirectorFactoryConfig;
-    }
-
-    @Override
-    protected SolutionDao createSolutionDao() {
-        return new VehicleRoutingDao();
-    }
-
 }

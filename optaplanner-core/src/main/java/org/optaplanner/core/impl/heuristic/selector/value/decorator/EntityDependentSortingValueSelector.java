@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
 
 public class EntityDependentSortingValueSelector extends AbstractValueSelector {
 
@@ -51,7 +50,7 @@ public class EntityDependentSortingValueSelector extends AbstractValueSelector {
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(childValueSelector);
+        phaseLifecycleSupport.addEventListener(childValueSelector);
     }
 
     public ValueSelector getChildValueSelector() {
@@ -68,33 +67,38 @@ public class EntityDependentSortingValueSelector extends AbstractValueSelector {
     // ************************************************************************
 
     @Override
-    public void phaseStarted(AbstractSolverPhaseScope phaseScope) {
+    public void phaseStarted(AbstractPhaseScope phaseScope) {
         super.phaseStarted(phaseScope);
         scoreDirector = phaseScope.getScoreDirector();
     }
 
     @Override
-    public void phaseEnded(AbstractSolverPhaseScope phaseScope) {
+    public void phaseEnded(AbstractPhaseScope phaseScope) {
         super.phaseEnded(phaseScope);
         scoreDirector = null;
     }
 
-    public PlanningVariableDescriptor getVariableDescriptor() {
+    @Override
+    public GenuineVariableDescriptor getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 
+    @Override
     public long getSize(Object entity) {
         return childValueSelector.getSize(entity);
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         return false;
     }
 
+    @Override
     public Iterator<Object> iterator(Object entity) {
         long childSize = childValueSelector.getSize(entity);
         if (childSize > (long) Integer.MAX_VALUE) {
@@ -103,14 +107,19 @@ public class EntityDependentSortingValueSelector extends AbstractValueSelector {
                     + ") with childSize (" + childSize
                     + ") which is higher than Integer.MAX_VALUE.");
         }
-        List<Object> cachedValueList = new ArrayList<Object>((int) childSize);
-        CollectionUtils.addAll(cachedValueList, childValueSelector.iterator(entity));
-        logger.trace("    Created cachedValueList with size ({}) in valueSelector ({}).",
+        List<Object> cachedValueList = new ArrayList<>((int) childSize);
+        childValueSelector.iterator(entity).forEachRemaining(cachedValueList::add);
+        logger.trace("    Created cachedValueList: size ({}), valueSelector ({}).",
                 cachedValueList.size(), this);
         sorter.sort(scoreDirector, cachedValueList);
-        logger.trace("    Sorted cachedValueList with size ({}) in valueSelector({}).",
+        logger.trace("    Sorted cachedValueList: size ({}), valueSelector ({}).",
                 cachedValueList.size(), this);
         return cachedValueList.iterator();
+    }
+
+    @Override
+    public Iterator<Object> endingIterator(Object entity) {
+        return iterator(entity);
     }
 
     @Override

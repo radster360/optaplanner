@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,22 @@
 
 package org.optaplanner.examples.nurserostering.domain.solver;
 
-import java.io.Serializable;
+import static java.util.Comparator.comparingInt;
+
 import java.util.Comparator;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
 import org.optaplanner.examples.nurserostering.domain.Employee;
 
-public class EmployeeStrengthComparator implements Comparator<Employee>, Serializable {
+public class EmployeeStrengthComparator implements Comparator<Employee> {
 
+    private static final Comparator<Employee> COMPARATOR = comparingInt((Employee employee) -> -employee.getWeekendLength()) // Descending
+            .thenComparingLong(Employee::getId);
+
+    @Override
     public int compare(Employee a, Employee b) {
         // TODO refactor to DifficultyWeightFactory and use getContract().getContractLineList()
-        // to sum maximumValue and minimumValue etc
-        return new CompareToBuilder()
-                .append(b.getWeekendLength(), a.getWeekendLength()) // Descending
-                .append(a.getId(), b.getId())
-                .toComparison();
+        //  to sum maximumValue and minimumValue etc
+        return COMPARATOR.compare(a, b);
     }
 
 }

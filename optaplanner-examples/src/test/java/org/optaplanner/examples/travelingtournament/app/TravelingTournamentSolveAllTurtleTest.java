@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,33 +16,14 @@
 
 package org.optaplanner.examples.travelingtournament.app;
 
-import java.io.File;
-import java.util.Collection;
+import org.optaplanner.examples.common.app.CommonApp;
+import org.optaplanner.examples.common.app.UnsolvedDirSolveAllTurtleTest;
+import org.optaplanner.examples.travelingtournament.domain.TravelingTournament;
 
-import org.junit.runners.Parameterized;
-import org.optaplanner.examples.common.app.SolveAllTurtleTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.travelingtournament.persistence.TravelingTournamentDao;
-
-public class TravelingTournamentSolveAllTurtleTest extends SolveAllTurtleTest {
-
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<Object[]> getSolutionFilesAsParameters() {
-        return getUnsolvedDataFilesAsParameters(new TravelingTournamentDao());
-    }
-
-    public TravelingTournamentSolveAllTurtleTest(File unsolvedDataFile) {
-        super(unsolvedDataFile);
-    }
+public class TravelingTournamentSolveAllTurtleTest extends UnsolvedDirSolveAllTurtleTest<TravelingTournament> {
 
     @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/travelingtournament/solver/travelingTournamentSolverConfig.xml";
+    protected CommonApp<TravelingTournament> createCommonApp() {
+        return new TravelingTournamentApp();
     }
-
-    @Override
-    protected SolutionDao createSolutionDao() {
-        return new TravelingTournamentDao();
-    }
-
 }

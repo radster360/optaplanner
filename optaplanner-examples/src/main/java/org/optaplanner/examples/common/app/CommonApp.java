@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,60 +17,95 @@
 package org.optaplanner.examples.common.app;
 
 import java.awt.Component;
-import javax.swing.JFrame;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
+import java.io.File;
+import java.util.function.BiConsumer;
 
-import org.optaplanner.core.api.solver.Solver;
+import javax.swing.WindowConstants;
+
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.solver.SolverFactory;
+import org.optaplanner.core.impl.solver.DefaultSolverFactory;
 import org.optaplanner.examples.common.business.SolutionBusiness;
 import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
 import org.optaplanner.examples.common.swingui.SolutionPanel;
 import org.optaplanner.examples.common.swingui.SolverAndPersistenceFrame;
-import org.optaplanner.examples.nurserostering.swingui.NurseRosteringPanel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
+import org.optaplanner.swing.impl.SwingUncaughtExceptionHandler;
+import org.optaplanner.swing.impl.SwingUtils;
 
-public abstract class CommonApp extends LoggingMain {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public abstract class CommonApp<Solution_> extends LoggingMain {
 
-    protected static final Logger logger = LoggerFactory.getLogger(CommonApp.class);
+    /**
+     * The path to the data directory, preferably with unix slashes for portability.
+     * For example: -D{@value #DATA_DIR_SYSTEM_PROPERTY}=sources/data/
+     */
+    public static final String DATA_DIR_SYSTEM_PROPERTY = "org.optaplanner.examples.dataDir";
+
+    public static File determineDataDir(String dataDirName) {
+        String dataDirPath = System.getProperty(DATA_DIR_SYSTEM_PROPERTY, "data/");
+        File dataDir = new File(dataDirPath, dataDirName);
+        if (!dataDir.exists()) {
+            throw new IllegalStateException("The directory dataDir (" + dataDir.getAbsolutePath()
+                    + ") does not exist.\n" +
+                    " Either the working directory should be set to the directory that contains the data directory" +
+                    " (which is not the data directory itself), or the system property "
+                    + DATA_DIR_SYSTEM_PROPERTY + " should be set properly.\n" +
+                    " The data directory is different in a git clone (optaplanner/optaplanner-examples/data)" +
+                    " and in a release zip (examples/sources/data).\n" +
+                    " In an IDE (IntelliJ, Eclipse, NetBeans), open the \"Run configuration\""
+                    + " to change \"Working directory\" (or add the system property in \"VM options\").");
+        }
+        return dataDir;
+    }
 
     /**
      * Some examples are not compatible with every native LookAndFeel.
-     * For example, {@link NurseRosteringPanel} is incompatible with Mac.
+     * For example, NurseRosteringPanel is incompatible with Mac.
      */
-    public static void fixateLookAndFeel() {
-        String lookAndFeelName = "Metal"; // "Nimbus" is nicer but incompatible
-        Exception lookAndFeelException;
-        try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if (lookAndFeelName.equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    return;
-                }
-            }
-            lookAndFeelException = null;
-        } catch (UnsupportedLookAndFeelException e) {
-            lookAndFeelException = e;
-        } catch (ClassNotFoundException e) {
-            lookAndFeelException = e;
-        } catch (InstantiationException e) {
-            lookAndFeelException = e;
-        } catch (IllegalAccessException e) {
-            lookAndFeelException = e;
-        }
-        logger.warn("Could not switch to lookAndFeel (" + lookAndFeelName + "). Layout might be incorrect.",
-                lookAndFeelException);
+    public static void prepareSwingEnvironment() {
+        SwingUncaughtExceptionHandler.register();
+        SwingUtils.fixateLookAndFeel();
     }
 
-    private SolverAndPersistenceFrame solverAndPersistenceFrame;
-    private SolutionBusiness solutionBusiness;
+    protected final String name;
+    protected final String description;
+    protected final String solverConfigResource;
+    protected final String dataDirName;
+    protected final String iconResource;
 
-    public CommonApp() {
-        solutionBusiness = createSolutionBusiness();
-        solverAndPersistenceFrame = new SolverAndPersistenceFrame(
-                solutionBusiness, createSolutionPanel(), solutionBusiness.getDirName());
+    protected SolverAndPersistenceFrame<Solution_> solverAndPersistenceFrame;
+    protected SolutionBusiness<Solution_> solutionBusiness;
+
+    protected CommonApp(String name, String description, String solverConfigResource, String dataDirName, String iconResource) {
+        this.name = name;
+        this.description = description;
+        this.solverConfigResource = solverConfigResource;
+        this.dataDirName = dataDirName;
+        this.iconResource = iconResource;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public String getSolverConfigResource() {
+        return solverConfigResource;
+    }
+
+    public String getDataDirName() {
+        return dataDirName;
+    }
+
+    public String getIconResource() {
+        return iconResource;
     }
 
     public void init() {
@@ -78,34 +113,59 @@ public abstract class CommonApp extends LoggingMain {
     }
 
     public void init(Component centerForComponent, boolean exitOnClose) {
-        solverAndPersistenceFrame.setDefaultCloseOperation(exitOnClose ? JFrame.EXIT_ON_CLOSE : JFrame.DISPOSE_ON_CLOSE);
+        solutionBusiness = createSolutionBusiness();
+        solverAndPersistenceFrame = new SolverAndPersistenceFrame<>(solutionBusiness, createSolutionPanel(),
+                createExtraActions());
+        solverAndPersistenceFrame
+                .setDefaultCloseOperation(exitOnClose ? WindowConstants.EXIT_ON_CLOSE : WindowConstants.DISPOSE_ON_CLOSE);
         solverAndPersistenceFrame.init(centerForComponent);
         solverAndPersistenceFrame.setVisible(true);
     }
 
-    public SolutionBusiness createSolutionBusiness() {
-        SolutionDao solutionDao = createSolutionDao();
-        SolutionBusiness solutionBusiness = new SolutionBusiness();
-        solutionBusiness.setSolutionDao(solutionDao);
-        solutionBusiness.setImporter(createSolutionImporter());
+    public SolutionBusiness<Solution_> createSolutionBusiness() {
+        SolutionBusiness<Solution_> solutionBusiness = new SolutionBusiness<>(this);
+        DefaultSolverFactory<Solution_> solverFactory = (DefaultSolverFactory<Solution_>) createSolverFactory();
+        solutionBusiness.setSolver(solverFactory);
+        solutionBusiness.setDataDir(determineDataDir(dataDirName));
+        solutionBusiness.setSolutionFileIO(createSolutionFileIO());
+        solutionBusiness.setImporters(createSolutionImporters());
         solutionBusiness.setExporter(createSolutionExporter());
         solutionBusiness.updateDataDirs();
-        solutionBusiness.setSolver(createSolver());
         return solutionBusiness;
     }
 
-    protected abstract Solver createSolver();
+    protected SolverFactory<Solution_> createSolverFactory() {
+        return SolverFactory.createFromXmlResource(solverConfigResource);
+    }
 
-    protected abstract SolutionPanel createSolutionPanel();
+    protected abstract SolutionPanel<Solution_> createSolutionPanel();
 
-    protected abstract SolutionDao createSolutionDao();
+    protected ExtraAction<Solution_>[] createExtraActions() {
+        return new ExtraAction[0];
+    }
 
-    protected AbstractSolutionImporter createSolutionImporter() {
-        return null;
+    /**
+     * Used for the unsolved and solved directories,
+     * not for the import and output directories, in the data directory.
+     *
+     * @return never null
+     */
+    public abstract SolutionFileIO<Solution_> createSolutionFileIO();
+
+    protected AbstractSolutionImporter[] createSolutionImporters() {
+        return new AbstractSolutionImporter[0];
     }
 
     protected AbstractSolutionExporter createSolutionExporter() {
         return null;
+    }
+
+    public interface ExtraAction<Solution_> {
+
+        String getName();
+
+        BiConsumer<SolutionBusiness<Solution_>, SolutionPanel<Solution_>> getConsumer();
+
     }
 
 }

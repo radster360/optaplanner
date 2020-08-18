@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,63 +19,69 @@ package org.optaplanner.core.api.score.buildin.hardsoftbigdecimal;
 import java.math.BigDecimal;
 
 import org.kie.api.runtime.rule.RuleContext;
-import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.api.score.holder.AbstractScoreHolder;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
+import org.optaplanner.core.api.score.holder.ScoreHolder;
 
 /**
  * @see HardSoftBigDecimalScore
  */
-public class HardSoftBigDecimalScoreHolder extends AbstractScoreHolder {
+public interface HardSoftBigDecimalScoreHolder extends ScoreHolder<HardSoftBigDecimalScore> {
 
-    protected BigDecimal hardScore;
-    protected BigDecimal softScore;
+    /**
+     * Penalize a match by the {@link ConstraintWeight} negated and multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void penalize(RuleContext kcontext, BigDecimal weightMultiplier);
 
-    public HardSoftBigDecimalScoreHolder(boolean constraintMatchEnabled) {
-        super(constraintMatchEnabled);
-    }
+    /**
+     * Penalize a match by the {@link ConstraintWeight} negated and multiplied with the specific weightMultiplier per score
+     * level.
+     * Slower than {@link #penalize(RuleContext, BigDecimal)}.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param hardWeightMultiplier at least 0
+     * @param softWeightMultiplier at least 0
+     */
+    void penalize(RuleContext kcontext, BigDecimal hardWeightMultiplier, BigDecimal softWeightMultiplier);
 
-    public BigDecimal getHardScore() {
-        return hardScore;
-    }
+    /**
+     * Reward a match by the {@link ConstraintWeight} multiplied with the weightMultiplier for all score levels.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param weightMultiplier at least 0
+     */
+    void reward(RuleContext kcontext, BigDecimal weightMultiplier);
 
-    @Deprecated
-    public void setHardScore(BigDecimal hardScore) {
-        this.hardScore = hardScore;
-    }
+    /**
+     * Reward a match by the {@link ConstraintWeight} multiplied with the specific weightMultiplier per score level.
+     * Slower than {@link #reward(RuleContext, BigDecimal)}.
+     *
+     * @param kcontext never null, the magic variable in DRL
+     * @param hardWeightMultiplier at least 0
+     * @param softWeightMultiplier at least 0
+     */
+    void reward(RuleContext kcontext, BigDecimal hardWeightMultiplier, BigDecimal softWeightMultiplier);
 
-    public BigDecimal getSoftScore() {
-        return softScore;
-    }
+    void impactScore(RuleContext kcontext, BigDecimal weightMultiplier);
 
-    @Deprecated
-    public void setSoftScore(BigDecimal softScore) {
-        this.softScore = softScore;
-    }
+    /**
+     * @param kcontext never null, the magic variable in DRL
+     * @param hardWeight never null, higher is better, negative for a penalty, positive for a reward
+     */
+    void addHardConstraintMatch(RuleContext kcontext, BigDecimal hardWeight);
 
-    // ************************************************************************
-    // Worker methods
-    // ************************************************************************
+    /**
+     * @param kcontext never null, the magic variable in DRL
+     * @param softWeight never null, higher is better, negative for a penalty, positive for a reward
+     */
+    void addSoftConstraintMatch(RuleContext kcontext, BigDecimal softWeight);
 
-    public void addHardConstraintMatch(RuleContext kcontext, final BigDecimal weight) {
-        hardScore = hardScore.add(weight);
-        registerBigDecimalConstraintMatch(kcontext, 0, weight, new Runnable() {
-            public void run() {
-                hardScore = hardScore.subtract(weight);
-            }
-        });
-    }
-
-    public void addSoftConstraintMatch(RuleContext kcontext, final BigDecimal weight) {
-        softScore = softScore.add(weight);
-        registerBigDecimalConstraintMatch(kcontext, 1, weight, new Runnable() {
-            public void run() {
-                softScore = softScore.subtract(weight);
-            }
-        });
-    }
-
-    public Score extractScore() {
-        return HardSoftBigDecimalScore.valueOf(hardScore, softScore);
-    }
-
+    /**
+     * @param kcontext never null, the magic variable in DRL
+     * @param hardWeight never null, higher is better, negative for a penalty, positive for a reward
+     * @param softWeight never null, higher is better, negative for a penalty, positive for a reward
+     */
+    void addMultiConstraintMatch(RuleContext kcontext, BigDecimal hardWeight, BigDecimal softWeight);
 }

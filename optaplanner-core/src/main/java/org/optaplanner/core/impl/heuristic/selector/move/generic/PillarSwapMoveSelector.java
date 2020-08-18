@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,46 +16,45 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.generic;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractOriginalSwapIterator;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.AbstractRandomSwapIterator;
 import org.optaplanner.core.impl.heuristic.selector.entity.pillar.PillarSelector;
-import org.optaplanner.core.impl.move.Move;
 
 public class PillarSwapMoveSelector extends GenericMoveSelector {
 
     protected final PillarSelector leftPillarSelector;
     protected final PillarSelector rightPillarSelector;
-    protected final Collection<PlanningVariableDescriptor> variableDescriptors;
+    protected final List<GenuineVariableDescriptor> variableDescriptorList;
     protected final boolean randomSelection;
 
     public PillarSwapMoveSelector(PillarSelector leftPillarSelector, PillarSelector rightPillarSelector,
-            Collection<PlanningVariableDescriptor> variableDescriptors, boolean randomSelection) {
+            List<GenuineVariableDescriptor> variableDescriptorList, boolean randomSelection) {
         this.leftPillarSelector = leftPillarSelector;
         this.rightPillarSelector = rightPillarSelector;
-        this.variableDescriptors = variableDescriptors;
+        this.variableDescriptorList = variableDescriptorList;
         this.randomSelection = randomSelection;
-        Class<?> leftEntityClass = leftPillarSelector.getEntityDescriptor().getPlanningEntityClass();
-        if (!leftEntityClass.equals(rightPillarSelector.getEntityDescriptor().getPlanningEntityClass())) {
+        Class<?> leftEntityClass = leftPillarSelector.getEntityDescriptor().getEntityClass();
+        if (!leftEntityClass.equals(rightPillarSelector.getEntityDescriptor().getEntityClass())) {
             throw new IllegalStateException("The selector (" + this
                     + ") has a leftPillarSelector's entityClass (" + leftEntityClass
                     + ") which is not equal to the rightPillarSelector's entityClass ("
-                    + rightPillarSelector.getEntityDescriptor().getPlanningEntityClass() + ").");
+                    + rightPillarSelector.getEntityDescriptor().getEntityClass() + ").");
         }
-        if (variableDescriptors.isEmpty()) {
+        if (variableDescriptorList.isEmpty()) {
             throw new IllegalStateException("The selector (" + this
-                    + ")'s variableDescriptors (" + variableDescriptors + ") is empty.");
+                    + ")'s variableDescriptors (" + variableDescriptorList + ") is empty.");
         }
-        for (PlanningVariableDescriptor variableDescriptor : variableDescriptors) {
+        for (GenuineVariableDescriptor variableDescriptor : variableDescriptorList) {
             if (!leftEntityClass.equals(
-                    variableDescriptor.getEntityDescriptor().getPlanningEntityClass())) {
+                    variableDescriptor.getEntityDescriptor().getEntityClass())) {
                 throw new IllegalStateException("The selector (" + this
                         + ") has a variableDescriptor (" + variableDescriptor
-                        + ") with a entityClass (" + variableDescriptor.getEntityDescriptor().getPlanningEntityClass()
+                        + ") with a entityClass (" + variableDescriptor.getEntityDescriptor().getEntityClass()
                         + ") which is not equal to the leftPillarSelector's entityClass (" + leftEntityClass + ").");
             }
             if (variableDescriptor.isChained()) {
@@ -64,9 +63,9 @@ public class PillarSwapMoveSelector extends GenericMoveSelector {
                         + ") which is chained (" + variableDescriptor.isChained() + ").");
             }
         }
-        solverPhaseLifecycleSupport.addEventListener(leftPillarSelector);
+        phaseLifecycleSupport.addEventListener(leftPillarSelector);
         if (leftPillarSelector != rightPillarSelector) {
-            solverPhaseLifecycleSupport.addEventListener(rightPillarSelector);
+            phaseLifecycleSupport.addEventListener(rightPillarSelector);
         }
     }
 
@@ -74,31 +73,35 @@ public class PillarSwapMoveSelector extends GenericMoveSelector {
     // Worker methods
     // ************************************************************************
 
-    public boolean isContinuous() {
-        return leftPillarSelector.isContinuous() || rightPillarSelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return leftPillarSelector.isCountable() && rightPillarSelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return randomSelection || leftPillarSelector.isNeverEnding() || rightPillarSelector.isNeverEnding();
     }
 
+    @Override
     public long getSize() {
         return AbstractOriginalSwapIterator.getSize(leftPillarSelector, rightPillarSelector);
     }
 
+    @Override
     public Iterator<Move> iterator() {
         if (!randomSelection) {
             return new AbstractOriginalSwapIterator<Move, List<Object>>(leftPillarSelector, rightPillarSelector) {
                 @Override
                 protected Move newSwapSelection(List<Object> leftSubSelection, List<Object> rightSubSelection) {
-                    return new PillarSwapMove(variableDescriptors, leftSubSelection, rightSubSelection);
+                    return new PillarSwapMove(variableDescriptorList, leftSubSelection, rightSubSelection);
                 }
             };
         } else {
             return new AbstractRandomSwapIterator<Move, List<Object>>(leftPillarSelector, rightPillarSelector) {
                 @Override
                 protected Move newSwapSelection(List<Object> leftSubSelection, List<Object> rightSubSelection) {
-                    return new PillarSwapMove(variableDescriptors, leftSubSelection, rightSubSelection);
+                    return new PillarSwapMove(variableDescriptorList, leftSubSelection, rightSubSelection);
                 }
             };
         }

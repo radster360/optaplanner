@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,22 +21,20 @@ import java.util.List;
 import java.util.ListIterator;
 
 import org.optaplanner.core.impl.heuristic.selector.move.factory.MoveListFactory;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.solution.Solution;
 import org.optaplanner.examples.pas.domain.BedDesignation;
 import org.optaplanner.examples.pas.domain.PatientAdmissionSchedule;
 import org.optaplanner.examples.pas.solver.move.BedDesignationSwapMove;
 
-public class BedDesignationSwapMoveFactory implements MoveListFactory {
+public class BedDesignationSwapMoveFactory implements MoveListFactory<PatientAdmissionSchedule> {
 
-    public List<Move> createMoveList(Solution solution) {
-        PatientAdmissionSchedule patientAdmissionSchedule = (PatientAdmissionSchedule) solution;
+    @Override
+    public List<BedDesignationSwapMove> createMoveList(PatientAdmissionSchedule patientAdmissionSchedule) {
         List<BedDesignation> bedDesignationList = patientAdmissionSchedule.getBedDesignationList();
-        List<Move> moveList = new ArrayList<Move>();
+        List<BedDesignationSwapMove> moveList = new ArrayList<>();
         for (ListIterator<BedDesignation> leftIt = bedDesignationList.listIterator(); leftIt.hasNext();) {
             BedDesignation leftBedDesignation = leftIt.next();
-            for (ListIterator<BedDesignation> rightIt = bedDesignationList.listIterator(leftIt.nextIndex());
-                    rightIt.hasNext();) {
+            for (ListIterator<BedDesignation> rightIt = bedDesignationList.listIterator(leftIt.nextIndex()); rightIt
+                    .hasNext();) {
                 BedDesignation rightBedDesignation = rightIt.next();
                 if (leftBedDesignation.getAdmissionPart().calculateSameNightCount(rightBedDesignation.getAdmissionPart()) > 0) {
                     moveList.add(new BedDesignationSwapMove(leftBedDesignation, rightBedDesignation));

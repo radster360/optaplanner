@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,13 @@
 
 package org.optaplanner.core.config.constructionheuristic.decider.forager;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
+import org.optaplanner.core.config.AbstractConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
 import org.optaplanner.core.impl.constructionheuristic.decider.forager.ConstructionHeuristicForager;
-import org.optaplanner.core.impl.constructionheuristic.decider.forager.ConstructionHeuristicPickEarlyType;
 import org.optaplanner.core.impl.constructionheuristic.decider.forager.DefaultConstructionHeuristicForager;
+import org.optaplanner.core.impl.heuristic.HeuristicConfigPolicy;
 
-@XStreamAlias("foragerConfig")
-public class ConstructionHeuristicForagerConfig {
+public class ConstructionHeuristicForagerConfig extends AbstractConfig<ConstructionHeuristicForagerConfig> {
 
     private ConstructionHeuristicPickEarlyType pickEarlyType = null;
 
@@ -41,13 +39,26 @@ public class ConstructionHeuristicForagerConfig {
     // ************************************************************************
 
     public ConstructionHeuristicForager buildForager(HeuristicConfigPolicy configPolicy) {
-        ConstructionHeuristicPickEarlyType pickEarlyType_ = (this.pickEarlyType == null)
-                ? ConstructionHeuristicPickEarlyType.NEVER : this.pickEarlyType;
+        ConstructionHeuristicPickEarlyType pickEarlyType_;
+        if (pickEarlyType == null) {
+            pickEarlyType_ = configPolicy.getScoreDirectorFactory().getInitializingScoreTrend().isOnlyDown()
+                    ? ConstructionHeuristicPickEarlyType.FIRST_NON_DETERIORATING_SCORE
+                    : ConstructionHeuristicPickEarlyType.NEVER;
+        } else {
+            pickEarlyType_ = pickEarlyType;
+        }
         return new DefaultConstructionHeuristicForager(pickEarlyType_);
     }
 
-    public void inherit(ConstructionHeuristicForagerConfig inheritedConfig) {
+    @Override
+    public ConstructionHeuristicForagerConfig inherit(ConstructionHeuristicForagerConfig inheritedConfig) {
         pickEarlyType = ConfigUtils.inheritOverwritableProperty(pickEarlyType, inheritedConfig.getPickEarlyType());
+        return this;
+    }
+
+    @Override
+    public ConstructionHeuristicForagerConfig copyConfig() {
+        return new ConstructionHeuristicForagerConfig().inherit(this);
     }
 
 }

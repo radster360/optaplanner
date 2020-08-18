@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,13 @@
 
 package org.optaplanner.examples.projectjobscheduling.domain.solver;
 
+import static java.util.Comparator.comparingDouble;
+import static java.util.Comparator.comparingLong;
+
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorterWeightFactory;
 import org.optaplanner.examples.projectjobscheduling.domain.ExecutionMode;
 import org.optaplanner.examples.projectjobscheduling.domain.ResourceRequirement;
@@ -28,8 +31,9 @@ import org.optaplanner.examples.projectjobscheduling.domain.resource.Resource;
 
 public class ExecutionModeStrengthWeightFactory implements SelectionSorterWeightFactory<Schedule, ExecutionMode> {
 
-    public Comparable createSorterWeight(Schedule schedule, ExecutionMode executionMode) {
-        Map<Resource, Integer> requirementTotalMap = new HashMap<Resource, Integer>(
+    @Override
+    public ExecutionModeStrengthWeight createSorterWeight(Schedule schedule, ExecutionMode executionMode) {
+        Map<Resource, Integer> requirementTotalMap = new HashMap<>(
                 executionMode.getResourceRequirementList().size());
         for (ResourceRequirement resourceRequirement : executionMode.getResourceRequirementList()) {
             requirementTotalMap.put(resourceRequirement.getResource(), 0);
@@ -50,12 +54,16 @@ public class ExecutionModeStrengthWeightFactory implements SelectionSorterWeight
                 requirementDesirability += (double) (total - resource.getCapacity())
                         * (double) resourceRequirement.getRequirement()
                         * (resource.isRenewable() ? 1.0 : 100.0);
-             }
+            }
         }
         return new ExecutionModeStrengthWeight(executionMode, requirementDesirability);
     }
 
     public static class ExecutionModeStrengthWeight implements Comparable<ExecutionModeStrengthWeight> {
+
+        private static final Comparator<ExecutionModeStrengthWeight> COMPARATOR = comparingDouble(
+                (ExecutionModeStrengthWeight weight) -> weight.requirementDesirability)
+                        .thenComparing(weight -> weight.executionMode, comparingLong(ExecutionMode::getId));
 
         private final ExecutionMode executionMode;
         private final double requirementDesirability;
@@ -65,14 +73,9 @@ public class ExecutionModeStrengthWeightFactory implements SelectionSorterWeight
             this.requirementDesirability = requirementDesirability;
         }
 
+        @Override
         public int compareTo(ExecutionModeStrengthWeight other) {
-            return new CompareToBuilder()
-                    // The less requirementsWeight, the less desirable resources are used
-                    .append(requirementDesirability, other.requirementDesirability)
-                    .append(executionMode.getId(), other.executionMode.getId())
-                    .toComparison();
+            return COMPARATOR.compare(this, other);
         }
-
     }
-
 }

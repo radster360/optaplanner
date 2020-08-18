@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,19 +18,20 @@ package org.optaplanner.core.impl.heuristic.selector.common.decorator;
 
 import java.util.Map;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.selector.Selector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
-public class FixedSelectorProbabilityWeightFactory<Sel extends Selector>
-        implements SelectionProbabilityWeightFactory<Sel> {
+public class FixedSelectorProbabilityWeightFactory<Solution_, Selector_ extends Selector>
+        implements SelectionProbabilityWeightFactory<Solution_, Selector_> {
 
-    private final Map<Sel, Double> fixedProbabilityWeightMap;
+    private final Map<Selector_, Double> fixedProbabilityWeightMap;
 
-    public FixedSelectorProbabilityWeightFactory(Map<Sel, Double> fixedProbabilityWeightMap) {
+    public FixedSelectorProbabilityWeightFactory(Map<Selector_, Double> fixedProbabilityWeightMap) {
         this.fixedProbabilityWeightMap = fixedProbabilityWeightMap;
     }
 
-    public double createProbabilityWeight(ScoreDirector scoreDirector, Selector selector) {
+    @Override
+    public double createProbabilityWeight(ScoreDirector<Solution_> scoreDirector, Selector_ selector) {
         return fixedProbabilityWeightMap.get(selector);
     }
 

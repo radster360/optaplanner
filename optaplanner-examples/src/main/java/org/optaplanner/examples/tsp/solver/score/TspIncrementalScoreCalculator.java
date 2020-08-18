@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,51 +16,54 @@
 
 package org.optaplanner.examples.tsp.solver.score;
 
-import org.optaplanner.core.api.score.buildin.simple.SimpleScore;
+import org.optaplanner.core.api.score.buildin.simplelong.SimpleLongScore;
 import org.optaplanner.core.impl.score.director.incremental.AbstractIncrementalScoreCalculator;
 import org.optaplanner.examples.tsp.domain.Domicile;
 import org.optaplanner.examples.tsp.domain.Standstill;
-import org.optaplanner.examples.tsp.domain.TravelingSalesmanTour;
+import org.optaplanner.examples.tsp.domain.TspSolution;
 import org.optaplanner.examples.tsp.domain.Visit;
 
-public class TspIncrementalScoreCalculator extends AbstractIncrementalScoreCalculator<TravelingSalesmanTour> {
+public class TspIncrementalScoreCalculator extends AbstractIncrementalScoreCalculator<TspSolution> {
 
     private Domicile domicile;
 
-    private int score;
+    private long score;
 
-    public void resetWorkingSolution(TravelingSalesmanTour tour) {
-        if (tour.getDomicileList().size() != 1) {
-            throw new UnsupportedOperationException(
-                    "The domicileList (" + tour.getDomicileList() + ") should be a singleton.");
-        }
-        domicile = tour.getDomicileList().get(0);
-        score = 0;
-        for (Visit visit : tour.getVisitList()) {
+    @Override
+    public void resetWorkingSolution(TspSolution tspSolution) {
+        domicile = tspSolution.getDomicile();
+        score = 0L;
+        for (Visit visit : tspSolution.getVisitList()) {
             insert(visit);
         }
     }
 
+    @Override
     public void beforeEntityAdded(Object entity) {
         // Do nothing
     }
 
+    @Override
     public void afterEntityAdded(Object entity) {
         insert((Visit) entity);
     }
 
+    @Override
     public void beforeVariableChanged(Object entity, String variableName) {
         retract((Visit) entity);
     }
 
+    @Override
     public void afterVariableChanged(Object entity, String variableName) {
         insert((Visit) entity);
     }
 
+    @Override
     public void beforeEntityRemoved(Object entity) {
         retract((Visit) entity);
     }
 
+    @Override
     public void afterEntityRemoved(Object entity) {
         // Do nothing
     }
@@ -68,25 +71,26 @@ public class TspIncrementalScoreCalculator extends AbstractIncrementalScoreCalcu
     private void insert(Visit visit) {
         Standstill previousStandstill = visit.getPreviousStandstill();
         if (previousStandstill != null) {
-            score -= visit.getDistanceToPreviousStandstill();
+            score -= visit.getDistanceFromPreviousStandstill();
             // HACK: This counts too much, but the insert/retracts balance each other out
-            score += domicile.getCity().getDistance(previousStandstill.getCity());
-            score -= domicile.getCity().getDistance(visit.getCity());
+            score += previousStandstill.getDistanceTo(domicile);
+            score -= visit.getDistanceTo(domicile);
         }
     }
 
     private void retract(Visit visit) {
         Standstill previousStandstill = visit.getPreviousStandstill();
         if (previousStandstill != null) {
-            score += visit.getDistanceToPreviousStandstill();
+            score += visit.getDistanceFromPreviousStandstill();
             // HACK: This counts too much, but the insert/retracts balance each other out
-            score -= domicile.getCity().getDistance(previousStandstill.getCity());
-            score += domicile.getCity().getDistance(visit.getCity());
+            score -= previousStandstill.getDistanceTo(domicile);
+            score += visit.getDistanceTo(domicile);
         }
     }
 
-    public SimpleScore calculateScore() {
-        return SimpleScore.valueOf(score);
+    @Override
+    public SimpleLongScore calculateScore() {
+        return SimpleLongScore.of(score);
     }
 
 }

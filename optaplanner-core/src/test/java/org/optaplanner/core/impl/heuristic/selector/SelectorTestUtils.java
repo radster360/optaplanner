@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,28 +16,30 @@
 
 package org.optaplanner.core.impl.heuristic.selector;
 
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
+import static org.assertj.core.api.Assertions.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import org.apache.commons.lang3.ArrayUtils;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
+import org.optaplanner.core.impl.domain.solution.descriptor.SolutionDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.domain.variable.inverserelation.SingletonInverseVariableSupply;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedEntity;
 import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedObject;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
 
 public class SelectorTestUtils {
 
@@ -46,155 +48,159 @@ public class SelectorTestUtils {
         return solutionDescriptor;
     }
 
-    public static PlanningEntityDescriptor mockEntityDescriptor(Class entityClass) {
-        PlanningEntityDescriptor entityDescriptor = mock(PlanningEntityDescriptor.class);
-        when(entityDescriptor.getPlanningEntityClass()).thenReturn(entityClass);
+    public static EntityDescriptor mockEntityDescriptor(Class<?> entityClass) {
+        EntityDescriptor entityDescriptor = mock(EntityDescriptor.class);
+        when(entityDescriptor.getEntityClass()).thenReturn(entityClass);
         return entityDescriptor;
     }
 
-    public static PlanningVariableDescriptor mockVariableDescriptor(Class entityClass, String variableName) {
-        PlanningEntityDescriptor entityDescriptor = mockEntityDescriptor(entityClass);
+    public static GenuineVariableDescriptor mockVariableDescriptor(Class<?> entityClass, String variableName) {
+        EntityDescriptor entityDescriptor = mockEntityDescriptor(entityClass);
         return mockVariableDescriptor(entityDescriptor, variableName);
     }
 
-    public static PlanningVariableDescriptor mockVariableDescriptor(PlanningEntityDescriptor entityDescriptor,
+    public static GenuineVariableDescriptor mockVariableDescriptor(EntityDescriptor entityDescriptor,
             String variableName) {
-        PlanningVariableDescriptor variableDescriptor = mock(PlanningVariableDescriptor.class);
+        GenuineVariableDescriptor variableDescriptor = mock(GenuineVariableDescriptor.class);
         when(variableDescriptor.getEntityDescriptor()).thenReturn(entityDescriptor);
         when(variableDescriptor.getVariableName()).thenReturn(variableName);
         return variableDescriptor;
     }
 
-    public static EntitySelector mockEntitySelector(Class entityClass, Object... entities) {
-        PlanningEntityDescriptor entityDescriptor = mockEntityDescriptor(entityClass);
+    public static EntitySelector mockEntitySelector(Class<?> entityClass, Object... entities) {
+        EntityDescriptor entityDescriptor = mockEntityDescriptor(entityClass);
         return mockEntitySelector(entityDescriptor, entities);
     }
 
-    public static EntitySelector mockEntitySelector(PlanningEntityDescriptor entityDescriptor,
+    public static EntitySelector mockEntitySelector(EntityDescriptor entityDescriptor,
             Object... entities) {
         EntitySelector entitySelector = mock(EntitySelector.class);
         when(entitySelector.getEntityDescriptor()).thenReturn(entityDescriptor);
-        final List<Object> entityList = Arrays.<Object>asList(entities);
-        when(entitySelector.iterator()).thenAnswer(new Answer<Iterator<Object>>() {
-            public Iterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                return entityList.iterator();
-            }
-        });
-        when(entitySelector.listIterator()).thenAnswer(new Answer<ListIterator<Object>>() {
-            public ListIterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                return entityList.listIterator();
-            }
-        });
+        final List<Object> entityList = Arrays.asList(entities);
+        when(entitySelector.iterator()).thenAnswer(invocation -> entityList.iterator());
+        when(entitySelector.listIterator()).thenAnswer(invocation -> entityList.listIterator());
+        when(entitySelector.spliterator()).thenAnswer(invocation -> entityList.spliterator());
         for (int i = 0; i < entityList.size(); i++) {
             final int index = i;
-            when(entitySelector.listIterator(index)).thenAnswer(new Answer<ListIterator<Object>>() {
-                public ListIterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                    return entityList.listIterator(index);
-                }
-            });
+            when(entitySelector.listIterator(index)).thenAnswer(invocation -> entityList.listIterator(index));
         }
-        when(entitySelector.endingIterator()).thenAnswer(new Answer<Iterator<Object>>() {
-            public Iterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                return entityList.iterator();
-            }
-        });
-        when(entitySelector.isContinuous()).thenReturn(false);
+        when(entitySelector.endingIterator()).thenAnswer(invocation -> entityList.iterator());
+        when(entitySelector.isCountable()).thenReturn(true);
         when(entitySelector.isNeverEnding()).thenReturn(false);
         when(entitySelector.getSize()).thenReturn((long) entityList.size());
         return entitySelector;
     }
 
-    public static ValueSelector mockValueSelector(Class entityClass, String variableName, Object... values) {
-        PlanningVariableDescriptor variableDescriptor = mockVariableDescriptor(entityClass, variableName);
+    public static ValueSelector mockValueSelector(Class<?> entityClass, String variableName, Object... values) {
+        GenuineVariableDescriptor variableDescriptor = mockVariableDescriptor(entityClass, variableName);
         return mockValueSelector(variableDescriptor, values);
     }
 
-    public static ValueSelector mockValueSelector(PlanningEntityDescriptor entityDescriptor, String variableName,
+    public static ValueSelector mockValueSelector(EntityDescriptor entityDescriptor, String variableName,
             Object... values) {
-        PlanningVariableDescriptor variableDescriptor = mockVariableDescriptor(entityDescriptor, variableName);
+        GenuineVariableDescriptor variableDescriptor = mockVariableDescriptor(entityDescriptor, variableName);
         return mockValueSelector(variableDescriptor, values);
     }
 
-    public static ValueSelector mockValueSelector(PlanningVariableDescriptor variableDescriptor, Object... values) {
+    public static ValueSelector mockValueSelector(GenuineVariableDescriptor variableDescriptor, Object... values) {
         ValueSelector valueSelector = mock(ValueSelector.class);
         when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
-        final List<Object> valueList = Arrays.<Object>asList(values);
-        when(valueSelector.iterator(any())).thenAnswer(new Answer<Iterator<Object>>() {
-            public Iterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                return valueList.iterator();
-            }
-        });
-        when(valueSelector.isContinuous()).thenReturn(false);
+        final List<Object> valueList = Arrays.asList(values);
+        when(valueSelector.iterator(any())).thenAnswer(invocation -> valueList.iterator());
+        when(valueSelector.isCountable()).thenReturn(true);
         when(valueSelector.isNeverEnding()).thenReturn(false);
         when(valueSelector.getSize(any())).thenReturn((long) valueList.size());
         return valueSelector;
     }
 
-    public static EntityIndependentValueSelector mockEntityIndependentValueSelector(Class entityClass, String variableName,
+    public static ValueSelector mockValueSelectorForEntity(Class<?> entityClass, Object entity, String variableName,
             Object... values) {
-        PlanningVariableDescriptor variableDescriptor = mockVariableDescriptor(entityClass, variableName);
+        return mockValueSelectorForEntity(entityClass, variableName,
+                Collections.singletonMap(entity, Arrays.asList(values)));
+    }
+
+    private static ValueSelector mockValueSelectorForEntity(Class<?> entityClass, String variableName,
+            Map<Object, List<Object>> entityToValues) {
+        GenuineVariableDescriptor variableDescriptor = mockVariableDescriptor(entityClass, variableName);
+        return mockValueSelectorForEntity(variableDescriptor, entityToValues);
+    }
+
+    private static ValueSelector mockValueSelectorForEntity(GenuineVariableDescriptor variableDescriptor,
+            Map<Object, List<Object>> entityToValues) {
+        ValueSelector valueSelector = mock(ValueSelector.class);
+        when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
+        for (Map.Entry<Object, List<Object>> entry : entityToValues.entrySet()) {
+            Object entity = entry.getKey();
+            final List<Object> valueList = entry.getValue();
+            when(valueSelector.getSize(entity)).thenAnswer(invocation -> (long) valueList.size());
+            when(valueSelector.iterator(entity)).thenAnswer(invocation -> valueList.iterator());
+            when(valueSelector.getSize(entity)).thenReturn((long) valueList.size());
+        }
+        when(valueSelector.isCountable()).thenReturn(true);
+        when(valueSelector.isNeverEnding()).thenReturn(false);
+        return valueSelector;
+    }
+
+    public static EntityIndependentValueSelector mockEntityIndependentValueSelector(Class<?> entityClass,
+            String variableName, Object... values) {
+        GenuineVariableDescriptor variableDescriptor = mockVariableDescriptor(entityClass, variableName);
+        when(variableDescriptor.isValueRangeEntityIndependent()).thenReturn(true);
         return mockEntityIndependentValueSelector(variableDescriptor, values);
     }
 
     public static EntityIndependentValueSelector mockEntityIndependentValueSelector(
-            PlanningVariableDescriptor variableDescriptor, Object... values) {
+            GenuineVariableDescriptor variableDescriptor, Object... values) {
         EntityIndependentValueSelector valueSelector = mock(EntityIndependentValueSelector.class);
         when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
-        final List<Object> valueList = Arrays.<Object>asList(values);
-        when(valueSelector.iterator(any())).thenAnswer(new Answer<Iterator<Object>>() {
-            public Iterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                return valueList.iterator();
-            }
-        });
-        when(valueSelector.iterator()).thenAnswer(new Answer<Iterator<Object>>() {
-            public Iterator<Object> answer(InvocationOnMock invocation) throws Throwable {
-                return valueList.iterator();
-            }
-        });
-        when(valueSelector.isContinuous()).thenReturn(false);
+        final List<Object> valueList = Arrays.asList(values);
+        when(valueSelector.iterator(any())).thenAnswer(invocation -> valueList.iterator());
+        when(valueSelector.endingIterator(any())).thenAnswer(invocation -> valueList.iterator());
+        when(valueSelector.iterator()).thenAnswer(invocation -> valueList.iterator());
+        when(valueSelector.isCountable()).thenReturn(true);
         when(valueSelector.isNeverEnding()).thenReturn(false);
         when(valueSelector.getSize(any())).thenReturn((long) valueList.size());
         when(valueSelector.getSize()).thenReturn((long) valueList.size());
         return valueSelector;
     }
 
-    public static MoveSelector mockMoveSelector(Class moveClass,
+    public static MoveSelector mockMoveSelector(Class<?> moveClass,
             Move... moves) {
         MoveSelector moveSelector = mock(MoveSelector.class);
-        final List<Move> moveList = Arrays.<Move>asList(moves);
-        when(moveSelector.iterator()).thenAnswer(new Answer<Iterator<Move>>() {
-            public Iterator<Move> answer(InvocationOnMock invocation) throws Throwable {
-                return moveList.iterator();
-            }
-        });
-        when(moveSelector.isContinuous()).thenReturn(false);
+        final List<Move> moveList = Arrays.asList(moves);
+        when(moveSelector.iterator()).thenAnswer(invocation -> moveList.iterator());
+        when(moveSelector.spliterator()).thenAnswer(invocation -> moveList.spliterator());
+        when(moveSelector.isCountable()).thenReturn(true);
         when(moveSelector.isNeverEnding()).thenReturn(false);
         when(moveSelector.getCacheType()).thenReturn(SelectionCacheType.JUST_IN_TIME);
         when(moveSelector.getSize()).thenReturn((long) moveList.size());
+        when(moveSelector.supportsPhaseAndSolverCaching()).thenReturn(true);
         return moveSelector;
     }
 
-    public static void mockMethodGetTrailingEntity(ScoreDirector scoreDirector,
-            PlanningVariableDescriptor variableDescriptor, final TestdataChainedEntity[] allEntities) {
-        when(scoreDirector.getTrailingEntity(eq(variableDescriptor), anyObject())).thenAnswer(new Answer<Object>() {
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                Object planningValue = invocation.getArguments()[1];
-                for (TestdataChainedEntity entity : allEntities) {
-                    if (entity.getChainedObject().equals(planningValue)) {
-                        return entity;
-                    }
+    public static SingletonInverseVariableSupply mockSingletonInverseVariableSupply(
+            final TestdataChainedEntity[] allEntities) {
+        return planningValue -> {
+            for (TestdataChainedEntity entity : allEntities) {
+                if (entity.getChainedObject().equals(planningValue)) {
+                    return entity;
                 }
-                return null;
             }
-        });
+            return null;
+        };
     }
 
     public static void assertChain(TestdataChainedObject... chainedObjects) {
         TestdataChainedObject chainedObject = chainedObjects[0];
         for (int i = 1; i < chainedObjects.length; i++) {
             TestdataChainedEntity chainedEntity = (TestdataChainedEntity) chainedObjects[i];
-            assertEquals("Chained entity (" + chainedEntity + ")'s chainedObject",
-                    chainedObject, chainedEntity.getChainedObject());
+            if (!Objects.equals(chainedObject, chainedEntity.getChainedObject())) {
+                fail("Chain assertion failed for chainedEntity (" + chainedEntity + ").\n"
+                        + "Expected: " + chainedObject + "\n"
+                        + "Actual:   " + chainedEntity.getChainedObject() + "\n"
+                        + "Expected chain: " + Arrays.toString(chainedObjects) + "\n"
+                        + "Actual chain:   " + Arrays.toString(ArrayUtils.subarray(chainedObjects, 0, i)) + " ... ["
+                        + chainedEntity.getChainedObject() + ", " + chainedEntity + "] ...");
+            }
             chainedObject = chainedEntity;
         }
     }

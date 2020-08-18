@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,74 +17,179 @@
 package org.optaplanner.core.impl.score.definition;
 
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.api.score.holder.ScoreHolder;
+import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScore;
+import org.optaplanner.core.impl.score.ScoreUtils;
 import org.optaplanner.core.impl.score.buildin.hardsoft.HardSoftScoreDefinition;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-import org.optaplanner.core.impl.termination.Termination;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
+import org.optaplanner.core.impl.score.director.drools.DroolsScoreDirector;
+import org.optaplanner.core.impl.score.holder.AbstractScoreHolder;
+import org.optaplanner.core.impl.score.inliner.ScoreInliner;
+import org.optaplanner.core.impl.score.stream.bavet.BavetConstraintFactory;
+import org.optaplanner.core.impl.score.trend.InitializingScoreTrend;
 
 /**
  * A ScoreDefinition knows how to compare {@link Score}s and what the perfect maximum/minimum {@link Score} is.
+ *
  * @see AbstractScoreDefinition
  * @see HardSoftScoreDefinition
  */
-public interface ScoreDefinition<S extends Score> {
+public interface ScoreDefinition<S extends Score<S>> {
 
     /**
-     * The perfect maximum {@link Score} is the {@link Score} of which there is no better in any problem instance.
-     * This doesn't mean that the current problem instance, or any problem instance for that matter,
-     * could ever attain that {@link Score}.
-     * </p>
-     * For example, most cases have a perfect maximum {@link Score} of zero, as most use cases only have negative
-     * constraints.
-     * @return null if not supported
+     * Returns the label for {@link Score#getInitScore()}.
+     *
+     * @return never null
+     * @see #getLevelLabels()
      */
-    S getPerfectMaximumScore();
+    String getInitLabel();
 
     /**
-     * The perfect minimum {@link Score} is the {@link Score} of which there is no worse in any problem instance.
-     * This doesn't mean that the current problem instance, or any problem instance for that matter,
-     * could ever attain such a bad {@link Score}.
-     * </p>
-     * For example, most cases have a perfect minimum {@link Score} of negative infinity.
-     * @return null if not supported
+     * Returns the length of {@link Score#toLevelNumbers()} for every {@link Score} of this definition.
+     * For example: returns 2 on {@link HardSoftScoreDefinition}.
+     *
+     * @return at least 1
      */
-    S getPerfectMinimumScore();
+    int getLevelsSize();
 
     /**
-     * Returns the {@link Class} of the actual {@link Score} implementation
+     * Returns the number of levels of {@link Score#toLevelNumbers()}.
+     * that are used to determine {@link Score#isFeasible()}.
+     *
+     * @return at least 0, at most {@link #getLevelsSize()}
+     */
+    int getFeasibleLevelsSize();
+
+    /**
+     * Returns a label for each score level. Each label includes the suffix "score" and must start in lower case.
+     * For example: returns {@code {"hard score", "soft score "}} on {@link HardSoftScoreDefinition}.
+     * <p>
+     * It does not include the {@link #getInitLabel()}.
+     *
+     * @return never null, array with length of {@link #getLevelsSize()}, each element is never null
+     */
+    String[] getLevelLabels();
+
+    /**
+     * Returns the {@link Class} of the actual {@link Score} implementation.
+     * For example: returns {@link HardSoftScore HardSoftScore.class} on {@link HardSoftScoreDefinition}.
+     *
      * @return never null
      */
     Class<S> getScoreClass();
 
     /**
+     * The score that represents zero.
+     *
+     * @return never null
+     */
+    S getZeroScore();
+
+    /**
+     * The score that represents the softest possible one.
+     *
+     * @return never null
+     */
+    S getOneSoftestScore();
+
+    /**
+     * @param score never null
+     * @return true if the score is higher or equal to {@link #getZeroScore()}
+     */
+    default boolean isPositiveOrZero(S score) {
+        return score.compareTo(getZeroScore()) >= 0;
+    }
+
+    /**
+     * @param score never null
+     * @return true if the score is lower or equal to {@link #getZeroScore()}
+     */
+    default boolean isNegativeOrZero(S score) {
+        return score.compareTo(getZeroScore()) <= 0;
+    }
+
+    /**
      * Returns a {@link String} representation of the {@link Score}.
+     *
      * @param score never null
      * @return never null
      * @see #parseScore(String)
      */
-    String formatScore(Score score);
+    String formatScore(S score);
 
     /**
      * Parses the {@link String} and returns a {@link Score}.
+     *
      * @param scoreString never null
      * @return never null
      * @see #formatScore(Score)
+     * @see ScoreUtils#parseScore(Class, String)
      */
-    Score parseScore(String scoreString);
+    S parseScore(String scoreString);
 
     /**
-     * See explanation in {@link Termination#calculateSolverTimeGradient(DefaultSolverScope)}.
-     * @param startScore never null
-     * @param endScore never null
-     * @param score never null
-     * @return between 0.0 and 1.0
-     */
-    double calculateTimeGradient(S startScore, S endScore, S score);
-
-    /**
-     * @param constraintMatchEnabled true if {@link ScoreHolder#isConstraintMatchEnabled()} should be true
+     * The opposite of {@link Score#toLevelNumbers()}.
+     *
+     * @param initScore {@code <= 0}, managed by OptaPlanner, needed as a parameter in the {@link Score}'s creation
+     *        method, see {@link Score#getInitScore()}
+     * @param levelNumbers never null
      * @return never null
      */
-    ScoreHolder buildScoreHolder(boolean constraintMatchEnabled);
+    S fromLevelNumbers(int initScore, Number[] levelNumbers);
+
+    /**
+     * Used by {@link BavetConstraintFactory}
+     *
+     * @param constraintMatchEnabled true if {@link InnerScoreDirector#isConstraintMatchEnabled()} should be true
+     * @return never null
+     */
+    ScoreInliner<S> buildScoreInliner(boolean constraintMatchEnabled);
+
+    /**
+     * Used by {@link DroolsScoreDirector}.
+     *
+     * @param constraintMatchEnabled true if{@link InnerScoreDirector#isConstraintMatchEnabled()} should be true
+     * @return never null
+     */
+    AbstractScoreHolder<S> buildScoreHolder(boolean constraintMatchEnabled);
+
+    /**
+     * Builds a {@link Score} which is equal or better than any other {@link Score} with more variables initialized
+     * (while the already variables don't change).
+     *
+     * @param initializingScoreTrend never null, with {@link InitializingScoreTrend#getLevelsSize()}
+     *        equal to {@link #getLevelsSize()}.
+     * @param score never null, with {@link Score#getInitScore()} {@code 0}.
+     * @return never null
+     */
+    S buildOptimisticBound(InitializingScoreTrend initializingScoreTrend, S score);
+
+    /**
+     * Builds a {@link Score} which is equal or worse than any other {@link Score} with more variables initialized
+     * (while the already variables don't change).
+     *
+     * @param initializingScoreTrend never null, with {@link InitializingScoreTrend#getLevelsSize()}
+     *        equal to {@link #getLevelsSize()}.
+     * @param score never null, with {@link Score#getInitScore()} {@code 0}
+     * @return never null
+     */
+    S buildPessimisticBound(InitializingScoreTrend initializingScoreTrend, S score);
+
+    /**
+     * Return {@link Score} whose every level is the result of dividing the matching levels in this and the divisor.
+     * When rounding is needed, it is floored (as defined by {@link Math#floor(double)}).
+     * <p>
+     * If any of the levels in the divisor are equal to zero, the method behaves as if they were equal to one instead.
+     *
+     * @param divisor value by which this Score is to be divided
+     * @return this / divisor
+     */
+    S divideBySanitizedDivisor(S dividend, S divisor);
+
+    /**
+     * @param score never null
+     * @return true if the otherScore is accepted as a parameter of {@link Score#add(Score)},
+     *         {@link Score#subtract(Score)} and {@link Score#compareTo(Object)} for scores of this score definition.
+     */
+    boolean isCompatibleArithmeticArgument(Score score);
 
 }

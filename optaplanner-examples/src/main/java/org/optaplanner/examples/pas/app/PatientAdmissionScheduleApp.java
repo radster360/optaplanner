@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,53 +16,55 @@
 
 package org.optaplanner.examples.pas.app;
 
-import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.config.solver.XmlSolverFactory;
 import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.persistence.AbstractSolutionExporter;
 import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.common.swingui.SolutionPanel;
-import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleDao;
-import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleSolutionExporter;
-import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleSolutionImporter;
+import org.optaplanner.examples.pas.domain.PatientAdmissionSchedule;
+import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleExporter;
+import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleImporter;
+import org.optaplanner.examples.pas.persistence.PatientAdmissionScheduleXmlSolutionFileIO;
 import org.optaplanner.examples.pas.swingui.PatientAdmissionSchedulePanel;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
 
-public class PatientAdmissionScheduleApp extends CommonApp {
+public class PatientAdmissionScheduleApp extends CommonApp<PatientAdmissionSchedule> {
 
-    public static final String SOLVER_CONFIG
-            = "/org/optaplanner/examples/pas/solver/patientAdmissionScheduleSolverConfig.xml";
+    public static final String SOLVER_CONFIG = "org/optaplanner/examples/pas/solver/patientAdmissionScheduleSolverConfig.xml";
+
+    public static final String DATA_DIR_NAME = "pas";
 
     public static void main(String[] args) {
-        fixateLookAndFeel();
+        prepareSwingEnvironment();
         new PatientAdmissionScheduleApp().init();
     }
 
-    @Override
-    protected Solver createSolver() {
-        XmlSolverFactory solverFactory = new XmlSolverFactory();
-        solverFactory.configure(SOLVER_CONFIG);
-        return solverFactory.buildSolver();
+    public PatientAdmissionScheduleApp() {
+        super("Hospital bed planning",
+                "Official competition name: PAS - Patient admission scheduling\n\n" +
+                        "Assign patients to beds.",
+                SOLVER_CONFIG, DATA_DIR_NAME,
+                PatientAdmissionSchedulePanel.LOGO_PATH);
     }
 
     @Override
-    protected SolutionPanel createSolutionPanel() {
+    protected PatientAdmissionSchedulePanel createSolutionPanel() {
         return new PatientAdmissionSchedulePanel();
     }
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new PatientAdmissionScheduleDao();
+    public SolutionFileIO<PatientAdmissionSchedule> createSolutionFileIO() {
+        return new PatientAdmissionScheduleXmlSolutionFileIO();
     }
 
     @Override
-    protected AbstractSolutionImporter createSolutionImporter() {
-        return new PatientAdmissionScheduleSolutionImporter();
+    protected AbstractSolutionImporter[] createSolutionImporters() {
+        return new AbstractSolutionImporter[] {
+                new PatientAdmissionScheduleImporter()
+        };
     }
 
     @Override
     protected AbstractSolutionExporter createSolutionExporter() {
-        return new PatientAdmissionScheduleSolutionExporter();
+        return new PatientAdmissionScheduleExporter();
     }
 
 }

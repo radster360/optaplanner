@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,28 @@
 
 package org.optaplanner.examples.vehiclerouting.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.vehiclerouting.persistence.VehicleRoutingDao;
+import org.optaplanner.examples.vehiclerouting.domain.VehicleRoutingSolution;
 
-public class VehicleRoutingPerformanceTest extends SolverPerformanceTest {
+public class VehicleRoutingPerformanceTest extends SolverPerformanceTest<VehicleRoutingSolution> {
 
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/vehiclerouting/solver/vehicleRoutingSolverConfig.xml";
-    }
+    private static final String CVRP_32_CUSTOMERS_XML = "data/vehiclerouting/unsolved/cvrp-32customers.xml";
+    private static final String CVRPTW_100_CUSTOMERS_A_XML = "data/vehiclerouting/unsolved/cvrptw-100customers-A.xml";
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new VehicleRoutingDao();
+    protected VehicleRoutingApp createCommonApp() {
+        return new VehicleRoutingApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveModel_a2_1() {
-        File unsolvedDataFile = new File("data/vehiclerouting/unsolved/A-n33-k6.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-750soft");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData(CVRP_32_CUSTOMERS_XML, "0hard/-750000soft", EnvironmentMode.REPRODUCIBLE),
+                testData(CVRP_32_CUSTOMERS_XML, "0hard/-770000soft", EnvironmentMode.FAST_ASSERT),
+                testData(CVRPTW_100_CUSTOMERS_A_XML, "0hard/-1869903soft", EnvironmentMode.REPRODUCIBLE),
+                testData(CVRPTW_100_CUSTOMERS_A_XML, "0hard/-1877466soft", EnvironmentMode.FAST_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveModel_a2_1FastAssert() {
-        File unsolvedDataFile = new File("data/vehiclerouting/unsolved/A-n33-k6.xml");
-        runSpeedTest(unsolvedDataFile, "0hard/-770soft", EnvironmentMode.FAST_ASSERT);
-    }
-
 }

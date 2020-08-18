@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,33 +16,14 @@
 
 package org.optaplanner.examples.machinereassignment.app;
 
-import java.io.File;
-import java.util.Collection;
+import org.optaplanner.examples.common.app.CommonApp;
+import org.optaplanner.examples.common.app.UnsolvedDirSolveAllTurtleTest;
+import org.optaplanner.examples.machinereassignment.domain.MachineReassignment;
 
-import org.junit.runners.Parameterized;
-import org.optaplanner.examples.common.app.SolveAllTurtleTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.machinereassignment.persistence.MachineReassignmentDao;
-
-public class MachineReassignmentSolveAllTurtleTest extends SolveAllTurtleTest {
-
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<Object[]> getSolutionFilesAsParameters() {
-        return getUnsolvedDataFilesAsParameters(new MachineReassignmentDao());
-    }
-
-    public MachineReassignmentSolveAllTurtleTest(File unsolvedDataFile) {
-        super(unsolvedDataFile);
-    }
+public class MachineReassignmentSolveAllTurtleTest extends UnsolvedDirSolveAllTurtleTest<MachineReassignment> {
 
     @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/machinereassignment/solver/machineReassignmentSolverConfig.xml";
+    protected CommonApp<MachineReassignment> createCommonApp() {
+        return new MachineReassignmentApp();
     }
-
-    @Override
-    protected SolutionDao createSolutionDao() {
-        return new MachineReassignmentDao();
-    }
-
 }

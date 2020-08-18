@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.optaplanner.benchmark.impl.statistic.bestsolutionmutation;
 import java.awt.BasicStroke;
 import java.io.File;
 import java.text.NumberFormat;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 
 import org.jfree.chart.JFreeChart;
@@ -26,94 +28,91 @@ import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
-import org.optaplanner.benchmark.impl.DefaultPlannerBenchmark;
-import org.optaplanner.benchmark.impl.ProblemBenchmark;
-import org.optaplanner.benchmark.impl.SingleBenchmark;
-import org.optaplanner.benchmark.impl.statistic.AbstractProblemStatistic;
-import org.optaplanner.benchmark.impl.statistic.MillisecondsSpendNumberFormat;
-import org.optaplanner.benchmark.impl.statistic.ProblemStatisticType;
-import org.optaplanner.benchmark.impl.statistic.SingleStatistic;
+import org.jfree.chart.renderer.xy.YIntervalRenderer;
+import org.jfree.data.xy.XYIntervalSeries;
+import org.jfree.data.xy.XYIntervalSeriesCollection;
+import org.optaplanner.benchmark.config.statistic.ProblemStatisticType;
+import org.optaplanner.benchmark.impl.report.BenchmarkReport;
+import org.optaplanner.benchmark.impl.result.ProblemBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.result.SubSingleBenchmarkResult;
+import org.optaplanner.benchmark.impl.statistic.ProblemStatistic;
+import org.optaplanner.benchmark.impl.statistic.SubSingleStatistic;
+import org.optaplanner.benchmark.impl.statistic.common.MillisecondsSpentNumberFormat;
 
-public class BestSolutionMutationProblemStatistic extends AbstractProblemStatistic {
+public class BestSolutionMutationProblemStatistic extends ProblemStatistic {
 
-    protected File graphStatisticFile = null;
+    protected File graphFile = null;
 
-    public BestSolutionMutationProblemStatistic(ProblemBenchmark problemBenchmark) {
-        super(problemBenchmark, ProblemStatisticType.BEST_SOLUTION_MUTATION);
+    public BestSolutionMutationProblemStatistic(ProblemBenchmarkResult problemBenchmarkResult) {
+        super(problemBenchmarkResult, ProblemStatisticType.BEST_SOLUTION_MUTATION);
     }
 
-    public SingleStatistic createSingleStatistic() {
-        return new BestSolutionMutationSingleStatistic();
+    @Override
+    public SubSingleStatistic createSubSingleStatistic(SubSingleBenchmarkResult subSingleBenchmarkResult) {
+        return new BestSolutionMutationSubSingleStatistic(subSingleBenchmarkResult);
     }
 
     /**
-     * @return never null, relative to the {@link DefaultPlannerBenchmark#benchmarkReportDirectory}
-     * (not {@link ProblemBenchmark#problemReportDirectory})
+     * @return never null
      */
-    public String getGraphFilePath() {
-        return toFilePath(graphStatisticFile);
+    @Override
+    public List<File> getGraphFileList() {
+        return Collections.singletonList(graphFile);
     }
 
     // ************************************************************************
     // Write methods
     // ************************************************************************
 
-    protected void writeCsvStatistic() {
-        ProblemStatisticCsv csv = new ProblemStatisticCsv();
-        for (SingleBenchmark singleBenchmark : problemBenchmark.getSingleBenchmarkList()) {
-            if (singleBenchmark.isSuccess()) {
-                BestSolutionMutationSingleStatistic singleStatistic = (BestSolutionMutationSingleStatistic)
-                        singleBenchmark.getSingleStatistic(problemStatisticType);
-                for (BestSolutionMutationSingleStatisticPoint point : singleStatistic.getPointList()) {
-                    long timeMillisSpend = point.getTimeMillisSpend();
-                    csv.addPoint(singleBenchmark, timeMillisSpend, point.getMutationCount());
-                }
-            } else {
-                csv.addPoint(singleBenchmark, 0L, "Failed");
-            }
-        }
-        csvStatisticFile = new File(problemBenchmark.getProblemReportDirectory(),
-                problemBenchmark.getName() + "BestSolutionMutationStatistic.csv");
-        csv.writeCsvStatisticFile();
-    }
-
-    protected void writeGraphStatistic() {
-        Locale locale = problemBenchmark.getPlannerBenchmark().getBenchmarkReport().getLocale();
-        NumberAxis xAxis = new NumberAxis("Time spend");
-        xAxis.setNumberFormatOverride(new MillisecondsSpendNumberFormat(locale));
-        NumberAxis yAxis = new NumberAxis("Best solution mutation count");
-        yAxis.setNumberFormatOverride(NumberFormat.getInstance(locale));
-        yAxis.setAutoRangeIncludesZero(true);
-        XYPlot plot = new XYPlot(null, xAxis, yAxis, null);
-        plot.setOrientation(PlotOrientation.VERTICAL);
+    @Override
+    public void writeGraphFiles(BenchmarkReport benchmarkReport) {
+        XYPlot plot = createPlot(benchmarkReport);
         int seriesIndex = 0;
-        for (SingleBenchmark singleBenchmark : problemBenchmark.getSingleBenchmarkList()) {
-            XYSeries series = new XYSeries(singleBenchmark.getSolverBenchmark().getNameWithFavoriteSuffix());
-            XYItemRenderer renderer = new XYLineAndShapeRenderer();
-            if (singleBenchmark.isSuccess()) {
-                BestSolutionMutationSingleStatistic singleStatistic = (BestSolutionMutationSingleStatistic)
-                        singleBenchmark.getSingleStatistic(problemStatisticType);
-                for (BestSolutionMutationSingleStatisticPoint point : singleStatistic.getPointList()) {
-                    long timeMillisSpend = point.getTimeMillisSpend();
+        for (SingleBenchmarkResult singleBenchmarkResult : problemBenchmarkResult.getSingleBenchmarkResultList()) {
+            XYIntervalSeries series = new XYIntervalSeries(
+                    singleBenchmarkResult.getSolverBenchmarkResult().getNameWithFavoriteSuffix());
+            XYItemRenderer renderer = new YIntervalRenderer();
+            if (singleBenchmarkResult.hasAllSuccess()) {
+                BestSolutionMutationSubSingleStatistic subSingleStatistic =
+                        (BestSolutionMutationSubSingleStatistic) singleBenchmarkResult
+                                .getSubSingleStatistic(problemStatisticType);
+                List<BestSolutionMutationStatisticPoint> points = subSingleStatistic.getPointList();
+                for (BestSolutionMutationStatisticPoint point : points) {
+                    long timeMillisSpent = point.getTimeMillisSpent();
                     long mutationCount = point.getMutationCount();
-                    series.add(timeMillisSpend, mutationCount);
+                    double yValue = mutationCount;
+                    // In an XYInterval the yLow must be lower than yHigh
+                    series.add(timeMillisSpent, timeMillisSpent, timeMillisSpent,
+                            yValue, (yValue > 0.0) ? 0.0 : yValue, (yValue > 0.0) ? yValue : 0.0);
                 }
             }
-            plot.setDataset(seriesIndex, new XYSeriesCollection(series));
+            XYIntervalSeriesCollection dataset = new XYIntervalSeriesCollection();
+            dataset.addSeries(series);
+            plot.setDataset(seriesIndex, dataset);
 
-            if (singleBenchmark.getSolverBenchmark().isFavorite()) {
+            if (singleBenchmarkResult.getSolverBenchmarkResult().isFavorite()) {
                 // Make the favorite more obvious
                 renderer.setSeriesStroke(0, new BasicStroke(2.0f));
             }
             plot.setRenderer(seriesIndex, renderer);
             seriesIndex++;
         }
-        JFreeChart chart = new JFreeChart(problemBenchmark.getName() + " best solution mutation statistic",
+        JFreeChart chart = new JFreeChart(problemBenchmarkResult.getName() + " best solution mutation statistic",
                 JFreeChart.DEFAULT_TITLE_FONT, plot, true);
-        graphStatisticFile = writeChartToImageFile(chart, problemBenchmark.getName() + "BestSolutionMutationStatistic");
+        graphFile = writeChartToImageFile(chart, problemBenchmarkResult.getName() + "BestSolutionMutationStatistic");
+    }
+
+    private XYPlot createPlot(BenchmarkReport benchmarkReport) {
+        Locale locale = benchmarkReport.getLocale();
+        NumberAxis xAxis = new NumberAxis("Time spent");
+        xAxis.setNumberFormatOverride(new MillisecondsSpentNumberFormat(locale));
+        NumberAxis yAxis = new NumberAxis("Best solution mutation count");
+        yAxis.setNumberFormatOverride(NumberFormat.getInstance(locale));
+        yAxis.setAutoRangeIncludesZero(true);
+        XYPlot plot = new XYPlot(null, xAxis, yAxis, null);
+        plot.setOrientation(PlotOrientation.VERTICAL);
+        return plot;
     }
 
 }

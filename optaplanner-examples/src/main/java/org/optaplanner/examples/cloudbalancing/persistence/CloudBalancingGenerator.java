@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.optaplanner.examples.cloudbalancing.app.CloudBalancingApp;
 import org.optaplanner.examples.cloudbalancing.domain.CloudBalance;
 import org.optaplanner.examples.cloudbalancing.domain.CloudComputer;
 import org.optaplanner.examples.cloudbalancing.domain.CloudProcess;
+import org.optaplanner.examples.common.app.CommonApp;
 import org.optaplanner.examples.common.app.LoggingMain;
-import org.optaplanner.examples.common.persistence.SolutionDao;
+import org.optaplanner.examples.common.persistence.AbstractSolutionImporter;
+import org.optaplanner.persistence.common.api.domain.solution.SolutionFileIO;
+import org.optaplanner.persistence.xstream.impl.domain.solution.XStreamSolutionFileIO;
 
 public class CloudBalancingGenerator extends LoggingMain {
 
@@ -87,29 +91,52 @@ public class CloudBalancingGenerator extends LoggingMain {
     private static final int MAXIMUM_REQUIRED_MEMORY = 32; // in gigabyte RAM
     private static final int MAXIMUM_REQUIRED_NETWORK_BANDWIDTH = 12; // in gigabyte per hour
 
-    private static final File outputDir = new File("data/cloudbalancing/unsolved/");
-
     public static void main(String[] args) {
-        new CloudBalancingGenerator().generate();
+        CloudBalancingGenerator generator = new CloudBalancingGenerator();
+        generator.writeCloudBalance(2, 6);
+        generator.writeCloudBalance(3, 9);
+        generator.writeCloudBalance(4, 12);
+        //        generator.writeCloudBalance(5, 15);
+        //        generator.writeCloudBalance(6, 18);
+        //        generator.writeCloudBalance(7, 21);
+        //        generator.writeCloudBalance(8, 24);
+        //        generator.writeCloudBalance(9, 27);
+        //        generator.writeCloudBalance(10, 30);
+        //        generator.writeCloudBalance(11, 33);
+        //        generator.writeCloudBalance(12, 36);
+        //        generator.writeCloudBalance(13, 39);
+        //        generator.writeCloudBalance(14, 42);
+        //        generator.writeCloudBalance(15, 45);
+        //        generator.writeCloudBalance(16, 48);
+        //        generator.writeCloudBalance(17, 51);
+        //        generator.writeCloudBalance(18, 54);
+        //        generator.writeCloudBalance(19, 57);
+        //        generator.writeCloudBalance(20, 60);
+        generator.writeCloudBalance(100, 300);
+        generator.writeCloudBalance(200, 600);
+        generator.writeCloudBalance(400, 1200);
+        generator.writeCloudBalance(800, 2400);
+        generator.writeCloudBalance(1600, 4800);
     }
 
-    protected SolutionDao solutionDao;
-    private Random random;
+    protected final SolutionFileIO<CloudBalance> solutionFileIO;
+    protected final File outputDir;
+
+    protected Random random;
 
     public CloudBalancingGenerator() {
+        solutionFileIO = new XStreamSolutionFileIO<>(CloudBalance.class);
+        outputDir = new File(CommonApp.determineDataDir(CloudBalancingApp.DATA_DIR_NAME), "unsolved");
         checkConfiguration();
-        solutionDao = new CloudBalancingDao();
     }
 
-    public void generate() {
-        writeCloudBalance(2, 6);
-        writeCloudBalance(3, 9);
-        writeCloudBalance(4, 12);
-        writeCloudBalance(100, 300);
-        writeCloudBalance(200, 600);
-        writeCloudBalance(400, 1200);
-        writeCloudBalance(800, 2400);
-        writeCloudBalance(1600, 4800);
+    public CloudBalancingGenerator(boolean withoutDao) {
+        if (!withoutDao) {
+            throw new IllegalArgumentException("The parameter withoutDao (" + withoutDao + ") must be true.");
+        }
+        solutionFileIO = null;
+        outputDir = null;
+        checkConfiguration();
     }
 
     private void checkConfiguration() {
@@ -118,67 +145,64 @@ public class CloudBalancingGenerator extends LoggingMain {
         }
     }
 
-    private void writeCloudBalance(int cloudComputerListSize, int cloudProcessListSize) {
-        String inputId = determineInputId(cloudComputerListSize, cloudProcessListSize);
-        File outputFile = new File(outputDir, inputId + ".xml");
-        CloudBalance cloudBalance = createCloudBalance(inputId, cloudComputerListSize, cloudProcessListSize);
-        solutionDao.writeSolution(cloudBalance, outputFile);
+    private void writeCloudBalance(int computerListSize, int processListSize) {
+        String fileName = determineFileName(computerListSize, processListSize);
+        File outputFile = new File(outputDir, fileName + ".xml");
+        CloudBalance cloudBalance = createCloudBalance(fileName, computerListSize, processListSize);
+        solutionFileIO.write(cloudBalance, outputFile);
+        logger.info("Saved: {}", outputFile);
     }
 
-    private String determineInputId(int cloudComputerListSize, int cloudProcessListSize) {
-        String cloudComputerListSizeString = Integer.toString(cloudComputerListSize);
-        if (cloudComputerListSizeString.length() < 4) {
-            cloudComputerListSizeString = "0000".substring(0, 4 - cloudComputerListSizeString.length()) + cloudComputerListSizeString;
-        }
-        String cloudProcessListSizeString = Integer.toString(cloudProcessListSize);
-        if (cloudProcessListSizeString.length() < 4) {
-            cloudProcessListSizeString = "0000".substring(0, 4 - cloudProcessListSizeString.length()) + cloudProcessListSizeString;
-        }
-        return "cb-" + cloudComputerListSizeString + "comp-" + cloudProcessListSizeString + "proc";
+    public CloudBalance createCloudBalance(int computerListSize, int processListSize) {
+        return createCloudBalance(determineFileName(computerListSize, processListSize),
+                computerListSize, processListSize);
     }
 
-    public CloudBalance createCloudBalance(int cloudComputerListSize, int cloudProcessListSize) {
-        return createCloudBalance(determineInputId(cloudComputerListSize, cloudProcessListSize),
-                cloudComputerListSize, cloudProcessListSize);
+    private String determineFileName(int computerListSize, int processListSize) {
+        return computerListSize + "computers-" + processListSize + "processes";
     }
 
-    public CloudBalance createCloudBalance(String inputId, int cloudComputerListSize, int cloudProcessListSize) {
+    public CloudBalance createCloudBalance(String inputId, int computerListSize, int processListSize) {
         random = new Random(47);
         CloudBalance cloudBalance = new CloudBalance();
         cloudBalance.setId(0L);
-        createCloudComputerList(cloudBalance, cloudComputerListSize);
-        createCloudProcessList(cloudBalance, cloudProcessListSize);
+        createComputerList(cloudBalance, computerListSize);
+        createProcessList(cloudBalance, processListSize);
+        assureComputerCapacityTotalAtLeastProcessRequiredTotal(cloudBalance);
         BigInteger possibleSolutionSize = BigInteger.valueOf(cloudBalance.getComputerList().size()).pow(
                 cloudBalance.getProcessList().size());
-        String flooredPossibleSolutionSize = "10^" + (possibleSolutionSize.toString().length() - 1);
         logger.info("CloudBalance {} has {} computers and {} processes with a search space of {}.",
-                inputId, cloudComputerListSize, cloudProcessListSize,
-                possibleSolutionSize.compareTo(BigInteger.valueOf(1000L)) < 0
-                        ? possibleSolutionSize : flooredPossibleSolutionSize);
+                inputId, computerListSize, processListSize,
+                AbstractSolutionImporter.getFlooredPossibleSolutionSize(possibleSolutionSize));
         return cloudBalance;
     }
 
-    private void createCloudComputerList(CloudBalance cloudBalance, int cloudComputerListSize) {
-        List<CloudComputer> cloudComputerList = new ArrayList<CloudComputer>(cloudComputerListSize);
-        for (int i = 0; i < cloudComputerListSize; i++) {
-            CloudComputer cloudComputer = new CloudComputer();
-            cloudComputer.setId((long) i);
-            int cpuPowerPricesIndex = random.nextInt(CPU_POWER_PRICES.length);
-            cloudComputer.setCpuPower(CPU_POWER_PRICES[cpuPowerPricesIndex].getHardwareValue());
-            int memoryPricesIndex = distortIndex(cpuPowerPricesIndex, MEMORY_PRICES.length);
-            cloudComputer.setMemory(MEMORY_PRICES[memoryPricesIndex].getHardwareValue());
-            int networkBandwidthPricesIndex = distortIndex(cpuPowerPricesIndex, NETWORK_BANDWIDTH_PRICES.length);
-            cloudComputer.setNetworkBandwidth(NETWORK_BANDWIDTH_PRICES[networkBandwidthPricesIndex].getHardwareValue());
-            int cost = CPU_POWER_PRICES[cpuPowerPricesIndex].getCost()
-                    + MEMORY_PRICES[memoryPricesIndex].getCost()
-                    + NETWORK_BANDWIDTH_PRICES[networkBandwidthPricesIndex].getCost();
-            logger.trace("Created cloudComputer with cpuPowerPricesIndex ({}), memoryPricesIndex({}),"
-                    + " networkBandwidthPricesIndex({}).",
-                    cpuPowerPricesIndex, memoryPricesIndex, networkBandwidthPricesIndex);
-            cloudComputer.setCost(cost);
-            cloudComputerList.add(cloudComputer);
+    private void createComputerList(CloudBalance cloudBalance, int computerListSize) {
+        List<CloudComputer> computerList = new ArrayList<>(computerListSize);
+        for (int i = 0; i < computerListSize; i++) {
+            CloudComputer computer = generateComputerWithoutId();
+            computer.setId((long) i);
+            computerList.add(computer);
         }
-        cloudBalance.setComputerList(cloudComputerList);
+        cloudBalance.setComputerList(computerList);
+    }
+
+    public CloudComputer generateComputerWithoutId() {
+        CloudComputer computer = new CloudComputer();
+        int cpuPowerPricesIndex = random.nextInt(CPU_POWER_PRICES.length);
+        computer.setCpuPower(CPU_POWER_PRICES[cpuPowerPricesIndex].getHardwareValue());
+        int memoryPricesIndex = distortIndex(cpuPowerPricesIndex, MEMORY_PRICES.length);
+        computer.setMemory(MEMORY_PRICES[memoryPricesIndex].getHardwareValue());
+        int networkBandwidthPricesIndex = distortIndex(cpuPowerPricesIndex, NETWORK_BANDWIDTH_PRICES.length);
+        computer.setNetworkBandwidth(NETWORK_BANDWIDTH_PRICES[networkBandwidthPricesIndex].getHardwareValue());
+        int cost = CPU_POWER_PRICES[cpuPowerPricesIndex].getCost()
+                + MEMORY_PRICES[memoryPricesIndex].getCost()
+                + NETWORK_BANDWIDTH_PRICES[networkBandwidthPricesIndex].getCost();
+        computer.setCost(cost);
+        logger.trace("Created computer with cpuPowerPricesIndex ({}), memoryPricesIndex ({}),"
+                + " networkBandwidthPricesIndex ({}).",
+                cpuPowerPricesIndex, memoryPricesIndex, networkBandwidthPricesIndex);
+        return computer;
     }
 
     private int distortIndex(int referenceIndex, int length) {
@@ -197,24 +221,29 @@ public class CloudBalancingGenerator extends LoggingMain {
         return index;
     }
 
-    private void createCloudProcessList(CloudBalance cloudBalance, int cloudProcessListSize) {
-        List<CloudProcess> cloudProcessList = new ArrayList<CloudProcess>(cloudProcessListSize);
-        for (int i = 0; i < cloudProcessListSize; i++) {
-            CloudProcess cloudProcess = new CloudProcess();
-            cloudProcess.setId((long) i);
-            int requiredCpuPower = generateRandom(MAXIMUM_REQUIRED_CPU_POWER);
-            cloudProcess.setRequiredCpuPower(requiredCpuPower);
-            int requiredMemory = generateRandom(MAXIMUM_REQUIRED_MEMORY);
-            cloudProcess.setRequiredMemory(requiredMemory);
-            int requiredNetworkBandwidth = generateRandom(MAXIMUM_REQUIRED_NETWORK_BANDWIDTH);
-            cloudProcess.setRequiredNetworkBandwidth(requiredNetworkBandwidth);
-            logger.trace("Created CloudProcess with requiredCpuPower ({}), requiredMemory({}),"
-                    + " requiredNetworkBandwidth({}).",
-                    requiredCpuPower, requiredMemory, requiredNetworkBandwidth);
-            // Notice that we leave the PlanningVariable properties on null
-            cloudProcessList.add(cloudProcess);
+    private void createProcessList(CloudBalance cloudBalance, int processListSize) {
+        List<CloudProcess> processList = new ArrayList<>(processListSize);
+        for (int i = 0; i < processListSize; i++) {
+            CloudProcess process = generateProcessWithoutId();
+            process.setId((long) i);
+            processList.add(process);
         }
-        cloudBalance.setProcessList(cloudProcessList);
+        cloudBalance.setProcessList(processList);
+    }
+
+    public CloudProcess generateProcessWithoutId() {
+        CloudProcess process = new CloudProcess();
+        int requiredCpuPower = generateRandom(MAXIMUM_REQUIRED_CPU_POWER);
+        process.setRequiredCpuPower(requiredCpuPower);
+        int requiredMemory = generateRandom(MAXIMUM_REQUIRED_MEMORY);
+        process.setRequiredMemory(requiredMemory);
+        int requiredNetworkBandwidth = generateRandom(MAXIMUM_REQUIRED_NETWORK_BANDWIDTH);
+        process.setRequiredNetworkBandwidth(requiredNetworkBandwidth);
+        logger.trace("Created CloudProcess with requiredCpuPower ({}), requiredMemory ({}),"
+                + " requiredNetworkBandwidth ({}).",
+                requiredCpuPower, requiredMemory, requiredNetworkBandwidth);
+        // Notice that we leave the PlanningVariable properties on null
+        return process;
     }
 
     private int generateRandom(int maximumValue) {
@@ -229,6 +258,56 @@ public class CloudBalancingGenerator extends LoggingMain {
             throw new IllegalArgumentException("Invalid generated value (" + value + ")");
         }
         return value;
+    }
+
+    private void assureComputerCapacityTotalAtLeastProcessRequiredTotal(CloudBalance cloudBalance) {
+        List<CloudComputer> computerList = cloudBalance.getComputerList();
+        int cpuPowerTotal = 0;
+        int memoryTotal = 0;
+        int networkBandwidthTotal = 0;
+        for (CloudComputer computer : computerList) {
+            cpuPowerTotal += computer.getCpuPower();
+            memoryTotal += computer.getMemory();
+            networkBandwidthTotal += computer.getNetworkBandwidth();
+        }
+        int requiredCpuPowerTotal = 0;
+        int requiredMemoryTotal = 0;
+        int requiredNetworkBandwidthTotal = 0;
+        for (CloudProcess process : cloudBalance.getProcessList()) {
+            requiredCpuPowerTotal += process.getRequiredCpuPower();
+            requiredMemoryTotal += process.getRequiredMemory();
+            requiredNetworkBandwidthTotal += process.getRequiredNetworkBandwidth();
+        }
+        int cpuPowerLacking = requiredCpuPowerTotal - cpuPowerTotal;
+        while (cpuPowerLacking > 0) {
+            CloudComputer computer = computerList.get(random.nextInt(computerList.size()));
+            int upgrade = determineUpgrade(cpuPowerLacking);
+            computer.setCpuPower(computer.getCpuPower() + upgrade);
+            cpuPowerLacking -= upgrade;
+        }
+        int memoryLacking = requiredMemoryTotal - memoryTotal;
+        while (memoryLacking > 0) {
+            CloudComputer computer = computerList.get(random.nextInt(computerList.size()));
+            int upgrade = determineUpgrade(memoryLacking);
+            computer.setMemory(computer.getMemory() + upgrade);
+            memoryLacking -= upgrade;
+        }
+        int networkBandwidthLacking = requiredNetworkBandwidthTotal - networkBandwidthTotal;
+        while (networkBandwidthLacking > 0) {
+            CloudComputer computer = computerList.get(random.nextInt(computerList.size()));
+            int upgrade = determineUpgrade(networkBandwidthLacking);
+            computer.setNetworkBandwidth(computer.getNetworkBandwidth() + upgrade);
+            networkBandwidthLacking -= upgrade;
+        }
+    }
+
+    private int determineUpgrade(int lacking) {
+        for (int upgrade : new int[] { 8, 4, 2, 1 }) {
+            if (lacking >= upgrade) {
+                return upgrade;
+            }
+        }
+        throw new IllegalStateException("Lacking (" + lacking + ") should be at least 1.");
     }
 
 }

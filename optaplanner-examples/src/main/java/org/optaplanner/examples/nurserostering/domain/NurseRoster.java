@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,56 +16,74 @@
 
 package org.optaplanner.examples.nurserostering.domain;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
 import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.solution.ProblemFactProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
 import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScore;
-import org.optaplanner.core.impl.score.buildin.hardsoft.HardSoftScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.nurserostering.domain.contract.Contract;
 import org.optaplanner.examples.nurserostering.domain.contract.ContractLine;
 import org.optaplanner.examples.nurserostering.domain.contract.PatternContractLine;
+import org.optaplanner.examples.nurserostering.domain.pattern.Pattern;
 import org.optaplanner.examples.nurserostering.domain.request.DayOffRequest;
 import org.optaplanner.examples.nurserostering.domain.request.DayOnRequest;
 import org.optaplanner.examples.nurserostering.domain.request.ShiftOffRequest;
 import org.optaplanner.examples.nurserostering.domain.request.ShiftOnRequest;
-import org.optaplanner.persistence.xstream.XStreamScoreConverter;
+import org.optaplanner.persistence.xstream.api.score.buildin.hardsoft.HardSoftScoreXStreamConverter;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+import com.thoughtworks.xstream.annotations.XStreamConverter;
 
 @PlanningSolution
 @XStreamAlias("NurseRoster")
-public class NurseRoster extends AbstractPersistable implements Solution<HardSoftScore> {
+public class NurseRoster extends AbstractPersistable {
 
     private String code;
 
-    private NurseRosterInfo nurseRosterInfo;
+    @ProblemFactProperty
+    private NurseRosterParametrization nurseRosterParametrization;
+    @ProblemFactCollectionProperty
     private List<Skill> skillList;
+    @ProblemFactCollectionProperty
     private List<ShiftType> shiftTypeList;
+    @ProblemFactCollectionProperty
     private List<ShiftTypeSkillRequirement> shiftTypeSkillRequirementList;
+    @ProblemFactCollectionProperty
     private List<Pattern> patternList;
+    @ProblemFactCollectionProperty
     private List<Contract> contractList;
+    @ProblemFactCollectionProperty
     private List<ContractLine> contractLineList;
+    @ProblemFactCollectionProperty
     private List<PatternContractLine> patternContractLineList;
+    @ValueRangeProvider(id = "employeeRange")
+    @ProblemFactCollectionProperty
     private List<Employee> employeeList;
+    @ProblemFactCollectionProperty
     private List<SkillProficiency> skillProficiencyList;
+    @ProblemFactCollectionProperty
     private List<ShiftDate> shiftDateList;
+    @ProblemFactCollectionProperty
     private List<Shift> shiftList;
+    @ProblemFactCollectionProperty
     private List<DayOffRequest> dayOffRequestList;
+    @ProblemFactCollectionProperty
     private List<DayOnRequest> dayOnRequestList;
+    @ProblemFactCollectionProperty
     private List<ShiftOffRequest> shiftOffRequestList;
+    @ProblemFactCollectionProperty
     private List<ShiftOnRequest> shiftOnRequestList;
 
+    @PlanningEntityCollectionProperty
     private List<ShiftAssignment> shiftAssignmentList;
 
-    @XStreamConverter(value = XStreamScoreConverter.class, types = {HardSoftScoreDefinition.class})
+    @PlanningScore
+    @XStreamConverter(HardSoftScoreXStreamConverter.class)
     private HardSoftScore score;
 
     public String getCode() {
@@ -76,12 +94,12 @@ public class NurseRoster extends AbstractPersistable implements Solution<HardSof
         this.code = code;
     }
 
-    public NurseRosterInfo getNurseRosterInfo() {
-        return nurseRosterInfo;
+    public NurseRosterParametrization getNurseRosterParametrization() {
+        return nurseRosterParametrization;
     }
 
-    public void setNurseRosterInfo(NurseRosterInfo nurseRosterInfo) {
-        this.nurseRosterInfo = nurseRosterInfo;
+    public void setNurseRosterParametrization(NurseRosterParametrization nurseRosterParametrization) {
+        this.nurseRosterParametrization = nurseRosterParametrization;
     }
 
     public List<Skill> getSkillList() {
@@ -140,7 +158,6 @@ public class NurseRoster extends AbstractPersistable implements Solution<HardSof
         this.patternContractLineList = patternContractLineList;
     }
 
-    @ValueRangeProvider(id = "employeeRange")
     public List<Employee> getEmployeeList() {
         return employeeList;
     }
@@ -205,7 +222,6 @@ public class NurseRoster extends AbstractPersistable implements Solution<HardSof
         this.shiftOnRequestList = shiftOnRequestList;
     }
 
-    @PlanningEntityCollectionProperty
     public List<ShiftAssignment> getShiftAssignmentList() {
         return shiftAssignmentList;
     }
@@ -225,59 +241,5 @@ public class NurseRoster extends AbstractPersistable implements Solution<HardSof
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<? extends Object> getProblemFacts() {
-        List<Object> facts = new ArrayList<Object>();
-        facts.add(nurseRosterInfo);
-        facts.addAll(skillList);
-        facts.addAll(shiftTypeList);
-        facts.addAll(shiftTypeSkillRequirementList);
-        facts.addAll(patternList);
-        facts.addAll(contractList);
-        facts.addAll(contractLineList);
-        facts.addAll(patternContractLineList);
-        facts.addAll(employeeList);
-        facts.addAll(skillProficiencyList);
-        facts.addAll(shiftDateList);
-        facts.addAll(shiftList);
-        facts.addAll(dayOffRequestList);
-        facts.addAll(dayOnRequestList);
-        facts.addAll(shiftOffRequestList);
-        facts.addAll(shiftOnRequestList);
-        // Do not add the planning entity's (shiftAssignmentList) because that will be done automatically
-        return facts;
-    }
-
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (id == null || !(o instanceof NurseRoster)) {
-            return false;
-        } else {
-            NurseRoster other = (NurseRoster) o;
-            if (shiftAssignmentList.size() != other.shiftAssignmentList.size()) {
-                return false;
-            }
-            for (Iterator<ShiftAssignment> it = shiftAssignmentList.iterator(), otherIt = other.shiftAssignmentList.iterator(); it.hasNext();) {
-                ShiftAssignment shiftAssignment = it.next();
-                ShiftAssignment otherShiftAssignment = otherIt.next();
-                // Notice: we don't use equals()
-                if (!shiftAssignment.solutionEquals(otherShiftAssignment)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    public int hashCode() {
-        HashCodeBuilder hashCodeBuilder = new HashCodeBuilder();
-        for (ShiftAssignment shiftAssignment : shiftAssignmentList) {
-            // Notice: we don't use hashCode()
-            hashCodeBuilder.append(shiftAssignment.solutionHashCode());
-        }
-        return hashCodeBuilder.toHashCode();
-    }
 
 }

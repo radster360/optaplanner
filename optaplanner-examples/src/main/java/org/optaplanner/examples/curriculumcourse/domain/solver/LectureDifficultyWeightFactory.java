@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@
 
 package org.optaplanner.examples.curriculumcourse.domain.solver;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
+import static java.util.Comparator.comparingInt;
+import static java.util.Comparator.comparingLong;
+
+import java.util.Comparator;
+
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorterWeightFactory;
 import org.optaplanner.examples.curriculumcourse.domain.Course;
 import org.optaplanner.examples.curriculumcourse.domain.CourseSchedule;
@@ -25,7 +29,8 @@ import org.optaplanner.examples.curriculumcourse.domain.UnavailablePeriodPenalty
 
 public class LectureDifficultyWeightFactory implements SelectionSorterWeightFactory<CourseSchedule, Lecture> {
 
-    public Comparable createSorterWeight(CourseSchedule schedule, Lecture lecture) {
+    @Override
+    public LectureDifficultyWeight createSorterWeight(CourseSchedule schedule, Lecture lecture) {
         Course course = lecture.getCourse();
         int unavailablePeriodPenaltyCount = 0;
         for (UnavailablePeriodPenalty penalty : schedule.getUnavailablePeriodPenaltyList()) {
@@ -38,6 +43,14 @@ public class LectureDifficultyWeightFactory implements SelectionSorterWeightFact
 
     public static class LectureDifficultyWeight implements Comparable<LectureDifficultyWeight> {
 
+        private static final Comparator<LectureDifficultyWeight> COMPARATOR = comparingInt(
+                (LectureDifficultyWeight c) -> c.lecture.getCurriculumSet().size())
+                        .thenComparing(c -> c.unavailablePeriodPenaltyCount)
+                        .thenComparingInt(c -> c.lecture.getCourse().getLectureSize())
+                        .thenComparingInt(c -> c.lecture.getCourse().getStudentSize())
+                        .thenComparing(c -> c.lecture.getCourse().getMinWorkingDaySize())
+                        .thenComparing(c -> c.lecture, comparingLong(Lecture::getId));
+
         private final Lecture lecture;
         private final int unavailablePeriodPenaltyCount;
 
@@ -46,19 +59,9 @@ public class LectureDifficultyWeightFactory implements SelectionSorterWeightFact
             this.unavailablePeriodPenaltyCount = unavailablePeriodPenaltyCount;
         }
 
+        @Override
         public int compareTo(LectureDifficultyWeight other) {
-            Course course = lecture.getCourse();
-            Course otherCourse = other.lecture.getCourse();
-            return new CompareToBuilder()
-                    .append(course.getCurriculumList().size(), otherCourse.getCurriculumList().size())
-                    .append(unavailablePeriodPenaltyCount, other.unavailablePeriodPenaltyCount)
-                    .append(course.getLectureSize(), otherCourse.getLectureSize())
-                    .append(course.getStudentSize(), otherCourse.getStudentSize())
-                    .append(course.getMinWorkingDaySize(), otherCourse.getMinWorkingDaySize())
-                    .append(lecture.getId(), other.lecture.getId())
-                    .toComparison();
+            return COMPARATOR.compare(this, other);
         }
-
     }
-
 }

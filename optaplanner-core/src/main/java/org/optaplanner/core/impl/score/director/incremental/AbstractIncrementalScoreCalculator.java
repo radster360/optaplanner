@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,14 @@
 
 package org.optaplanner.core.impl.score.director.incremental;
 
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 
 /**
  * Abstract superclass for {@link IncrementalScoreCalculator}.
+ *
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  * @see IncrementalScoreCalculator
  */
-public abstract class AbstractIncrementalScoreCalculator<Sol extends Solution> implements IncrementalScoreCalculator<Sol> {
-
-    public String buildScoreCorruptionAnalysis(IncrementalScoreCalculator uncorruptedIncrementalScoreCalculator) {
-        return null;
-    }
+public abstract class AbstractIncrementalScoreCalculator<Solution_> implements IncrementalScoreCalculator<Solution_> {
 
 }

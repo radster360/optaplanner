@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,14 +19,14 @@ package org.optaplanner.core.impl.heuristic.selector.move.factory;
 import java.util.Iterator;
 import java.util.List;
 
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.CachedListRandomIterator;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 /**
  * Bridges a {@link MoveListFactory} to a {@link MoveSelector}.
@@ -49,7 +49,7 @@ public class MoveListFactoryToMoveSelectorBridge extends AbstractMoveSelector
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
     }
 
     @Override
@@ -57,38 +57,49 @@ public class MoveListFactoryToMoveSelectorBridge extends AbstractMoveSelector
         return cacheType;
     }
 
+    @Override
+    public boolean supportsPhaseAndSolverCaching() {
+        return true;
+    }
+
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
+    @Override
+    public void constructCache(SolverScope solverScope) {
         cachedMoveList = moveListFactory.createMoveList(solverScope.getScoreDirector().getWorkingSolution());
-        logger.trace("    Created cachedMoveList with size ({}) in moveSelector({}).",
+        logger.trace("    Created cachedMoveList: size ({}), moveSelector ({}).",
                 cachedMoveList.size(), this);
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         cachedMoveList = null;
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         // CachedListRandomIterator is neverEnding
         return randomSelection;
     }
 
+    @Override
     public long getSize() {
         return (long) cachedMoveList.size();
     }
 
+    @Override
     public Iterator<Move> iterator() {
         if (!randomSelection) {
             return cachedMoveList.iterator();
         } else {
-            return new CachedListRandomIterator<Move>(cachedMoveList, workingRandom);
+            return new CachedListRandomIterator<>(cachedMoveList, workingRandom);
         }
     }
 

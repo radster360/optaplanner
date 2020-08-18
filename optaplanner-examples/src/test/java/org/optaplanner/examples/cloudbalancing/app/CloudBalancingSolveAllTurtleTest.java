@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2013 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,43 +16,21 @@
 
 package org.optaplanner.examples.cloudbalancing.app;
 
-import java.io.File;
-import java.util.Collection;
+import org.optaplanner.core.impl.score.director.easy.EasyScoreCalculator;
+import org.optaplanner.examples.cloudbalancing.domain.CloudBalance;
+import org.optaplanner.examples.cloudbalancing.optional.score.CloudBalancingMapBasedEasyScoreCalculator;
+import org.optaplanner.examples.common.app.CommonApp;
+import org.optaplanner.examples.common.app.UnsolvedDirSolveAllTurtleTest;
 
-import org.junit.runners.Parameterized;
-import org.optaplanner.core.config.score.director.ScoreDirectorFactoryConfig;
-import org.optaplanner.examples.cloudbalancing.persistence.CloudBalancingDao;
-import org.optaplanner.examples.cloudbalancing.solver.score.CloudBalancingMapBasedSimpleScoreCalculator;
-import org.optaplanner.examples.common.app.SolveAllTurtleTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
+public class CloudBalancingSolveAllTurtleTest extends UnsolvedDirSolveAllTurtleTest<CloudBalance> {
 
-public class CloudBalancingSolveAllTurtleTest extends SolveAllTurtleTest {
-
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static Collection<Object[]> getSolutionFilesAsParameters() {
-        return getUnsolvedDataFilesAsParameters(new CloudBalancingDao());
-    }
-
-    public CloudBalancingSolveAllTurtleTest(File unsolvedDataFile) {
-        super(unsolvedDataFile);
+    @Override
+    protected CommonApp<CloudBalance> createCommonApp() {
+        return new CloudBalancingApp();
     }
 
     @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/cloudbalancing/solver/cloudBalancingSolverConfig.xml";
+    protected Class<? extends EasyScoreCalculator> overwritingEasyScoreCalculatorClass() {
+        return CloudBalancingMapBasedEasyScoreCalculator.class;
     }
-
-    @Override
-    protected ScoreDirectorFactoryConfig createOverwritingAssertionScoreDirectorFactory() {
-        ScoreDirectorFactoryConfig assertionScoreDirectorFactoryConfig = new ScoreDirectorFactoryConfig();
-        assertionScoreDirectorFactoryConfig.setSimpleScoreCalculatorClass(
-                CloudBalancingMapBasedSimpleScoreCalculator.class);
-        return assertionScoreDirectorFactoryConfig;
-    }
-
-    @Override
-    protected SolutionDao createSolutionDao() {
-        return new CloudBalancingDao();
-    }
-
 }

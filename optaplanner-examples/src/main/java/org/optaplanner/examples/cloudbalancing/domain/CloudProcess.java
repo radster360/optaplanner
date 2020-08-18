@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package org.optaplanner.examples.cloudbalancing.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
-import org.optaplanner.examples.cloudbalancing.domain.solver.CloudComputerStrengthComparator;
-import org.optaplanner.examples.cloudbalancing.domain.solver.CloudProcessDifficultyComparator;
+import org.optaplanner.examples.cloudbalancing.optional.domain.CloudComputerStrengthComparator;
+import org.optaplanner.examples.cloudbalancing.optional.domain.CloudProcessDifficultyComparator;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @PlanningEntity(difficultyComparatorClass = CloudProcessDifficultyComparator.class)
 @XStreamAlias("CloudProcess")
@@ -35,6 +34,16 @@ public class CloudProcess extends AbstractPersistable {
 
     // Planning variables: changes during planning, between score calculations.
     private CloudComputer computer;
+
+    public CloudProcess() {
+    }
+
+    public CloudProcess(long id, int requiredCpuPower, int requiredMemory, int requiredNetworkBandwidth) {
+        super(id);
+        this.requiredCpuPower = requiredCpuPower;
+        this.requiredMemory = requiredMemory;
+        this.requiredNetworkBandwidth = requiredNetworkBandwidth;
+    }
 
     public int getRequiredCpuPower() {
         return requiredCpuPower;
@@ -60,8 +69,8 @@ public class CloudProcess extends AbstractPersistable {
         this.requiredNetworkBandwidth = requiredNetworkBandwidth;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"computerRange"},
-            strengthComparatorClass = CloudComputerStrengthComparator.class)
+    @PlanningVariable(valueRangeProviderRefs = {
+            "computerRange" }, strengthComparatorClass = CloudComputerStrengthComparator.class)
     public CloudComputer getComputer() {
         return computer;
     }
@@ -80,42 +89,6 @@ public class CloudProcess extends AbstractPersistable {
 
     public String getLabel() {
         return "Process " + id;
-    }
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionHashCode()
-     */
-    public boolean solutionEquals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof CloudProcess) {
-            CloudProcess other = (CloudProcess) o;
-            return new EqualsBuilder()
-                    .append(id, other.id)
-                    .append(computer, other.computer)
-                    .isEquals();
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionEquals(Object)
-     */
-    public int solutionHashCode() {
-        return new HashCodeBuilder()
-                .append(id)
-                .append(computer)
-                .toHashCode();
-    }
-
-    @Override
-    public String toString() {
-        return getLabel() + "->" + computer;
     }
 
 }

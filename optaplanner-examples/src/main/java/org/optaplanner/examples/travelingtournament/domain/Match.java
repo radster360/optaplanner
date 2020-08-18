@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,11 @@
 
 package org.optaplanner.examples.travelingtournament.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @PlanningEntity
 @XStreamAlias("TtpMatch")
@@ -48,7 +47,7 @@ public class Match extends AbstractPersistable {
         this.awayTeam = awayTeam;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"dayRange"})
+    @PlanningVariable(valueRangeProviderRefs = { "dayRange" })
     public Day getDay() {
         return day;
     }
@@ -57,48 +56,9 @@ public class Match extends AbstractPersistable {
         this.day = day;
     }
 
-    // ************************************************************************
-    // Complex methods
-    // ************************************************************************
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used
-     * because the rule engine already requires them (for performance in their original state).
-     * @see #solutionHashCode()
-     */
-    public boolean solutionEquals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof Match) {
-            Match other = (Match) o;
-            return new EqualsBuilder()
-                    .append(id, other.id)
-                    .append(homeTeam, other.homeTeam)
-                    .append(awayTeam, other.awayTeam)
-                    .append(day, other.day)
-                    .isEquals();
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used
-     * because the rule engine already requires them (for performance in their original state).
-     * @see #solutionEquals(Object)
-     */
-    public int solutionHashCode() {
-        return new HashCodeBuilder()
-                .append(id)
-                .append(homeTeam)
-                .append(awayTeam)
-                .append(day)
-                .toHashCode();
-    }
-
     @Override
     public String toString() {
-        return super.toString() + " " + homeTeam + " + " + awayTeam + " @ " + day;
+        return homeTeam + "+" + awayTeam;
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,10 @@ import org.optaplanner.core.impl.localsearch.scope.LocalSearchMoveScope;
 import org.optaplanner.core.impl.localsearch.scope.LocalSearchStepScope;
 
 public class ValueTabuAcceptor extends AbstractTabuAcceptor {
+
+    public ValueTabuAcceptor(String logIndentation) {
+        super(logIndentation);
+    }
 
     // ************************************************************************
     // Worker methods

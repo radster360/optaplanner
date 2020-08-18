@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,252 +16,230 @@
 
 package org.optaplanner.core.impl.solver;
 
-import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.core.api.score.Score;
+import org.optaplanner.core.api.solver.ProblemFactChange;
 import org.optaplanner.core.api.solver.Solver;
-import org.optaplanner.core.impl.bestsolution.BestSolutionRecaller;
-import org.optaplanner.core.impl.domain.solution.SolutionDescriptor;
-import org.optaplanner.core.impl.event.SolverEventListener;
-import org.optaplanner.core.impl.event.SolverEventSupport;
-import org.optaplanner.core.impl.phase.SolverPhase;
-import org.optaplanner.core.impl.phase.event.SolverPhaseLifecycleListener;
-import org.optaplanner.core.impl.score.director.ScoreDirectorFactory;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-import org.optaplanner.core.impl.termination.Termination;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.optaplanner.core.config.solver.EnvironmentMode;
+import org.optaplanner.core.impl.phase.Phase;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
+import org.optaplanner.core.impl.score.director.InnerScoreDirectorFactory;
+import org.optaplanner.core.impl.solver.random.RandomFactory;
+import org.optaplanner.core.impl.solver.recaller.BestSolutionRecaller;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.solver.termination.BasicPlumbingTermination;
+import org.optaplanner.core.impl.solver.termination.Termination;
 
 /**
  * Default implementation for {@link Solver}.
+ *
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
  * @see Solver
+ * @see AbstractSolver
  */
-public class DefaultSolver implements Solver {
+public class DefaultSolver<Solution_> extends AbstractSolver<Solution_> {
 
-    protected final transient Logger logger = LoggerFactory.getLogger(getClass());
-
-    protected SolverEventSupport solverEventSupport = new SolverEventSupport(this);
-
-    protected ScoreDirectorFactory scoreDirectorFactory;
-    protected Long randomSeed;
+    protected EnvironmentMode environmentMode;
+    protected RandomFactory randomFactory;
 
     protected BasicPlumbingTermination basicPlumbingTermination;
-    // Note that the basicPlumbingTermination is a component of this termination
-    protected Termination termination;
-    protected BestSolutionRecaller bestSolutionRecaller;
-    protected List<SolverPhase> solverPhaseList;
 
-    protected AtomicBoolean solving = new AtomicBoolean(false);
+    protected final AtomicBoolean solving = new AtomicBoolean(false);
 
-    protected DefaultSolverScope solverScope = new DefaultSolverScope();
-    
-    public long getRandomSeed() {
-        return this.randomSeed;
-    }
+    protected final SolverScope<Solution_> solverScope;
 
-    public void setRandomSeed(long randomSeed) {
-        this.randomSeed = randomSeed;
-    }
+    // ************************************************************************
+    // Constructors and simple getters/setters
+    // ************************************************************************
 
-    public ScoreDirectorFactory getScoreDirectorFactory() {
-        return scoreDirectorFactory;
-    }
-
-    public void setScoreDirectorFactory(ScoreDirectorFactory scoreDirectorFactory) {
-        this.scoreDirectorFactory = scoreDirectorFactory;
-    }
-
-    public void setBasicPlumbingTermination(BasicPlumbingTermination basicPlumbingTermination) {
+    public DefaultSolver(EnvironmentMode environmentMode, RandomFactory randomFactory,
+            BestSolutionRecaller<Solution_> bestSolutionRecaller, BasicPlumbingTermination basicPlumbingTermination,
+            Termination termination,
+            List<Phase<Solution_>> phaseList,
+            SolverScope<Solution_> solverScope) {
+        super(bestSolutionRecaller, termination, phaseList);
+        this.environmentMode = environmentMode;
+        this.randomFactory = randomFactory;
         this.basicPlumbingTermination = basicPlumbingTermination;
+        this.solverScope = solverScope;
     }
 
-    public void setTermination(Termination termination) {
-        this.termination = termination;
+    public EnvironmentMode getEnvironmentMode() {
+        return environmentMode;
     }
 
-    public void setBestSolutionRecaller(BestSolutionRecaller bestSolutionRecaller) {
-        this.bestSolutionRecaller = bestSolutionRecaller;
-        this.bestSolutionRecaller.setSolverEventSupport(solverEventSupport);
+    public RandomFactory getRandomFactory() {
+        return randomFactory;
     }
 
-    public List<SolverPhase> getSolverPhaseList() {
-        return solverPhaseList;
+    public InnerScoreDirectorFactory<Solution_> getScoreDirectorFactory() {
+        return solverScope.getScoreDirector().getScoreDirectorFactory();
     }
 
-    public void setSolverPhaseList(List<SolverPhase> solverPhaseList) {
-        this.solverPhaseList = solverPhaseList;
+    public BestSolutionRecaller<Solution_> getBestSolutionRecaller() {
+        return bestSolutionRecaller;
     }
 
-    public void setPlanningProblem(Solution planningProblem) {
-        solverScope.setBestSolution(planningProblem);
+    public List<Phase<Solution_>> getPhaseList() {
+        return phaseList;
     }
 
-    public Solution getBestSolution() {
-        return solverScope.getBestSolution();
-    }
-
-    // TODO this shouldn't change after the solve is done
-    public long getTimeMillisSpend() {
-        return solverScope.calculateTimeMillisSpend();
-    }
-
-    public SolutionDescriptor getSolutionDescriptor() {
-        return solverScope.getSolutionDescriptor();
-    }
-
-    public DefaultSolverScope getSolverScope() {
+    public SolverScope<Solution_> getSolverScope() {
         return solverScope;
+    }
+
+    // ************************************************************************
+    // Complex getters
+    // ************************************************************************
+
+    public long getTimeMillisSpent() {
+        Long startingSystemTimeMillis = solverScope.getStartingSystemTimeMillis();
+        if (startingSystemTimeMillis == null) {
+            // The solver hasn't started yet
+            return 0L;
+        }
+        Long endingSystemTimeMillis = solverScope.getEndingSystemTimeMillis();
+        if (endingSystemTimeMillis == null) {
+            // The solver hasn't ended yet
+            endingSystemTimeMillis = System.currentTimeMillis();
+        }
+        return endingSystemTimeMillis - startingSystemTimeMillis;
+    }
+
+    @Override
+    public boolean isSolving() {
+        return solving.get();
+    }
+
+    @Override
+    public boolean terminateEarly() {
+        boolean terminationEarlySuccessful = basicPlumbingTermination.terminateEarly();
+        if (terminationEarlySuccessful) {
+            logger.info("Terminating solver early.");
+        }
+        return terminationEarlySuccessful;
+    }
+
+    @Override
+    public boolean isTerminateEarly() {
+        return basicPlumbingTermination.isTerminateEarly();
+    }
+
+    @Override
+    public boolean addProblemFactChange(ProblemFactChange<Solution_> problemFactChange) {
+        return basicPlumbingTermination.addProblemFactChange(problemFactChange);
+    }
+
+    @Override
+    public boolean addProblemFactChanges(List<ProblemFactChange<Solution_>> problemFactChangeList) {
+        return basicPlumbingTermination.addProblemFactChanges(problemFactChangeList);
+    }
+
+    @Override
+    public boolean isEveryProblemFactChangeProcessed() {
+        return basicPlumbingTermination.isEveryProblemFactChangeProcessed();
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public boolean isSolving() {
-        return solving.get();
+    @Override
+    public final Solution_ solve(Solution_ problem) {
+        if (problem == null) {
+            throw new IllegalArgumentException("The problem (" + problem + ") must not be null.");
+        }
+        solverScope.setBestSolution(problem);
+        outerSolvingStarted(solverScope);
+        boolean restartSolver = true;
+        while (restartSolver) {
+            solvingStarted(solverScope);
+            runPhases(solverScope);
+            solvingEnded(solverScope);
+            restartSolver = checkProblemFactChanges();
+        }
+        outerSolvingEnded(solverScope);
+        return solverScope.getBestSolution();
     }
 
-    public boolean terminateEarly() {
-        return basicPlumbingTermination.terminateEarly();
-    }
-
-    public boolean isTerminateEarly() {
-        return basicPlumbingTermination.isTerminateEarly();
-    }
-
-    public boolean addProblemFactChange(ProblemFactChange problemFactChange) {
-        return basicPlumbingTermination.addProblemFactChange(problemFactChange);
-    }
-
-    public boolean isEveryProblemFactChangeProcessed() {
-        BlockingQueue<ProblemFactChange> problemFactChangeQueue
-                = basicPlumbingTermination.getProblemFactChangeQueue();
-        // TODO bug: the last ProblemFactChange might already been polled, but not processed yet
-        return problemFactChangeQueue.isEmpty();
-    }
-
-    public final void solve() {
+    public void outerSolvingStarted(SolverScope<Solution_> solverScope) {
         solving.set(true);
         basicPlumbingTermination.resetTerminateEarly();
-        solverScope.setRestartSolver(true);
-        while (solverScope.isRestartSolver()) {
-            solverScope.setRestartSolver(false);
-            solvingStarted(solverScope);
-            runSolverPhases();
-            solvingEnded(solverScope);
-            checkProblemFactChanges();
-        }
+        solverScope.setStartingSolverCount(0);
+        solverScope.setWorkingRandom(randomFactory.createRandom());
+    }
+
+    @Override
+    public void solvingStarted(SolverScope<Solution_> solverScope) {
+        solverScope.startingNow();
+        solverScope.getScoreDirector().resetCalculationCount();
+        super.solvingStarted(solverScope);
+        int startingSolverCount = solverScope.getStartingSolverCount() + 1;
+        solverScope.setStartingSolverCount(startingSolverCount);
+        logger.info("Solving {}: time spent ({}), best score ({}), environment mode ({}), random ({}).",
+                (startingSolverCount == 1 ? "started" : "restarted"),
+                solverScope.calculateTimeMillisSpentUpToNow(),
+                solverScope.getBestScore(),
+                environmentMode.name(),
+                (randomFactory != null ? randomFactory : "not fixed"));
+    }
+
+    @Override
+    public void solvingEnded(SolverScope<Solution_> solverScope) {
+        super.solvingEnded(solverScope);
+        solverScope.endingNow();
+    }
+
+    public void outerSolvingEnded(SolverScope<Solution_> solverScope) {
         // Must be kept open for doProblemFactChange
-        solverScope.getScoreDirector().dispose();
+        solverScope.getScoreDirector().close();
+        logger.info("Solving ended: time spent ({}), best score ({}), score calculation speed ({}/sec),"
+                + " phase total ({}), environment mode ({}).",
+                solverScope.getTimeMillisSpent(),
+                solverScope.getBestScore(),
+                solverScope.getScoreCalculationSpeed(),
+                phaseList.size(),
+                environmentMode.name());
         solving.set(false);
     }
 
-    public void solvingStarted(DefaultSolverScope solverScope) {
-        if (solverScope.getBestSolution() == null) {
-            throw new IllegalStateException("The planningProblem must not be null." +
-                    " Use Solver.setPlanningProblem(Solution).");
-        }
-        solverScope.setStartingSystemTimeMillis(System.currentTimeMillis());
-        solverScope.setScoreDirector(scoreDirectorFactory.buildScoreDirector());
-        if (randomSeed != null) {
-            solverScope.setWorkingRandom(new Random(randomSeed));
+    private boolean checkProblemFactChanges() {
+        boolean restartSolver = basicPlumbingTermination.waitForRestartSolverDecision();
+        if (!restartSolver) {
+            return false;
         } else {
-            solverScope.setWorkingRandom(new Random());
-        }
-        solverScope.setWorkingSolutionFromBestSolution();
-        bestSolutionRecaller.solvingStarted(solverScope);
-        for (SolverPhase solverPhase : solverPhaseList) {
-            solverPhase.solvingStarted(solverScope);
-        }
-        logger.info("Solving started: time spend ({}), score ({}), new best score ({}), random seed ({}).",
-                solverScope.calculateTimeMillisSpend(), solverScope.getStartingInitializedScore(),
-                solverScope.getBestScore(), (randomSeed != null ? randomSeed : "not fixed"));
-    }
-
-    protected void runSolverPhases() {
-        Iterator<SolverPhase> it = solverPhaseList.iterator();
-        while (!termination.isSolverTerminated(solverScope) && it.hasNext()) {
-            SolverPhase solverPhase = it.next();
-            solverPhase.solve(solverScope);
-            if (it.hasNext()) {
-                solverScope.setWorkingSolutionFromBestSolution();
-            }
-        }
-        // TODO support doing round-robin of phases (only non-construction heuristics)
-    }
-
-    public void solvingEnded(DefaultSolverScope solverScope) {
-        for (SolverPhase solverPhase : solverPhaseList) {
-            solverPhase.solvingEnded(solverScope);
-        }
-        bestSolutionRecaller.solvingEnded(solverScope);
-        long timeMillisSpend = solverScope.calculateTimeMillisSpend();
-        if (timeMillisSpend == 0L) {
-            // Avoid divide by zero exception on a fast CPU
-            timeMillisSpend = 1L;
-        }
-        long averageCalculateCountPerSecond = solverScope.getCalculateCount() * 1000L / timeMillisSpend;
-        logger.info("Solving ended: time spend ({}), best score ({}), average calculate count per second ({}).",
-                timeMillisSpend,
-                solverScope.getBestScoreWithUninitializedPrefix(),
-                averageCalculateCountPerSecond);
-    }
-
-    private void checkProblemFactChanges() {
-        BlockingQueue<ProblemFactChange> problemFactChangeQueue
-                = basicPlumbingTermination.getProblemFactChangeQueue();
-        if (!problemFactChangeQueue.isEmpty()) {
-            solverScope.setRestartSolver(true);
+            BlockingQueue<ProblemFactChange> problemFactChangeQueue = basicPlumbingTermination
+                    .startProblemFactChangesProcessing();
             solverScope.setWorkingSolutionFromBestSolution();
             Score score = null;
-            int count = 0;
-            ProblemFactChange problemFactChange = problemFactChangeQueue.poll();
+            int stepIndex = 0;
+            ProblemFactChange<Solution_> problemFactChange = problemFactChangeQueue.poll();
             while (problemFactChange != null) {
-                score = doProblemFactChange(problemFactChange);
-                count++;
+                score = doProblemFactChange(problemFactChange, stepIndex);
+                stepIndex++;
                 problemFactChange = problemFactChangeQueue.poll();
             }
-            Solution newBestSolution = solverScope.getScoreDirector().cloneWorkingSolution();
-            // TODO BestSolutionRecaller.solverStarted() already calls countUninitializedVariables()
-            int newBestUninitializedVariableCount = solverScope.getSolutionDescriptor()
-                    .countUninitializedVariables(newBestSolution);
-            bestSolutionRecaller.updateBestSolution(solverScope,
-                    newBestSolution, newBestUninitializedVariableCount);
-            logger.info("Done {} ProblemFactChange(s): new score ({}) possibly uninitialized. Restarting solver.",
-                    count, score);
+            // All PFCs are processed, fail fast if any of the new facts have null planning IDs.
+            InnerScoreDirector<Solution_> scoreDirector = solverScope.getScoreDirector();
+            scoreDirector.assertNonNullPlanningIds();
+            // Everything is fine, proceed.
+            basicPlumbingTermination.endProblemFactChangesProcessing();
+            bestSolutionRecaller.updateBestSolution(solverScope);
+            logger.info("Real-time problem fact changes done: step total ({}), new best score ({}).",
+                    stepIndex, score);
+            return true;
         }
     }
 
-    private Score doProblemFactChange(ProblemFactChange problemFactChange) {
+    private Score doProblemFactChange(ProblemFactChange<Solution_> problemFactChange, int stepIndex) {
         problemFactChange.doChange(solverScope.getScoreDirector());
         Score score = solverScope.calculateScore();
-        logger.debug("    Done ProblemFactChange: new score ({}).", score);
+        logger.debug("    Step index ({}), new score ({}) for real-time problem fact change.", stepIndex, score);
         return score;
-    }
-
-    public void addEventListener(SolverEventListener eventListener) {
-        solverEventSupport.addEventListener(eventListener);
-    }
-
-    public void removeEventListener(SolverEventListener eventListener) {
-        solverEventSupport.removeEventListener(eventListener);
-    }
-
-    public void addSolverPhaseLifecycleListener(SolverPhaseLifecycleListener solverPhaseLifecycleListener) {
-        for (SolverPhase solverPhase : solverPhaseList) {
-            solverPhase.addSolverPhaseLifecycleListener(solverPhaseLifecycleListener);
-        }
-    }
-
-    public void removeSolverPhaseLifecycleListener(SolverPhaseLifecycleListener solverPhaseLifecycleListener) {
-        for (SolverPhase solverPhase : solverPhaseList) {
-            solverPhase.addSolverPhaseLifecycleListener(solverPhaseLifecycleListener);
-        }
     }
 
 }

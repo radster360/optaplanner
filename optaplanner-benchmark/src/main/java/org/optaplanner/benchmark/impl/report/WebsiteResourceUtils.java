@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,23 +49,17 @@ public class WebsiteResourceUtils {
 
     private static void copyResource(File benchmarkReportDirectory, String websiteResource) {
         File outputFile = new File(benchmarkReportDirectory, websiteResource);
-        InputStream in = null;
-        OutputStream out = null;
-        try {
-            in = WebsiteResourceUtils.class.getResourceAsStream(RESOURCE_NAMESPACE + websiteResource);
+        outputFile.getParentFile().mkdirs();
+        try (InputStream in = WebsiteResourceUtils.class.getResourceAsStream(RESOURCE_NAMESPACE + websiteResource);
+                OutputStream out = new FileOutputStream(outputFile)) {
             if (in == null) {
                 throw new IllegalStateException("The websiteResource (" + websiteResource
                         + ") does not exist.");
             }
-            outputFile.getParentFile().mkdirs();
-            out = new FileOutputStream(outputFile);
             IOUtils.copy(in, out);
         } catch (IOException e) {
             throw new IllegalStateException("Could not copy websiteResource (" + websiteResource
                     + ") to outputFile (" + outputFile + ").", e);
-        } finally {
-            IOUtils.closeQuietly(in);
-            IOUtils.closeQuietly(out);
         }
     }
 

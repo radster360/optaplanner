@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,25 +20,38 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.valuerange.ValueRange;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.domain.valuerange.descriptor.ValueRangeDescriptor;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.heuristic.move.AbstractMove;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
-public class SwapMove implements Move {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public class SwapMove<Solution_> extends AbstractMove<Solution_> {
 
-    protected final Collection<PlanningVariableDescriptor> variableDescriptors;
+    protected final List<GenuineVariableDescriptor<Solution_>> variableDescriptorList;
 
     protected final Object leftEntity;
     protected final Object rightEntity;
 
-    public SwapMove(Collection<PlanningVariableDescriptor> variableDescriptors, Object leftEntity, Object rightEntity) {
-        this.variableDescriptors = variableDescriptors;
+    public SwapMove(List<GenuineVariableDescriptor<Solution_>> variableDescriptorList, Object leftEntity, Object rightEntity) {
+        this.variableDescriptorList = variableDescriptorList;
         this.leftEntity = leftEntity;
         this.rightEntity = rightEntity;
+    }
+
+    public List<String> getVariableNameList() {
+        List<String> variableNameList = new ArrayList<>(variableDescriptorList.size());
+        for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
+            variableNameList.add(variableDescriptor.getVariableName());
+        }
+        return variableNameList;
     }
 
     public Object getLeftEntity() {
@@ -53,72 +66,132 @@ public class SwapMove implements Move {
     // Worker methods
     // ************************************************************************
 
-    public boolean isMoveDoable(ScoreDirector scoreDirector) {
-        for (PlanningVariableDescriptor variableDescriptor : variableDescriptors) {
+    @Override
+    public boolean isMoveDoable(ScoreDirector<Solution_> scoreDirector) {
+        boolean movable = false;
+        for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
             Object leftValue = variableDescriptor.getValue(leftEntity);
             Object rightValue = variableDescriptor.getValue(rightEntity);
-            if (!ObjectUtils.equals(leftValue, rightValue)) {
-                return true;
+            if (!Objects.equals(leftValue, rightValue)) {
+                movable = true;
+                if (!variableDescriptor.isValueRangeEntityIndependent()) {
+                    ValueRangeDescriptor<Solution_> valueRangeDescriptor = variableDescriptor.getValueRangeDescriptor();
+                    Solution_ workingSolution = scoreDirector.getWorkingSolution();
+                    ValueRange rightValueRange = valueRangeDescriptor.extractValueRange(workingSolution, rightEntity);
+                    if (!rightValueRange.contains(leftValue)) {
+                        return false;
+                    }
+                    ValueRange leftValueRange = valueRangeDescriptor.extractValueRange(workingSolution, leftEntity);
+                    if (!leftValueRange.contains(rightValue)) {
+                        return false;
+                    }
+                }
             }
         }
-        return false;
+        return movable;
     }
 
-    public Move createUndoMove(ScoreDirector scoreDirector) {
-        return new SwapMove(variableDescriptors, rightEntity, leftEntity);
+    @Override
+    public SwapMove<Solution_> createUndoMove(ScoreDirector<Solution_> scoreDirector) {
+        return new SwapMove<>(variableDescriptorList, rightEntity, leftEntity);
     }
 
-    public void doMove(ScoreDirector scoreDirector) {
-        for (PlanningVariableDescriptor variableDescriptor : variableDescriptors) {
+    @Override
+    public SwapMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        return new SwapMove<>(variableDescriptorList,
+                destinationScoreDirector.lookUpWorkingObject(leftEntity),
+                destinationScoreDirector.lookUpWorkingObject(rightEntity));
+    }
+
+    @Override
+    protected void doMoveOnGenuineVariables(ScoreDirector<Solution_> scoreDirector) {
+        InnerScoreDirector<Solution_> innerScoreDirector = (InnerScoreDirector<Solution_>) scoreDirector;
+        for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
             Object oldLeftValue = variableDescriptor.getValue(leftEntity);
             Object oldRightValue = variableDescriptor.getValue(rightEntity);
-            if (!ObjectUtils.equals(oldLeftValue, oldRightValue)) {
-                scoreDirector.beforeVariableChanged(leftEntity, variableDescriptor.getVariableName());
+            if (!Objects.equals(oldLeftValue, oldRightValue)) {
+                innerScoreDirector.beforeVariableChanged(variableDescriptor, leftEntity);
                 variableDescriptor.setValue(leftEntity, oldRightValue);
-                scoreDirector.afterVariableChanged(leftEntity, variableDescriptor.getVariableName());
-                scoreDirector.beforeVariableChanged(rightEntity, variableDescriptor.getVariableName());
+                innerScoreDirector.afterVariableChanged(variableDescriptor, leftEntity);
+                innerScoreDirector.beforeVariableChanged(variableDescriptor, rightEntity);
                 variableDescriptor.setValue(rightEntity, oldLeftValue);
-                scoreDirector.afterVariableChanged(rightEntity, variableDescriptor.getVariableName());
+                innerScoreDirector.afterVariableChanged(variableDescriptor, rightEntity);
             }
         }
     }
 
+    // ************************************************************************
+    // Introspection methods
+    // ************************************************************************
+
+    @Override
+    public String getSimpleMoveTypeDescription() {
+        StringBuilder moveTypeDescription = new StringBuilder(20 * (variableDescriptorList.size() + 1));
+        moveTypeDescription.append(getClass().getSimpleName()).append("(");
+        String delimiter = "";
+        for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
+            moveTypeDescription.append(delimiter).append(variableDescriptor.getSimpleEntityAndVariableName());
+            delimiter = ", ";
+        }
+        moveTypeDescription.append(")");
+        return moveTypeDescription.toString();
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Arrays.asList(leftEntity, rightEntity);
     }
 
+    @Override
     public Collection<? extends Object> getPlanningValues() {
-        List<Object> values = new ArrayList<Object>(variableDescriptors.size() * 2);
-        for (PlanningVariableDescriptor variableDescriptor : variableDescriptors) {
+        List<Object> values = new ArrayList<>(variableDescriptorList.size() * 2);
+        for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
             values.add(variableDescriptor.getValue(leftEntity));
             values.add(variableDescriptor.getValue(rightEntity));
         }
         return values;
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof SwapMove) {
-            SwapMove other = (SwapMove) o;
-            return new EqualsBuilder()
-                    .append(leftEntity, other.leftEntity)
-                    .append(rightEntity, other.rightEntity)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final SwapMove<?> swapMove = (SwapMove<?>) o;
+        return Objects.equals(variableDescriptorList, swapMove.variableDescriptorList) &&
+                Objects.equals(leftEntity, swapMove.leftEntity) &&
+                Objects.equals(rightEntity, swapMove.rightEntity);
     }
 
+    @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(leftEntity)
-                .append(rightEntity)
-                .toHashCode();
+        return Objects.hash(variableDescriptorList, leftEntity, rightEntity);
     }
 
+    @Override
     public String toString() {
-        return leftEntity + " <=> " + rightEntity;
+        StringBuilder s = new StringBuilder(variableDescriptorList.size() * 16);
+        s.append(leftEntity).append(" {");
+        appendVariablesToString(s, leftEntity);
+        s.append("} <-> ");
+        s.append(rightEntity).append(" {");
+        appendVariablesToString(s, rightEntity);
+        s.append("}");
+        return s.toString();
+    }
+
+    protected void appendVariablesToString(StringBuilder s, Object entity) {
+        boolean first = true;
+        for (GenuineVariableDescriptor<Solution_> variableDescriptor : variableDescriptorList) {
+            if (!first) {
+                s.append(", ");
+            }
+            s.append(variableDescriptor.getValue(entity));
+            first = false;
+        }
     }
 
 }

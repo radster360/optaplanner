@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,21 @@
 
 package org.optaplanner.examples.pas.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("Night")
 public class Night extends AbstractPersistable {
 
     private int index;
+
+    public Night() {
+    }
+
+    public Night(int index) {
+        this.index = index;
+    }
 
     public int getIndex() {
         return index;
@@ -30,6 +38,10 @@ public class Night extends AbstractPersistable {
 
     public void setIndex(int index) {
         this.index = index;
+    }
+
+    public String getLabel() {
+        return (index + 1) + "-JAN";
     }
 
     @Override

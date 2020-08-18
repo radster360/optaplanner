@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,23 +16,22 @@
 
 package org.optaplanner.examples.nurserostering.domain;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.TimeZone;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 
-@XStreamAlias("ShiftDate")
-public class ShiftDate extends AbstractPersistable {
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
-    private int dayIndex;
-    private String dateString;
-    private DayOfWeek dayOfWeek;
+@XStreamAlias("ShiftDate")
+public class ShiftDate extends AbstractPersistable implements Comparable<ShiftDate> {
+
+    private static final DateTimeFormatter LABEL_FORMATTER = DateTimeFormatter.ofPattern("E d MMM");
+
+    private int dayIndex; // TODO check if still needed/faster now that we use LocalDate instead of java.util.Date
+    private LocalDate date;
 
     private List<Shift> shiftList;
 
@@ -44,20 +43,16 @@ public class ShiftDate extends AbstractPersistable {
         this.dayIndex = dayIndex;
     }
 
-    public String getDateString() {
-        return dateString;
+    public LocalDate getDate() {
+        return date;
     }
 
-    public void setDateString(String dateString) {
-        this.dateString = dateString;
+    public void setDate(LocalDate date) {
+        this.date = date;
     }
 
     public DayOfWeek getDayOfWeek() {
-        return dayOfWeek;
-    }
-
-    public void setDayOfWeek(DayOfWeek dayOfWeek) {
-        this.dayOfWeek = dayOfWeek;
+        return date.getDayOfWeek();
     }
 
     public List<Shift> getShiftList() {
@@ -68,36 +63,8 @@ public class ShiftDate extends AbstractPersistable {
         this.shiftList = shiftList;
     }
 
-    public String determineNextDateString() {
-        TimeZone LOCAL_TIMEZONE = TimeZone.getTimeZone("GMT");
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeZone(LOCAL_TIMEZONE);
-        calendar.clear();
-        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        dateFormat.setCalendar(calendar);
-        Date date;
-        try {
-            date = dateFormat.parse(dateString);
-        } catch (ParseException e) {
-            throw new IllegalStateException("Could not parse shiftDate (" + this
-                    + ")'s dateString (" + dateString + ").");
-        }
-        calendar.setTime(date);
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        return dateFormat.format(calendar.getTime());
-    }
-
-    public String getLabel() {
-        return dayOfWeek.getLabel() + " " + dateString.substring(5).replaceAll("\\-", "/");
-    }
-
-    @Override
-    public String toString() {
-        return dateString + "(" + dayOfWeek + ")";
-    }
-
     public int getWeekendSundayIndex() {
-        switch (dayOfWeek) {
+        switch (date.getDayOfWeek()) {
             case MONDAY:
                 return dayIndex - 1;
             case TUESDAY:
@@ -113,8 +80,21 @@ public class ShiftDate extends AbstractPersistable {
             case SUNDAY:
                 return dayIndex;
             default:
-                throw new IllegalArgumentException("The dayOfWeek (" + dayOfWeek + ") is not valid.");
+                throw new IllegalArgumentException("The dayOfWeek (" + date.getDayOfWeek() + ") is not valid.");
         }
     }
 
+    public String getLabel() {
+        return date.format(LABEL_FORMATTER);
+    }
+
+    @Override
+    public String toString() {
+        return date.format(DateTimeFormatter.ISO_DATE);
+    }
+
+    @Override
+    public int compareTo(ShiftDate o) {
+        return this.getDate().compareTo(o.getDate());
+    }
 }

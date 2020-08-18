@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,42 +16,36 @@
 
 package org.optaplanner.core.impl.localsearch.scope;
 
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.impl.heuristic.move.Move;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
 
-public class LocalSearchStepScope extends AbstractStepScope {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public class LocalSearchStepScope<Solution_> extends AbstractStepScope<Solution_> {
 
-    private final LocalSearchSolverPhaseScope phaseScope;
+    private final LocalSearchPhaseScope<Solution_> phaseScope;
 
     private double timeGradient = Double.NaN;
-    private Move step = null;
+    private Move<Solution_> step = null;
     private String stepString = null;
-    private Move undoStep = null;
+    private Move<Solution_> undoStep = null;
     private Long selectedMoveCount = null;
     private Long acceptedMoveCount = null;
 
-    public LocalSearchStepScope(LocalSearchSolverPhaseScope phaseScope) {
-        this(phaseScope, phaseScope.getLastCompletedStepScope().getStepIndex() + 1);
+    public LocalSearchStepScope(LocalSearchPhaseScope<Solution_> phaseScope) {
+        this(phaseScope, phaseScope.getNextStepIndex());
     }
 
-    public LocalSearchStepScope(LocalSearchSolverPhaseScope phaseScope, int stepIndex) {
+    public LocalSearchStepScope(LocalSearchPhaseScope<Solution_> phaseScope, int stepIndex) {
         super(stepIndex);
         this.phaseScope = phaseScope;
     }
 
     @Override
-    public LocalSearchSolverPhaseScope getPhaseScope() {
+    public LocalSearchPhaseScope<Solution_> getPhaseScope() {
         return phaseScope;
-    }
-
-    @Override
-    public boolean isBestSolutionCloningDelayed() {
-        return false;
-    }
-
-    @Override
-    public int getUninitializedVariableCount() {
-        return 0;
     }
 
     public double getTimeGradient() {
@@ -62,11 +56,11 @@ public class LocalSearchStepScope extends AbstractStepScope {
         this.timeGradient = timeGradient;
     }
 
-    public Move getStep() {
+    public Move<Solution_> getStep() {
         return step;
     }
 
-    public void setStep(Move step) {
+    public void setStep(Move<Solution_> step) {
         this.step = step;
     }
 
@@ -81,11 +75,11 @@ public class LocalSearchStepScope extends AbstractStepScope {
         this.stepString = stepString;
     }
 
-    public Move getUndoStep() {
+    public Move<Solution_> getUndoStep() {
         return undoStep;
     }
 
-    public void setUndoStep(Move undoStep) {
+    public void setUndoStep(Move<Solution_> undoStep) {
         this.undoStep = undoStep;
     }
 

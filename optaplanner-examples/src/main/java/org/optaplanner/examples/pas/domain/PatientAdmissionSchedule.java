@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,23 @@
 
 package org.optaplanner.examples.pas.domain;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
+
+import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
+import org.optaplanner.core.api.domain.solution.PlanningScore;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.domain.solution.ProblemFactCollectionProperty;
+import org.optaplanner.core.api.domain.valuerange.ValueRangeProvider;
+import org.optaplanner.core.api.score.buildin.hardmediumsoft.HardMediumSoftScore;
+import org.optaplanner.examples.common.domain.AbstractPersistable;
+import org.optaplanner.persistence.xstream.api.score.buildin.hardmediumsoft.HardMediumSoftScoreXStreamConverter;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import com.thoughtworks.xstream.annotations.XStreamConverter;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.api.domain.solution.PlanningEntityCollectionProperty;
-import org.optaplanner.core.api.domain.solution.PlanningSolution;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
-import org.optaplanner.core.api.score.buildin.hardsoft.HardSoftScore;
-import org.optaplanner.core.impl.score.buildin.hardsoft.HardSoftScoreDefinition;
-import org.optaplanner.core.impl.solution.Solution;
-import org.optaplanner.examples.common.domain.AbstractPersistable;
-import org.optaplanner.examples.pas.domain.solver.AdmissionPartConflict;
-import org.optaplanner.persistence.xstream.XStreamScoreConverter;
 
 @PlanningSolution
 @XStreamAlias("PatientAdmissionSchedule")
-public class PatientAdmissionSchedule extends AbstractPersistable implements Solution<HardSoftScore> {
+public class PatientAdmissionSchedule extends AbstractPersistable {
 
     private List<Specialism> specialismList;
     private List<Equipment> equipmentList;
@@ -54,9 +50,10 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
 
     private List<BedDesignation> bedDesignationList;
 
-    @XStreamConverter(value = XStreamScoreConverter.class, types = {HardSoftScoreDefinition.class})
-    private HardSoftScore score;
+    @XStreamConverter(HardMediumSoftScoreXStreamConverter.class)
+    private HardMediumSoftScore score;
 
+    @ProblemFactCollectionProperty
     public List<Specialism> getSpecialismList() {
         return specialismList;
     }
@@ -65,6 +62,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.specialismList = specialismList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Equipment> getEquipmentList() {
         return equipmentList;
     }
@@ -73,6 +71,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.equipmentList = equipmentList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Department> getDepartmentList() {
         return departmentList;
     }
@@ -81,6 +80,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.departmentList = departmentList;
     }
 
+    @ProblemFactCollectionProperty
     public List<DepartmentSpecialism> getDepartmentSpecialismList() {
         return departmentSpecialismList;
     }
@@ -89,6 +89,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.departmentSpecialismList = departmentSpecialismList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Room> getRoomList() {
         return roomList;
     }
@@ -97,6 +98,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.roomList = roomList;
     }
 
+    @ProblemFactCollectionProperty
     public List<RoomSpecialism> getRoomSpecialismList() {
         return roomSpecialismList;
     }
@@ -105,6 +107,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.roomSpecialismList = roomSpecialismList;
     }
 
+    @ProblemFactCollectionProperty
     public List<RoomEquipment> getRoomEquipmentList() {
         return roomEquipmentList;
     }
@@ -114,6 +117,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
     }
 
     @ValueRangeProvider(id = "bedRange")
+    @ProblemFactCollectionProperty
     public List<Bed> getBedList() {
         return bedList;
     }
@@ -122,6 +126,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.bedList = bedList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Night> getNightList() {
         return nightList;
     }
@@ -130,6 +135,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.nightList = nightList;
     }
 
+    @ProblemFactCollectionProperty
     public List<Patient> getPatientList() {
         return patientList;
     }
@@ -138,6 +144,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.patientList = patientList;
     }
 
+    @ProblemFactCollectionProperty
     public List<AdmissionPart> getAdmissionPartList() {
         return admissionPartList;
     }
@@ -146,6 +153,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.admissionPartList = admissionPartList;
     }
 
+    @ProblemFactCollectionProperty
     public List<RequiredPatientEquipment> getRequiredPatientEquipmentList() {
         return requiredPatientEquipmentList;
     }
@@ -154,6 +162,7 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.requiredPatientEquipmentList = requiredPatientEquipmentList;
     }
 
+    @ProblemFactCollectionProperty
     public List<PreferredPatientEquipment> getPreferredPatientEquipmentList() {
         return preferredPatientEquipmentList;
     }
@@ -171,108 +180,17 @@ public class PatientAdmissionSchedule extends AbstractPersistable implements Sol
         this.bedDesignationList = bedDesignationList;
     }
 
-    public HardSoftScore getScore() {
+    @PlanningScore
+    public HardMediumSoftScore getScore() {
         return score;
     }
 
-    public void setScore(HardSoftScore score) {
+    public void setScore(HardMediumSoftScore score) {
         this.score = score;
     }
 
     // ************************************************************************
     // Complex methods
     // ************************************************************************
-
-    public Collection<? extends Object> getProblemFacts() {
-        List<Object> facts = new ArrayList<Object>();
-        facts.addAll(specialismList);
-        facts.addAll(equipmentList);
-        facts.addAll(departmentList);
-        facts.addAll(departmentSpecialismList);
-        facts.addAll(roomList);
-        facts.addAll(roomSpecialismList);
-        facts.addAll(roomEquipmentList);
-        facts.addAll(bedList);
-        facts.addAll(nightList);
-        facts.addAll(patientList);
-        facts.addAll(admissionPartList);
-        facts.addAll(requiredPatientEquipmentList);
-        facts.addAll(preferredPatientEquipmentList);
-        facts.addAll(precalculateAdmissionPartConflictList());
-//        facts.addAll(precalculateAdmissionPartSpecialismMissingInRoomList());
-        // Do not add the planning entity's (bedDesignationList) because that will be done automatically
-        return facts;
-    }
-
-    private List<AdmissionPartConflict> precalculateAdmissionPartConflictList() {
-        List<AdmissionPartConflict> admissionPartConflictList = new ArrayList<AdmissionPartConflict>();
-        for (AdmissionPart leftAdmissionPart : admissionPartList) {
-            for (AdmissionPart rightAdmissionPart : admissionPartList) {
-                if (leftAdmissionPart.getId() < rightAdmissionPart.getId()) {
-                    int sameNightCount = leftAdmissionPart.calculateSameNightCount(rightAdmissionPart);
-                    if (sameNightCount > 0) {
-                        admissionPartConflictList.add(new AdmissionPartConflict(
-                                leftAdmissionPart, rightAdmissionPart, sameNightCount));
-                    }
-                }
-            }
-        }
-        return admissionPartConflictList;
-    }
-
-//    private List<AdmissionPartSpecialismMissingInRoom> precalculateAdmissionPartSpecialismMissingInRoomList() {
-//        List<AdmissionPartSpecialismMissingInRoom> admissionPartSpecialismMissingInRoomList
-//                = new ArrayList<AdmissionPartSpecialismMissingInRoom>();
-//        for (AdmissionPart admissionPart : admissionPartList) {
-//            if (admissionPart.getSpecialism() != null) {
-//                for (Room room : roomList) {
-//                    int mininumPriority = Integer.MAX_VALUE;
-//                    for (RoomSpecialism roomSpecialism : room.getRoomSpecialismList()) {
-//                        if (roomSpecialism.getSpecialism().equals(admissionPart.getSpecialism())) {
-//                            mininumPriority = Math.min(mininumPriority, roomSpecialism.getPriority());
-//                        }
-//                    }
-//                    int weight = (mininumPriority == Integer.MAX_VALUE) ? 2 : mininumPriority - 1;
-//                    if (weight > 0) {
-//                        admissionPartSpecialismMissingInRoomList.add(
-//                                new AdmissionPartSpecialismMissingInRoom(admissionPart, room, mininumPriority));
-//                    }
-//                }
-//            }
-//        }
-//        return admissionPartSpecialismMissingInRoomList;
-//    }
-
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (id == null || !(o instanceof PatientAdmissionSchedule)) {
-            return false;
-        } else {
-            PatientAdmissionSchedule other = (PatientAdmissionSchedule) o;
-            if (bedDesignationList.size() != other.bedDesignationList.size()) {
-                return false;
-            }
-            for (Iterator<BedDesignation> it = bedDesignationList.iterator(), otherIt = other.bedDesignationList.iterator(); it.hasNext();) {
-                BedDesignation bedDesignation = it.next();
-                BedDesignation otherBedDesignation = otherIt.next();
-                // Notice: we don't use equals()
-                if (!bedDesignation.solutionEquals(otherBedDesignation)) {
-                    return false;
-                }
-            }
-            return true;
-        }
-    }
-
-    public int hashCode() {
-        HashCodeBuilder hashCodeBuilder = new HashCodeBuilder();
-        for (BedDesignation bedDesignation : bedDesignationList) {
-            // Notice: we don't use hashCode()
-            hashCodeBuilder.append(bedDesignation.solutionHashCode());
-        }
-        return hashCodeBuilder.toHashCode();
-    }
 
 }

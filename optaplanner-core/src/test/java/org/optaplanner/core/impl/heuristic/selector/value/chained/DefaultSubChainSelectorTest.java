@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,108 @@
 
 package org.optaplanner.core.impl.heuristic.selector.value.chained;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertAllCodesOfIterator;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
+
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.junit.Test;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
 import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedAnchor;
 import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedEntity;
-
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertFalse;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertNotNull;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertTrue;
+import org.optaplanner.core.impl.testdata.domain.chained.TestdataChainedSolution;
+import org.optaplanner.core.impl.testdata.util.PlannerTestUtils;
 
 public class DefaultSubChainSelectorTest {
 
     @Test
-    public void original() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
+    public void notChainedVariableDescriptor() {
+        EntityIndependentValueSelector valueSelector = mock(EntityIndependentValueSelector.class);
+        GenuineVariableDescriptor variableDescriptor = mock(GenuineVariableDescriptor.class);
+        when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
+        when(variableDescriptor.isChained()).thenReturn(false);
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new DefaultSubChainSelector(valueSelector, true, 1, 1))
+                .withMessageContaining("chained");
+    }
+
+    @Test
+    public void neverEndingValueSelector() {
+        EntityIndependentValueSelector valueSelector = mock(EntityIndependentValueSelector.class);
+        GenuineVariableDescriptor variableDescriptor = mock(GenuineVariableDescriptor.class);
+        when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
         when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        when(valueSelector.isNeverEnding()).thenReturn(true);
+
+        assertThatIllegalStateException()
+                .isThrownBy(() -> new DefaultSubChainSelector(valueSelector, true, 1, 1))
+                .withMessageContaining("neverEnding");
+    }
+
+    @Test
+    public void minimumSubChainSizeIsZero() {
+        EntityIndependentValueSelector valueSelector = mock(EntityIndependentValueSelector.class);
+        GenuineVariableDescriptor variableDescriptor = mock(GenuineVariableDescriptor.class);
+        when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
+        when(variableDescriptor.isChained()).thenReturn(true);
+
+        assertThatIllegalStateException()
+                .isThrownBy(() -> new DefaultSubChainSelector(valueSelector, true, 0, 1))
+                .withMessageContaining("at least 1");
+    }
+
+    @Test
+    public void minimumSubChainSizeIsGreaterThanMaximumSubChainSize() {
+        EntityIndependentValueSelector valueSelector = mock(EntityIndependentValueSelector.class);
+        GenuineVariableDescriptor variableDescriptor = mock(GenuineVariableDescriptor.class);
+        when(valueSelector.getVariableDescriptor()).thenReturn(variableDescriptor);
+        when(variableDescriptor.isChained()).thenReturn(true);
+
+        assertThatIllegalStateException()
+                .isThrownBy(() -> new DefaultSubChainSelector(valueSelector, true, 2, 1))
+                .withMessageContaining("at least maximumSubChainSize");
+    }
+
+    @Test
+    public void calculateSubChainSelectionSize() {
+        assertCalculateSubChainSelectionSize(4L, 1, 1);
+        assertCalculateSubChainSelectionSize(3L, 2, 2);
+        assertCalculateSubChainSelectionSize(2L, 3, 3);
+        assertCalculateSubChainSelectionSize(1L, 4, 4);
+
+        assertCalculateSubChainSelectionSize(7L, 1, 2);
+        assertCalculateSubChainSelectionSize(9L, 1, 3);
+        assertCalculateSubChainSelectionSize(10L, 1, 4);
+        assertCalculateSubChainSelectionSize(5L, 2, 3);
+        assertCalculateSubChainSelectionSize(6L, 2, 4);
+        assertCalculateSubChainSelectionSize(3L, 3, 4);
+
+        assertCalculateSubChainSelectionSize(10L, 1, 5);
+        assertCalculateSubChainSelectionSize(6L, 2, 5);
+        assertCalculateSubChainSelectionSize(3L, 3, 5);
+        assertCalculateSubChainSelectionSize(1L, 4, 5);
+        assertCalculateSubChainSelectionSize(0L, 5, 5);
+    }
+
+    private void assertCalculateSubChainSelectionSize(long expected, int minimumSubChainSize, int maximumSubChainSize) {
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
@@ -60,8 +129,35 @@ public class DefaultSubChainSelectorTest {
         TestdataChainedEntity b1 = new TestdataChainedEntity("b1", b0);
         TestdataChainedEntity b2 = new TestdataChainedEntity("b2", b1);
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{a1, a2, a3, a4, b1, b2});
+        EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
+                variableDescriptor,
+                a0, a1, a2, a3, a4, b0, b1, b2);
+        DefaultSubChainSelector selector = new DefaultSubChainSelector(
+                valueSelector, false, minimumSubChainSize, maximumSubChainSize);
+        assertThat(selector.calculateSubChainSelectionSize(
+                new SubChain(Arrays.asList(a1, a2, a3, a4)))).isEqualTo(expected);
+    }
+
+    @Test
+    public void original() {
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
+
+        TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
+        TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
+        TestdataChainedEntity a2 = new TestdataChainedEntity("a2", a1);
+        TestdataChainedEntity a3 = new TestdataChainedEntity("a3", a2);
+        TestdataChainedEntity a4 = new TestdataChainedEntity("a4", a3);
+
+        TestdataChainedAnchor b0 = new TestdataChainedAnchor("b0");
+        TestdataChainedEntity b1 = new TestdataChainedEntity("b1", b0);
+        TestdataChainedEntity b2 = new TestdataChainedEntity("b2", b1);
+
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0, b0));
+        solution.setChainedEntityList(Arrays.asList(a1, a2, a3, a4, b1, b2));
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -70,104 +166,81 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, false, 1, Integer.MAX_VALUE);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
-        runAssertsOriginal1(subChainSelector);
+        assertAllCodesOfSubChainSelector(subChainSelector,
+                "[a1]", "[a1, a2]", "[a1, a2, a3]", "[a1, a2, a3, a4]",
+                "[a2]", "[a2, a3]", "[a2, a3, a4]",
+                "[a3]", "[a3, a4]",
+                "[a4]",
+                "[b1]", "[b1, b2]",
+                "[b2]");
         subChainSelector.stepEnded(stepScopeA1);
 
-        a4.setChainedObject(a2);
-        a3.setChainedObject(b1);
-        b2.setChainedObject(a3);
+        scoreDirector.changeVariableFacade(variableDescriptor, a4, a2);
+        scoreDirector.changeVariableFacade(variableDescriptor, a3, b1);
+        scoreDirector.changeVariableFacade(variableDescriptor, b2, a3);
+        scoreDirector.triggerVariableListeners();
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA2);
-        runAssertsOriginal2(subChainSelector);
+        assertAllCodesOfSubChainSelector(subChainSelector,
+                "[a1]", "[a1, a2]", "[a1, a2, a4]",
+                "[a2]", "[a2, a4]",
+                "[a4]",
+                "[b1]", "[b1, a3]", "[b1, a3, b2]",
+                "[a3]", "[a3, b2]",
+                "[b2]");
         subChainSelector.stepEnded(stepScopeA2);
 
         subChainSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         subChainSelector.stepStarted(stepScopeB1);
-        runAssertsOriginal2(subChainSelector);
+        assertAllCodesOfSubChainSelector(subChainSelector,
+                "[a1]", "[a1, a2]", "[a1, a2, a4]",
+                "[a2]", "[a2, a4]",
+                "[a4]",
+                "[b1]", "[b1, a3]", "[b1, a3, b2]",
+                "[a3]", "[a3, b2]",
+                "[b2]");
         subChainSelector.stepEnded(stepScopeB1);
 
         subChainSelector.phaseEnded(phaseScopeB);
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 2, 3);
-    }
-
-    private void runAssertsOriginal1(DefaultSubChainSelector subChainSelector) {
-        Iterator<SubChain> iterator = subChainSelector.iterator();
-        assertNotNull(iterator);
-        assertNextSubChain(iterator, "a1");
-        assertNextSubChain(iterator, "a1", "a2");
-        assertNextSubChain(iterator, "a1", "a2", "a3");
-        assertNextSubChain(iterator, "a1", "a2", "a3", "a4");
-        assertNextSubChain(iterator, "a2");
-        assertNextSubChain(iterator, "a2", "a3");
-        assertNextSubChain(iterator, "a2", "a3", "a4");
-        assertNextSubChain(iterator, "a3");
-        assertNextSubChain(iterator, "a3", "a4");
-        assertNextSubChain(iterator, "a4");
-        assertNextSubChain(iterator, "b1");
-        assertNextSubChain(iterator, "b1", "b2");
-        assertNextSubChain(iterator, "b2");
-        assertFalse(iterator.hasNext());
-        assertEquals(false, subChainSelector.isContinuous());
-        assertEquals(false, subChainSelector.isNeverEnding());
-        assertEquals(13L, subChainSelector.getSize());
-    }
-
-    private void runAssertsOriginal2(DefaultSubChainSelector subChainSelector) {
-        Iterator<SubChain> iterator = subChainSelector.iterator();
-        assertNotNull(iterator);
-        assertNextSubChain(iterator, "a1");
-        assertNextSubChain(iterator, "a1", "a2");
-        assertNextSubChain(iterator, "a1", "a2", "a4");
-        assertNextSubChain(iterator, "a2");
-        assertNextSubChain(iterator, "a2", "a4");
-        assertNextSubChain(iterator, "a4");
-        assertNextSubChain(iterator, "b1");
-        assertNextSubChain(iterator, "b1", "a3");
-        assertNextSubChain(iterator, "b1", "a3", "b2");
-        assertNextSubChain(iterator, "a3");
-        assertNextSubChain(iterator, "a3", "b2");
-        assertNextSubChain(iterator, "b2");
-        assertFalse(iterator.hasNext());
-        assertEquals(false, subChainSelector.isContinuous());
-        assertEquals(false, subChainSelector.isNeverEnding());
-        assertEquals(12L, subChainSelector.getSize());
+        verifyPhaseLifecycle(valueSelector, 1, 2, 3);
     }
 
     @Test
     public void emptyEntitySelectorOriginal() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
-        when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedAnchor b0 = new TestdataChainedAnchor("b0");
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{});
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0, b0));
+        solution.setChainedEntityList(Collections.emptyList());
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -176,60 +249,57 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, false, 1, Integer.MAX_VALUE);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
-        runAssertsEmptyOriginal(subChainSelector);
+        assertAllCodesOfSubChainSelector(subChainSelector);
         subChainSelector.stepEnded(stepScopeA1);
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA2);
-        runAssertsEmptyOriginal(subChainSelector);
+        assertAllCodesOfSubChainSelector(subChainSelector);
         subChainSelector.stepEnded(stepScopeA2);
 
         subChainSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         subChainSelector.stepStarted(stepScopeB1);
-        runAssertsEmptyOriginal(subChainSelector);
+        assertAllCodesOfSubChainSelector(subChainSelector);
         subChainSelector.stepEnded(stepScopeB1);
 
         subChainSelector.phaseEnded(phaseScopeB);
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 2, 3);
+        verifyPhaseLifecycle(valueSelector, 1, 2, 3);
     }
 
-    private void runAssertsEmptyOriginal(DefaultSubChainSelector subChainSelector) {
-        Iterator<SubChain> iterator = subChainSelector.iterator();
-        assertNotNull(iterator);
-        assertFalse(iterator.hasNext());
-        assertEquals(false, subChainSelector.isContinuous());
-        assertEquals(false, subChainSelector.isNeverEnding());
-        assertEquals(0L, subChainSelector.getSize());
+    private void assertAllCodesOfSubChainSelector(SubChainSelector subChainSelector, String... codes) {
+        assertAllCodesOfIterator(subChainSelector.iterator(), codes);
+        assertThat(subChainSelector.isCountable()).isTrue();
+        assertThat(subChainSelector.isNeverEnding()).isFalse();
+        assertThat(subChainSelector.getSize()).isEqualTo(codes.length);
     }
 
     @Test
     public void originalMinimum2Maximum3() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
-        when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
@@ -241,8 +311,10 @@ public class DefaultSubChainSelectorTest {
         TestdataChainedEntity b1 = new TestdataChainedEntity("b1", b0);
         TestdataChainedEntity b2 = new TestdataChainedEntity("b2", b1);
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{a1, a2, a3, a4, b1, b2});
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0, b0));
+        solution.setChainedEntityList(Arrays.asList(a1, a2, a3, a4, b1, b2));
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -251,11 +323,11 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, false, 2, 3);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
@@ -263,18 +335,11 @@ public class DefaultSubChainSelectorTest {
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
 
-        Iterator<SubChain> iterator = subChainSelector.iterator();
-        assertNotNull(iterator);
-        assertNextSubChain(iterator, "a1", "a2");
-        assertNextSubChain(iterator, "a1", "a2", "a3");
-        assertNextSubChain(iterator, "a2", "a3");
-        assertNextSubChain(iterator, "a2", "a3", "a4");
-        assertNextSubChain(iterator, "a3", "a4");
-        assertNextSubChain(iterator, "b1", "b2");
-        assertFalse(iterator.hasNext());
-        assertEquals(false, subChainSelector.isContinuous());
-        assertEquals(false, subChainSelector.isNeverEnding());
-        assertEquals(6L, subChainSelector.getSize());
+        assertAllCodesOfSubChainSelector(subChainSelector,
+                "[a1, a2]", "[a1, a2, a3]",
+                "[a2, a3]", "[a2, a3, a4]",
+                "[a3, a4]",
+                "[b1, b2]");
 
         subChainSelector.stepEnded(stepScopeA1);
 
@@ -282,15 +347,14 @@ public class DefaultSubChainSelectorTest {
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 1, 1);
+        verifyPhaseLifecycle(valueSelector, 1, 1, 1);
     }
 
     @Test
     public void originalMinimum3Maximum3() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
-        when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
@@ -302,8 +366,10 @@ public class DefaultSubChainSelectorTest {
         TestdataChainedEntity b1 = new TestdataChainedEntity("b1", b0);
         TestdataChainedEntity b2 = new TestdataChainedEntity("b2", b1);
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{a1, a2, a3, a4, b1, b2});
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0, b0));
+        solution.setChainedEntityList(Arrays.asList(a1, a2, a3, a4, b1, b2));
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -312,11 +378,11 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, false, 3, 3);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
@@ -324,14 +390,7 @@ public class DefaultSubChainSelectorTest {
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
 
-        Iterator<SubChain> iterator = subChainSelector.iterator();
-        assertNotNull(iterator);
-        assertNextSubChain(iterator, "a1", "a2", "a3");
-        assertNextSubChain(iterator, "a2", "a3", "a4");
-        assertFalse(iterator.hasNext());
-        assertEquals(false, subChainSelector.isContinuous());
-        assertEquals(false, subChainSelector.isNeverEnding());
-        assertEquals(2L, subChainSelector.getSize());
+        assertAllCodesOfSubChainSelector(subChainSelector, "[a1, a2, a3]", "[a2, a3, a4]");
 
         subChainSelector.stepEnded(stepScopeA1);
 
@@ -339,27 +398,14 @@ public class DefaultSubChainSelectorTest {
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 1, 1);
-    }
-
-    private void assertNextSubChain(Iterator<SubChain> iterator, String... entityCodes) {
-        assertTrue(iterator.hasNext());
-        SubChain subChain = iterator.next();
-        List<Object> entityList = subChain.getEntityList();
-        String message = "Expected entityCodes (" + Arrays.toString(entityCodes)
-                + ") but received entityList (" + entityList + ").";
-        assertEquals(message, entityCodes.length, entityList.size());
-        for (int i = 0; i < entityCodes.length; i++) {
-            assertCode(message, entityCodes[i], entityList.get(i));
-        }
+        verifyPhaseLifecycle(valueSelector, 1, 1, 1);
     }
 
     @Test
     public void random() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
-        when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
@@ -367,8 +413,10 @@ public class DefaultSubChainSelectorTest {
         TestdataChainedEntity a3 = new TestdataChainedEntity("a3", a2);
         TestdataChainedEntity a4 = new TestdataChainedEntity("a4", a3);
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{a1, a2, a3, a4});
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0));
+        solution.setChainedEntityList(Arrays.asList(a1, a2, a3, a4));
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -377,12 +425,12 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, true, 1, Integer.MAX_VALUE);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         when(solverScope.getWorkingRandom()).thenReturn(new Random(0L));
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
@@ -390,17 +438,17 @@ public class DefaultSubChainSelectorTest {
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
 
-        iterateAndCollectAndAssert(subChainSelector,
-                new SubChain(Arrays.<Object>asList(a1)),
-                new SubChain(Arrays.<Object>asList(a2)),
-                new SubChain(Arrays.<Object>asList(a3)),
-                new SubChain(Arrays.<Object>asList(a4)),
-                new SubChain(Arrays.<Object>asList(a1, a2)),
-                new SubChain(Arrays.<Object>asList(a2, a3)),
-                new SubChain(Arrays.<Object>asList(a3, a4)),
-                new SubChain(Arrays.<Object>asList(a1, a2, a3)),
-                new SubChain(Arrays.<Object>asList(a2, a3, a4)),
-                new SubChain(Arrays.<Object>asList(a1, a2, a3, a4)));
+        assertContainsCodesOfNeverEndingSubChainSelector(subChainSelector,
+                new SubChain(Arrays.asList(a1)),
+                new SubChain(Arrays.asList(a2)),
+                new SubChain(Arrays.asList(a3)),
+                new SubChain(Arrays.asList(a4)),
+                new SubChain(Arrays.asList(a1, a2)),
+                new SubChain(Arrays.asList(a2, a3)),
+                new SubChain(Arrays.asList(a3, a4)),
+                new SubChain(Arrays.asList(a1, a2, a3)),
+                new SubChain(Arrays.asList(a2, a3, a4)),
+                new SubChain(Arrays.asList(a1, a2, a3, a4)));
 
         subChainSelector.stepEnded(stepScopeA1);
 
@@ -408,15 +456,14 @@ public class DefaultSubChainSelectorTest {
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 1, 1);
+        verifyPhaseLifecycle(valueSelector, 1, 1, 1);
     }
 
     @Test
     public void randomMinimum2Maximum3() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
-        when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
@@ -424,8 +471,10 @@ public class DefaultSubChainSelectorTest {
         TestdataChainedEntity a3 = new TestdataChainedEntity("a3", a2);
         TestdataChainedEntity a4 = new TestdataChainedEntity("a4", a3);
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{a1, a2, a3, a4});
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0));
+        solution.setChainedEntityList(Arrays.asList(a1, a2, a3, a4));
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -434,12 +483,12 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, true, 2, 3);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         when(solverScope.getWorkingRandom()).thenReturn(new Random(0L));
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
@@ -447,12 +496,12 @@ public class DefaultSubChainSelectorTest {
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
 
-        iterateAndCollectAndAssert(subChainSelector,
-                new SubChain(Arrays.<Object>asList(a1, a2)),
-                new SubChain(Arrays.<Object>asList(a2, a3)),
-                new SubChain(Arrays.<Object>asList(a3, a4)),
-                new SubChain(Arrays.<Object>asList(a1, a2, a3)),
-                new SubChain(Arrays.<Object>asList(a2, a3, a4)));
+        assertContainsCodesOfNeverEndingSubChainSelector(subChainSelector,
+                new SubChain(Arrays.asList(a1, a2)),
+                new SubChain(Arrays.asList(a2, a3)),
+                new SubChain(Arrays.asList(a3, a4)),
+                new SubChain(Arrays.asList(a1, a2, a3)),
+                new SubChain(Arrays.asList(a2, a3, a4)));
 
         subChainSelector.stepEnded(stepScopeA1);
 
@@ -460,15 +509,14 @@ public class DefaultSubChainSelectorTest {
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 1, 1);
+        verifyPhaseLifecycle(valueSelector, 1, 1, 1);
     }
 
     @Test
     public void randomMinimum3Maximum3() {
-        PlanningVariableDescriptor variableDescriptor = SelectorTestUtils.mockVariableDescriptor(
-                TestdataChainedEntity.class, "chainedObject");
-        when(variableDescriptor.isChained()).thenReturn(true);
-        ScoreDirector scoreDirector = mock(ScoreDirector.class);
+        GenuineVariableDescriptor variableDescriptor = TestdataChainedEntity.buildVariableDescriptorForChainedObject();
+        InnerScoreDirector scoreDirector = PlannerTestUtils.mockScoreDirector(
+                variableDescriptor.getEntityDescriptor().getSolutionDescriptor());
 
         TestdataChainedAnchor a0 = new TestdataChainedAnchor("a0");
         TestdataChainedEntity a1 = new TestdataChainedEntity("a1", a0);
@@ -476,8 +524,10 @@ public class DefaultSubChainSelectorTest {
         TestdataChainedEntity a3 = new TestdataChainedEntity("a3", a2);
         TestdataChainedEntity a4 = new TestdataChainedEntity("a4", a3);
 
-        SelectorTestUtils.mockMethodGetTrailingEntity(scoreDirector, variableDescriptor,
-                new TestdataChainedEntity[]{a1, a2, a3, a4});
+        TestdataChainedSolution solution = new TestdataChainedSolution("solution");
+        solution.setChainedAnchorList(Arrays.asList(a0));
+        solution.setChainedEntityList(Arrays.asList(a1, a2, a3, a4));
+        scoreDirector.setWorkingSolution(solution);
 
         EntityIndependentValueSelector valueSelector = SelectorTestUtils.mockEntityIndependentValueSelector(
                 variableDescriptor,
@@ -486,12 +536,12 @@ public class DefaultSubChainSelectorTest {
         DefaultSubChainSelector subChainSelector = new DefaultSubChainSelector(
                 valueSelector, true, 3, 3);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         when(solverScope.getScoreDirector()).thenReturn(scoreDirector);
         when(solverScope.getWorkingRandom()).thenReturn(new Random(0L));
         subChainSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         subChainSelector.phaseStarted(phaseScopeA);
 
@@ -499,9 +549,9 @@ public class DefaultSubChainSelectorTest {
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         subChainSelector.stepStarted(stepScopeA1);
 
-        iterateAndCollectAndAssert(subChainSelector,
-                new SubChain(Arrays.<Object>asList(a1, a2, a3)),
-                new SubChain(Arrays.<Object>asList(a2, a3, a4)));
+        assertContainsCodesOfNeverEndingSubChainSelector(subChainSelector,
+                new SubChain(Arrays.asList(a1, a2, a3)),
+                new SubChain(Arrays.asList(a2, a3, a4)));
 
         subChainSelector.stepEnded(stepScopeA1);
 
@@ -509,30 +559,33 @@ public class DefaultSubChainSelectorTest {
 
         subChainSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(valueSelector, 1, 1, 1);
+        verifyPhaseLifecycle(valueSelector, 1, 1, 1);
     }
 
-    private void iterateAndCollectAndAssert(DefaultSubChainSelector subChainSelector, SubChain... subChains) {
+    private void assertContainsCodesOfNeverEndingSubChainSelector(
+            DefaultSubChainSelector subChainSelector, SubChain... subChains) {
         Iterator<SubChain> iterator = subChainSelector.iterator();
-        assertNotNull(iterator);
+        assertThat(iterator).isNotNull();
         int selectionSize = subChains.length;
-        Map<SubChain, Integer> subChainCountMap = new HashMap<SubChain, Integer>(selectionSize);
+        Map<SubChain, Integer> subChainCountMap = new HashMap<>(selectionSize);
         for (int i = 0; i < selectionSize * 10; i++) {
             collectNextSubChain(iterator, subChainCountMap);
         }
         for (SubChain subChain : subChains) {
             Integer count = subChainCountMap.remove(subChain);
-            assertNotNull("The subChain (" + subChain + ") was not collected.", count);
+            assertThat(count)
+                    .as("The subChain (" + subChain + ") was not collected.")
+                    .isNotNull();
         }
-        assertTrue(subChainCountMap.isEmpty());
-        assertTrue(iterator.hasNext());
-        assertEquals(false, subChainSelector.isContinuous());
-        assertEquals(true, subChainSelector.isNeverEnding());
-        assertEquals((long) selectionSize, subChainSelector.getSize());
+        assertThat(subChainCountMap.isEmpty()).isTrue();
+        assertThat(iterator.hasNext()).isTrue();
+        assertThat(subChainSelector.isCountable()).isTrue();
+        assertThat(subChainSelector.isNeverEnding()).isTrue();
+        assertThat(subChainSelector.getSize()).isEqualTo((long) selectionSize);
     }
 
     private void collectNextSubChain(Iterator<SubChain> iterator, Map<SubChain, Integer> subChainCountMap) {
-        assertTrue(iterator.hasNext());
+        assertThat(iterator.hasNext()).isTrue();
         SubChain subChain = iterator.next();
         Integer count = subChainCountMap.get(subChain);
         if (count == null) {
@@ -541,5 +594,4 @@ public class DefaultSubChainSelectorTest {
             subChainCountMap.put(subChain, count + 1);
         }
     }
-
 }

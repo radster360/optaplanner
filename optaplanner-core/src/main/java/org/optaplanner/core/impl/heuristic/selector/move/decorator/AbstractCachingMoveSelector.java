@@ -1,16 +1,31 @@
+/*
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.optaplanner.core.impl.heuristic.selector.move.decorator;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.move.AbstractMoveSelector;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector implements SelectionCacheLifecycleListener {
 
@@ -27,12 +42,12 @@ public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector i
                     + ") has a childMoveSelector (" + childMoveSelector
                     + ") with neverEnding (" + childMoveSelector.isNeverEnding() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(childMoveSelector);
+        phaseLifecycleSupport.addEventListener(childMoveSelector);
         if (cacheType.isNotCached()) {
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
     }
 
     public MoveSelector getChildMoveSelector() {
@@ -48,7 +63,8 @@ public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector i
     // Worker methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
+    @Override
+    public void constructCache(SolverScope solverScope) {
         long childSize = childMoveSelector.getSize();
         if (childSize > (long) Integer.MAX_VALUE) {
             throw new IllegalStateException("The selector (" + this
@@ -56,20 +72,23 @@ public abstract class AbstractCachingMoveSelector extends AbstractMoveSelector i
                     + ") with childSize (" + childSize
                     + ") which is higher than Integer.MAX_VALUE.");
         }
-        cachedMoveList = new ArrayList<Move>((int) childSize);
-        CollectionUtils.addAll(cachedMoveList, childMoveSelector.iterator());
-        logger.trace("    Created cachedMoveList with size ({}) in moveSelector({}).",
+        cachedMoveList = new ArrayList<>((int) childSize);
+        childMoveSelector.iterator().forEachRemaining(cachedMoveList::add);
+        logger.trace("    Created cachedMoveList: size ({}), moveSelector ({}).",
                 cachedMoveList.size(), this);
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         cachedMoveList = null;
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public long getSize() {
         return cachedMoveList.size();
     }

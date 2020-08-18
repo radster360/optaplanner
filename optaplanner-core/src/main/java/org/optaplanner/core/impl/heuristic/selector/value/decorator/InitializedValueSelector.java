@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,69 +18,95 @@ package org.optaplanner.core.impl.heuristic.selector.value.decorator;
 
 import java.util.Iterator;
 
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
+import org.optaplanner.core.api.domain.variable.PlanningVariable;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.iterator.UpcomingSelectionIterator;
 import org.optaplanner.core.impl.heuristic.selector.value.AbstractValueSelector;
+import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
 import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
 
 /**
- * Filters out every value that is planning entity for which the planning variable
- * (for which this {@link ValueSelector} applies to) and that is uninitialized too.
- * <p/>
- * Mainly used for chained planning variables.
+ * Prevents creating chains without an anchor.
+ * <p>
+ * Filters out every value that is a planning entity for which the {@link PlanningVariable}
+ * (on which this {@link ValueSelector} applies to) is uninitialized.
+ * <p>
+ * Mainly used for chained planning variables, but supports other planning variables too.
  */
 public class InitializedValueSelector extends AbstractValueSelector {
 
-    protected final PlanningVariableDescriptor variableDescriptor;
+    public static ValueSelector create(ValueSelector valueSelector) {
+        if (valueSelector instanceof EntityIndependentValueSelector) {
+            return new EntityIndependentInitializedValueSelector((EntityIndependentValueSelector) valueSelector);
+        } else {
+            return new InitializedValueSelector(valueSelector);
+        }
+    }
+
+    protected final GenuineVariableDescriptor variableDescriptor;
     protected final ValueSelector childValueSelector;
     protected final boolean bailOutEnabled;
 
-    public InitializedValueSelector(ValueSelector childValueSelector) {
+    protected InitializedValueSelector(ValueSelector childValueSelector) {
         this.variableDescriptor = childValueSelector.getVariableDescriptor();
         this.childValueSelector = childValueSelector;
         bailOutEnabled = childValueSelector.isNeverEnding();
-        solverPhaseLifecycleSupport.addEventListener(childValueSelector);
+        phaseLifecycleSupport.addEventListener(childValueSelector);
     }
 
     // ************************************************************************
     // Worker methods
     // ************************************************************************
 
-    public PlanningVariableDescriptor getVariableDescriptor() {
+    @Override
+    public GenuineVariableDescriptor getVariableDescriptor() {
         return childValueSelector.getVariableDescriptor();
     }
 
-    public boolean isContinuous() {
-        return childValueSelector.isContinuous();
+    @Override
+    public boolean isCountable() {
+        return childValueSelector.isCountable();
     }
 
+    @Override
     public boolean isNeverEnding() {
         return childValueSelector.isNeverEnding();
     }
 
+    @Override
     public long getSize(Object entity) {
         // TODO use cached results
         return childValueSelector.getSize(entity);
     }
 
+    @Override
     public Iterator<Object> iterator(Object entity) {
         return new JustInTimeInitializedValueIterator(entity, childValueSelector.iterator(entity));
     }
 
-    private class JustInTimeInitializedValueIterator extends UpcomingSelectionIterator<Object> {
+    @Override
+    public Iterator<Object> endingIterator(Object entity) {
+        return new JustInTimeInitializedValueIterator(entity, childValueSelector.endingIterator(entity));
+    }
 
-        private final Object entity;
+    protected class JustInTimeInitializedValueIterator extends UpcomingSelectionIterator<Object> {
+
         private final Iterator<Object> childValueIterator;
+        private final long bailOutSize;
 
         public JustInTimeInitializedValueIterator(Object entity, Iterator<Object> childValueIterator) {
-            this.entity = entity;
+            this(childValueIterator, determineBailOutSize(entity));
+        }
+
+        public JustInTimeInitializedValueIterator(Iterator<Object> childValueIterator, long bailOutSize) {
             this.childValueIterator = childValueIterator;
+            this.bailOutSize = bailOutSize;
         }
 
         @Override
         protected Object createUpcomingSelection() {
             Object next;
-            long attemptsBeforeBailOut = bailOutEnabled ? determineBailOutSize(entity) : 0L;
+            long attemptsBeforeBailOut = bailOutSize;
             do {
                 if (!childValueIterator.hasNext()) {
                     return noUpcomingSelection();
@@ -102,12 +128,15 @@ public class InitializedValueSelector extends AbstractValueSelector {
     }
 
     protected long determineBailOutSize(Object entity) {
+        if (!bailOutEnabled) {
+            return -1L;
+        }
         return childValueSelector.getSize(entity) * 10L;
     }
 
-    private boolean accept(Object value) {
+    protected boolean accept(Object value) {
         return value == null
-                || !variableDescriptor.getEntityDescriptor().getPlanningEntityClass().isAssignableFrom(value.getClass())
+                || !variableDescriptor.getEntityDescriptor().getEntityClass().isAssignableFrom(value.getClass())
                 || variableDescriptor.isInitialized(value);
     }
 

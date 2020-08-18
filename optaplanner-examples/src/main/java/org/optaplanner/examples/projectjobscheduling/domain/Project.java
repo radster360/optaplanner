@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@ package org.optaplanner.examples.projectjobscheduling.domain;
 
 import java.util.List;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.projectjobscheduling.domain.resource.LocalResource;
+
+import com.thoughtworks.xstream.annotations.XStreamAlias;
 
 @XStreamAlias("PjsProject")
 public class Project extends AbstractPersistable {
@@ -30,7 +31,6 @@ public class Project extends AbstractPersistable {
 
     private List<LocalResource> localResourceList;
     private List<Job> jobList;
-    // TODO resources, jobs,
 
     public int getReleaseDate() {
         return releaseDate;
@@ -67,6 +67,10 @@ public class Project extends AbstractPersistable {
     // ************************************************************************
     // Complex methods
     // ************************************************************************
+
+    public int getCriticalPathEndDate() {
+        return releaseDate + criticalPathDuration;
+    }
 
     public String getLabel() {
         return "Project " + id;

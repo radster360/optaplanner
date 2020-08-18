@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,46 +16,24 @@
 
 package org.optaplanner.examples.nqueens.app;
 
-import java.io.File;
+import java.util.stream.Stream;
 
-import org.junit.Test;
 import org.optaplanner.core.config.solver.EnvironmentMode;
 import org.optaplanner.examples.common.app.SolverPerformanceTest;
-import org.optaplanner.examples.common.persistence.SolutionDao;
-import org.optaplanner.examples.nqueens.persistence.NQueensDao;
+import org.optaplanner.examples.nqueens.domain.NQueens;
 
-public class NQueensPerformanceTest extends SolverPerformanceTest {
-
-    @Override
-    protected String createSolverConfigResource() {
-        return "/org/optaplanner/examples/nqueens/solver/nqueensSolverConfig.xml";
-    }
+public class NQueensPerformanceTest extends SolverPerformanceTest<NQueens> {
 
     @Override
-    protected SolutionDao createSolutionDao() {
-        return new NQueensDao();
+    protected NQueensApp createCommonApp() {
+        return new NQueensApp();
     }
 
-    // ************************************************************************
-    // Tests
-    // ************************************************************************
-
-    @Test(timeout = 600000)
-    public void solveModel_unsolvedNQueens16() {
-        runSpeedTest(new File("data/nqueens/unsolved/unsolvedNQueens16.xml"),
-                "0");
+    @Override
+    protected Stream<TestData> testData() {
+        return Stream.of(
+                testData("data/nqueens/unsolved/16queens.xml", "0", EnvironmentMode.REPRODUCIBLE),
+                testData("data/nqueens/unsolved/8queens.xml", "0", EnvironmentMode.FAST_ASSERT),
+                testData("data/nqueens/unsolved/4queens.xml", "0", EnvironmentMode.FULL_ASSERT));
     }
-
-    @Test(timeout = 600000)
-    public void solveModel_unsolvedNQueens08FastAssert() {
-        runSpeedTest(new File("data/nqueens/unsolved/unsolvedNQueens08.xml"),
-                "0", EnvironmentMode.FAST_ASSERT);
-    }
-
-    @Test(timeout = 600000)
-    public void solveModel_unsolvedNQueens04FullAssert() {
-        runSpeedTest(new File("data/nqueens/unsolved/unsolvedNQueens04.xml"),
-                "0", EnvironmentMode.FULL_ASSERT);
-    }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,33 @@
 
 package org.optaplanner.examples.nurserostering.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
+import java.time.DayOfWeek;
+import java.util.Comparator;
+
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
 import org.optaplanner.examples.nurserostering.domain.contract.Contract;
 import org.optaplanner.examples.nurserostering.domain.solver.EmployeeStrengthComparator;
-import org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter;
 import org.optaplanner.examples.nurserostering.domain.solver.ShiftAssignmentDifficultyComparator;
+import org.optaplanner.examples.nurserostering.domain.solver.ShiftAssignmentPinningFilter;
 
-@PlanningEntity(difficultyComparatorClass = ShiftAssignmentDifficultyComparator.class,
-        movableEntitySelectionFilter = MovableShiftAssignmentSelectionFilter.class)
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+
+@PlanningEntity(pinningFilter = ShiftAssignmentPinningFilter.class,
+        difficultyComparatorClass = ShiftAssignmentDifficultyComparator.class)
 @XStreamAlias("ShiftAssignment")
-public class ShiftAssignment extends AbstractPersistable {
+public class ShiftAssignment extends AbstractPersistable implements Comparable<ShiftAssignment> {
+
+    private static final Comparator<Shift> COMPARATOR = Comparator.comparing(Shift::getShiftDate)
+            .thenComparing(a -> a.getShiftType().getStartTimeString())
+            .thenComparing(a -> a.getShiftType().getEndTimeString());
 
     private Shift shift;
     private int indexInShift;
 
     // Planning variables: changes during planning, between score calculations.
+    @PlanningVariable(valueRangeProviderRefs = { "employeeRange" }, strengthComparatorClass = EmployeeStrengthComparator.class)
     private Employee employee;
 
     public Shift getShift() {
@@ -54,8 +61,6 @@ public class ShiftAssignment extends AbstractPersistable {
         this.indexInShift = indexInShift;
     }
 
-    @PlanningVariable(valueRangeProviderRefs = {"employeeRange"},
-            strengthComparatorClass = EmployeeStrengthComparator.class)
     public Employee getEmployee() {
         return employee;
     }
@@ -104,42 +109,13 @@ public class ShiftAssignment extends AbstractPersistable {
         return shift.getShiftDate().getWeekendSundayIndex();
     }
 
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionHashCode()
-     */
-    public boolean solutionEquals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof ShiftAssignment) {
-            ShiftAssignment other = (ShiftAssignment) o;
-            return new EqualsBuilder()
-                    .append(id, other.id)
-                    .append(shift, other.shift)
-                    .append(employee, other.employee)
-                    .isEquals();
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionEquals(Object)
-     */
-    public int solutionHashCode() {
-        return new HashCodeBuilder()
-                .append(id)
-                .append(shift)
-                .append(employee)
-                .toHashCode();
+    @Override
+    public String toString() {
+        return shift.toString();
     }
 
     @Override
-    public String toString() {
-        return shift + "->" + employee;
+    public int compareTo(ShiftAssignment o) {
+        return COMPARATOR.compare(shift, o.shift);
     }
-
 }

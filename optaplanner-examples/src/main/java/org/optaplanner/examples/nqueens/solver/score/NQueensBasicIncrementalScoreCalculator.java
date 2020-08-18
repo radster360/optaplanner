@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2012 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,34 +30,41 @@ public class NQueensBasicIncrementalScoreCalculator extends AbstractIncrementalS
     private List<Queen> insertedQueenList;
     private int score;
 
+    @Override
     public void resetWorkingSolution(NQueens nQueens) {
-        insertedQueenList = new ArrayList<Queen>(nQueens.getN());
+        insertedQueenList = new ArrayList<>(nQueens.getN());
         score = 0;
         for (Queen queen : nQueens.getQueenList()) {
             insert(queen);
         }
     }
 
+    @Override
     public void beforeEntityAdded(Object entity) {
         // Do nothing
     }
 
+    @Override
     public void afterEntityAdded(Object entity) {
         insert((Queen) entity);
     }
 
+    @Override
     public void beforeVariableChanged(Object entity, String variableName) {
         retract((Queen) entity);
     }
 
+    @Override
     public void afterVariableChanged(Object entity, String variableName) {
         insert((Queen) entity);
     }
 
+    @Override
     public void beforeEntityRemoved(Object entity) {
         retract((Queen) entity);
     }
 
+    @Override
     public void afterEntityRemoved(Object entity) {
         // Do nothing
     }
@@ -98,8 +105,9 @@ public class NQueensBasicIncrementalScoreCalculator extends AbstractIncrementalS
         }
     }
 
+    @Override
     public SimpleScore calculateScore() {
-        return SimpleScore.valueOf(score);
+        return SimpleScore.of(score);
     }
 
 }

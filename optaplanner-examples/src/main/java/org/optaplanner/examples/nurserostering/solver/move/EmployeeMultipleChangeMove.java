@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,16 +20,15 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.heuristic.move.AbstractMove;
 import org.optaplanner.examples.nurserostering.domain.Employee;
+import org.optaplanner.examples.nurserostering.domain.NurseRoster;
 import org.optaplanner.examples.nurserostering.domain.ShiftAssignment;
 
-public class EmployeeMultipleChangeMove implements Move {
+public class EmployeeMultipleChangeMove extends AbstractMove<NurseRoster> {
 
     private Employee fromEmployee;
     private List<ShiftAssignment> shiftAssignmentList;
@@ -41,57 +40,66 @@ public class EmployeeMultipleChangeMove implements Move {
         this.toEmployee = toEmployee;
     }
 
-    public boolean isMoveDoable(ScoreDirector scoreDirector) {
-        return !ObjectUtils.equals(fromEmployee, toEmployee);
+    @Override
+    public boolean isMoveDoable(ScoreDirector<NurseRoster> scoreDirector) {
+        return !Objects.equals(fromEmployee, toEmployee);
     }
 
-    public Move createUndoMove(ScoreDirector scoreDirector) {
+    @Override
+    public EmployeeMultipleChangeMove createUndoMove(ScoreDirector<NurseRoster> scoreDirector) {
         return new EmployeeMultipleChangeMove(toEmployee, shiftAssignmentList, fromEmployee);
     }
 
-    public void doMove(ScoreDirector scoreDirector) {
+    @Override
+    protected void doMoveOnGenuineVariables(ScoreDirector<NurseRoster> scoreDirector) {
         for (ShiftAssignment shiftAssignment : shiftAssignmentList) {
             if (!shiftAssignment.getEmployee().equals(fromEmployee)) {
                 throw new IllegalStateException("The shiftAssignment (" + shiftAssignment + ") should have the same employee ("
-                        + fromEmployee + ") as the fromEmployee (" + fromEmployee + ").");
+                        + shiftAssignment.getEmployee() + ") as the fromEmployee (" + fromEmployee + ").");
             }
             NurseRosteringMoveHelper.moveEmployee(scoreDirector, shiftAssignment, toEmployee);
         }
     }
 
+    @Override
+    public EmployeeMultipleChangeMove rebase(ScoreDirector<NurseRoster> destinationScoreDirector) {
+        return new EmployeeMultipleChangeMove(destinationScoreDirector.lookUpWorkingObject(fromEmployee),
+                rebaseList(shiftAssignmentList, destinationScoreDirector),
+                destinationScoreDirector.lookUpWorkingObject(toEmployee));
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Collections.singletonList(shiftAssignmentList);
     }
 
+    @Override
     public Collection<? extends Object> getPlanningValues() {
         return Arrays.asList(fromEmployee, toEmployee);
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof EmployeeMultipleChangeMove) {
-            EmployeeMultipleChangeMove other = (EmployeeMultipleChangeMove) o;
-            return new EqualsBuilder()
-                    .append(fromEmployee, other.fromEmployee)
-                    .append(shiftAssignmentList, other.shiftAssignmentList)
-                    .append(toEmployee, other.toEmployee)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final EmployeeMultipleChangeMove other = (EmployeeMultipleChangeMove) o;
+        return Objects.equals(fromEmployee, other.fromEmployee) &&
+                Objects.equals(shiftAssignmentList, other.shiftAssignmentList) &&
+                Objects.equals(toEmployee, other.toEmployee);
     }
 
+    @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(fromEmployee)
-                .append(shiftAssignmentList)
-                .append(toEmployee)
-                .toHashCode();
+        return Objects.hash(fromEmployee, shiftAssignmentList, toEmployee);
     }
 
+    @Override
     public String toString() {
-        return shiftAssignmentList + " => " + toEmployee;
+        return shiftAssignmentList + " {? -> " + toEmployee + "}";
     }
 
 }

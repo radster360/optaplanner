@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,21 +18,24 @@ package org.optaplanner.core.impl.heuristic.selector.move.generic;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 
-import org.apache.commons.lang.ObjectUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.optaplanner.core.impl.domain.variable.PlanningVariableDescriptor;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.impl.domain.variable.descriptor.GenuineVariableDescriptor;
+import org.optaplanner.core.impl.heuristic.move.AbstractMove;
+import org.optaplanner.core.impl.score.director.InnerScoreDirector;
 
-public class ChangeMove implements Move {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public class ChangeMove<Solution_> extends AbstractMove<Solution_> {
 
     protected final Object entity;
-    protected final PlanningVariableDescriptor variableDescriptor;
+    protected final GenuineVariableDescriptor<Solution_> variableDescriptor;
     protected final Object toPlanningValue;
 
-    public ChangeMove(Object entity, PlanningVariableDescriptor variableDescriptor,
+    public ChangeMove(Object entity, GenuineVariableDescriptor<Solution_> variableDescriptor,
             Object toPlanningValue) {
         this.entity = entity;
         this.variableDescriptor = variableDescriptor;
@@ -43,6 +46,10 @@ public class ChangeMove implements Move {
         return entity;
     }
 
+    public String getVariableName() {
+        return variableDescriptor.getVariableName();
+    }
+
     public Object getToPlanningValue() {
         return toPlanningValue;
     }
@@ -51,56 +58,75 @@ public class ChangeMove implements Move {
     // Worker methods
     // ************************************************************************
 
-    public boolean isMoveDoable(ScoreDirector scoreDirector) {
-        Object oldPlanningValue = variableDescriptor.getValue(entity);
-        return !ObjectUtils.equals(oldPlanningValue, toPlanningValue);
+    @Override
+    public boolean isMoveDoable(ScoreDirector<Solution_> scoreDirector) {
+        Object oldValue = variableDescriptor.getValue(entity);
+        return !Objects.equals(oldValue, toPlanningValue);
     }
 
-    public Move createUndoMove(ScoreDirector scoreDirector) {
-        Object oldPlanningValue = variableDescriptor.getValue(entity);
-        return new ChangeMove(entity, variableDescriptor, oldPlanningValue);
+    @Override
+    public ChangeMove<Solution_> createUndoMove(ScoreDirector<Solution_> scoreDirector) {
+        Object oldValue = variableDescriptor.getValue(entity);
+        return new ChangeMove<>(entity, variableDescriptor, oldValue);
     }
 
-    public void doMove(ScoreDirector scoreDirector) {
-        scoreDirector.beforeVariableChanged(entity, variableDescriptor.getVariableName());
+    @Override
+    protected void doMoveOnGenuineVariables(ScoreDirector<Solution_> scoreDirector) {
+        InnerScoreDirector<Solution_> innerScoreDirector = (InnerScoreDirector<Solution_>) scoreDirector;
+        innerScoreDirector.beforeVariableChanged(variableDescriptor, entity);
         variableDescriptor.setValue(entity, toPlanningValue);
-        scoreDirector.afterVariableChanged(entity, variableDescriptor.getVariableName());
+        innerScoreDirector.afterVariableChanged(variableDescriptor, entity);
     }
 
+    @Override
+    public ChangeMove<Solution_> rebase(ScoreDirector<Solution_> destinationScoreDirector) {
+        return new ChangeMove<>(destinationScoreDirector.lookUpWorkingObject(entity),
+                variableDescriptor,
+                destinationScoreDirector.lookUpWorkingObject(toPlanningValue));
+    }
+
+    // ************************************************************************
+    // Introspection methods
+    // ************************************************************************
+
+    @Override
+    public String getSimpleMoveTypeDescription() {
+        return getClass().getSimpleName() + "(" + variableDescriptor.getSimpleEntityAndVariableName() + ")";
+    }
+
+    @Override
     public Collection<? extends Object> getPlanningEntities() {
         return Collections.singletonList(entity);
     }
 
+    @Override
     public Collection<? extends Object> getPlanningValues() {
         return Collections.singletonList(toPlanningValue);
     }
 
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
-        } else if (o instanceof ChangeMove) {
-            ChangeMove other = (ChangeMove) o;
-            return new EqualsBuilder()
-                    .append(entity, other.entity)
-                    .append(variableDescriptor.getVariableName(),
-                            other.variableDescriptor.getVariableName())
-                    .append(toPlanningValue, other.toPlanningValue)
-                    .isEquals();
-        } else {
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
         }
+        final ChangeMove<?> other = (ChangeMove<?>) o;
+        return Objects.equals(entity, other.entity) &&
+                Objects.equals(variableDescriptor, other.variableDescriptor) &&
+                Objects.equals(toPlanningValue, other.toPlanningValue);
     }
 
+    @Override
     public int hashCode() {
-        return new HashCodeBuilder()
-                .append(entity)
-                .append(variableDescriptor.getVariableName())
-                .append(toPlanningValue)
-                .toHashCode();
+        return Objects.hash(entity, variableDescriptor, toPlanningValue);
     }
 
+    @Override
     public String toString() {
-        return entity + " => " + toPlanningValue;
+        Object oldValue = variableDescriptor.getValue(entity);
+        return entity + " {" + oldValue + " -> " + toPlanningValue + "}";
     }
 
 }

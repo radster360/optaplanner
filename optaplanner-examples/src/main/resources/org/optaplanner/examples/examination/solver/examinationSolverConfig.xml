@@ -1,40 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <solver>
-  <!--<environmentMode>FAST_ASSERT</environmentMode>-->
+  <!--<environmentMode>FULL_ASSERT</environmentMode>--><!-- To slowly prove there are no bugs in this code -->
+  <!--<moveThreadCount>AUTO</moveThreadCount>--><!-- To solve faster by saturating multiple CPU cores -->
+
   <solutionClass>org.optaplanner.examples.examination.domain.Examination</solutionClass>
-  <planningEntityClass>org.optaplanner.examples.examination.domain.Exam</planningEntityClass>
+  <entityClass>org.optaplanner.examples.examination.domain.Exam</entityClass>
+  <entityClass>org.optaplanner.examples.examination.domain.LeadingExam</entityClass>
+  <entityClass>org.optaplanner.examples.examination.domain.FollowingExam</entityClass>
 
   <scoreDirectorFactory>
-    <scoreDefinitionType>HARD_SOFT</scoreDefinitionType>
-    <scoreDrl>/org/optaplanner/examples/examination/solver/examinationScoreRules.drl</scoreDrl>
+    <scoreDrl>org/optaplanner/examples/examination/solver/examinationConstraints.drl</scoreDrl>
+    <initializingScoreTrend>ONLY_DOWN</initializingScoreTrend>
+    <!--<constraintProviderClass>org.optaplanner.examples.examination.solver.score.ExaminationConstraintProvider</constraintProviderClass>-->
+    <!--<assertionScoreDirectorFactory>-->
+    <!--  <scoreDrl>org/optaplanner/examples/examination/solver/examinationConstraints.drl</scoreDrl>-->
+    <!--</assertionScoreDirectorFactory>-->
   </scoreDirectorFactory>
 
   <termination>
-    <!--
-      Official benchmark maximumSecondsSpend allowed on:
-      - ge0ffrey's main pc: 429
-      - ge0ffrey's old pc: 1152
-    -->
-    <maximumSecondsSpend>429</maximumSecondsSpend>
-    <!--<scoreAttained>-0hard/-999999soft</scoreAttained>-->
+    <minutesSpentLimit>5</minutesSpentLimit>
   </termination>
-  <customSolverPhase>
-    <customSolverPhaseCommandClass>org.optaplanner.examples.examination.solver.solution.initializer.ExaminationSolutionInitializer</customSolverPhaseCommandClass>
-  </customSolverPhase>
+  <constructionHeuristic>
+    <queuedEntityPlacer>
+      <entitySelector id="placerEntitySelector">
+        <entityClass>org.optaplanner.examples.examination.domain.Exam</entityClass>
+        <cacheType>PHASE</cacheType>
+        <selectionOrder>SORTED</selectionOrder>
+        <sorterManner>DECREASING_DIFFICULTY</sorterManner>
+      </entitySelector>
+      <cartesianProductMoveSelector>
+        <changeMoveSelector>
+          <entitySelector mimicSelectorRef="placerEntitySelector"/>
+          <valueSelector variableName="period">
+            <downcastEntityClass>org.optaplanner.examples.examination.domain.LeadingExam</downcastEntityClass>
+            <cacheType>PHASE</cacheType>
+            <!--<selectionOrder>SORTED</selectionOrder>-->
+            <!--<sorterManner>INCREASING_STRENGTH</sorterManner>-->
+          </valueSelector>
+        </changeMoveSelector>
+        <changeMoveSelector>
+          <entitySelector mimicSelectorRef="placerEntitySelector"/>
+          <valueSelector variableName="room">
+            <cacheType>PHASE</cacheType>
+            <selectionOrder>SORTED</selectionOrder>
+            <sorterManner>INCREASING_STRENGTH</sorterManner>
+          </valueSelector>
+        </changeMoveSelector>
+      </cartesianProductMoveSelector>
+    </queuedEntityPlacer>
+  </constructionHeuristic>
   <localSearch>
     <unionMoveSelector>
-      <moveListFactory>
-        <cacheType>PHASE</cacheType>
-        <moveListFactoryClass>org.optaplanner.examples.examination.solver.move.factory.PeriodChangeMoveFactory</moveListFactoryClass>
-      </moveListFactory>
-      <moveListFactory>
-        <cacheType>PHASE</cacheType>
-        <moveListFactoryClass>org.optaplanner.examples.examination.solver.move.factory.RoomChangeMoveFactory</moveListFactoryClass>
-      </moveListFactory>
-      <moveListFactory>
-        <cacheType>PHASE</cacheType>
-        <moveListFactoryClass>org.optaplanner.examples.examination.solver.move.factory.ExamSwapMoveFactory</moveListFactoryClass>
-      </moveListFactory>
+      <cartesianProductMoveSelector>
+        <changeMoveSelector>
+          <entitySelector id="cartesianProductEntitySelector">
+            <entityClass>org.optaplanner.examples.examination.domain.Exam</entityClass>
+          </entitySelector>
+          <valueSelector variableName="room"/>
+        </changeMoveSelector>
+        <changeMoveSelector>
+          <entitySelector mimicSelectorRef="cartesianProductEntitySelector"/>
+          <valueSelector variableName="period">
+            <downcastEntityClass>org.optaplanner.examples.examination.domain.LeadingExam</downcastEntityClass>
+          </valueSelector>
+        </changeMoveSelector>
+      </cartesianProductMoveSelector>
+      <swapMoveSelector>
+        <entitySelector>
+          <entityClass>org.optaplanner.examples.examination.domain.LeadingExam</entityClass>
+        </entitySelector>
+      </swapMoveSelector>
     </unionMoveSelector>
     <acceptor>
       <entityTabuSize>10</entityTabuSize>

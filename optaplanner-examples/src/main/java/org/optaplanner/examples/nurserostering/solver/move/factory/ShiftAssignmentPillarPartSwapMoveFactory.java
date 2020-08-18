@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,42 +24,36 @@ import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import org.optaplanner.core.api.domain.entity.PinningFilter;
+import org.optaplanner.core.impl.heuristic.move.CompositeMove;
+import org.optaplanner.core.impl.heuristic.move.Move;
 import org.optaplanner.core.impl.heuristic.selector.move.factory.MoveListFactory;
-import org.optaplanner.core.impl.move.CompositeMove;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.solution.Solution;
 import org.optaplanner.examples.nurserostering.domain.Employee;
 import org.optaplanner.examples.nurserostering.domain.NurseRoster;
 import org.optaplanner.examples.nurserostering.domain.ShiftAssignment;
-import org.optaplanner.examples.nurserostering.domain.solver.EmployeeWorkSequence;
-import org.optaplanner.examples.nurserostering.domain.solver.MovableShiftAssignmentSelectionFilter;
+import org.optaplanner.examples.nurserostering.domain.solver.ShiftAssignmentPinningFilter;
+import org.optaplanner.examples.nurserostering.solver.drools.EmployeeWorkSequence;
 import org.optaplanner.examples.nurserostering.solver.move.EmployeeMultipleChangeMove;
 
-public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory {
+public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory<NurseRoster> {
 
-    private MovableShiftAssignmentSelectionFilter filter = new MovableShiftAssignmentSelectionFilter();
+    private PinningFilter<NurseRoster, ShiftAssignment> filter = new ShiftAssignmentPinningFilter();
 
-    public List<Move> createMoveList(Solution solution) {
-        NurseRoster nurseRoster = (NurseRoster) solution;
+    @Override
+    public List<Move<NurseRoster>> createMoveList(NurseRoster nurseRoster) {
         List<Employee> employeeList = nurseRoster.getEmployeeList();
         // This code assumes the shiftAssignmentList is sorted
-        // Filter out every immovable ShiftAssignment
-        List<ShiftAssignment> shiftAssignmentList = new ArrayList<ShiftAssignment>(
+        // Filter out every pinned ShiftAssignment
+        List<ShiftAssignment> shiftAssignmentList = new ArrayList<>(
                 nurseRoster.getShiftAssignmentList());
-        for (Iterator<ShiftAssignment> it = shiftAssignmentList.iterator(); it.hasNext(); ) {
-            ShiftAssignment shiftAssignment = it.next();
-            if (!filter.accept(nurseRoster, shiftAssignment)) {
-                it.remove();
-            }
-        }
+        shiftAssignmentList.removeIf(shiftAssignment -> filter.accept(nurseRoster, shiftAssignment));
 
         // Hash the assignments per employee
-        Map<Employee, List<AssignmentSequence>> employeeToAssignmentSequenceListMap
-                = new HashMap<Employee, List<AssignmentSequence>>(employeeList.size());
+        Map<Employee, List<AssignmentSequence>> employeeToAssignmentSequenceListMap = new HashMap<>(employeeList.size());
         int assignmentSequenceCapacity = nurseRoster.getShiftDateList().size() + 1 / 2;
         for (Employee employee : employeeList) {
             employeeToAssignmentSequenceListMap.put(employee,
-                    new ArrayList<AssignmentSequence>(assignmentSequenceCapacity));
+                    new ArrayList<>(assignmentSequenceCapacity));
         }
         for (ShiftAssignment shiftAssignment : shiftAssignmentList) {
             Employee employee = shiftAssignment.getEmployee();
@@ -80,14 +74,13 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
         }
 
         // The create the move list
-        List<Move> moveList = new ArrayList<Move>();
+        List<Move<NurseRoster>> moveList = new ArrayList<>();
         // For every 2 distinct employees
         for (ListIterator<Employee> leftEmployeeIt = employeeList.listIterator(); leftEmployeeIt.hasNext();) {
             Employee leftEmployee = leftEmployeeIt.next();
-            List<AssignmentSequence> leftAssignmentSequenceList
-                    = employeeToAssignmentSequenceListMap.get(leftEmployee);
-            for (ListIterator<Employee> rightEmployeeIt = employeeList.listIterator(leftEmployeeIt.nextIndex());
-                    rightEmployeeIt.hasNext();) {
+            List<AssignmentSequence> leftAssignmentSequenceList = employeeToAssignmentSequenceListMap.get(leftEmployee);
+            for (ListIterator<Employee> rightEmployeeIt = employeeList.listIterator(leftEmployeeIt.nextIndex()); rightEmployeeIt
+                    .hasNext();) {
                 Employee rightEmployee = rightEmployeeIt.next();
                 List<AssignmentSequence> rightAssignmentSequenceList = employeeToAssignmentSequenceListMap.get(
                         rightEmployee);
@@ -97,9 +90,9 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
                 // For every pillar part duo
                 while (lowestIt.hasNext()) {
                     AssignmentSequence pillarPartAssignmentSequence = lowestIt.next();
-                    // Note: the initialCapacity is probably to high,
+                    // Note: the initialCapacity is probably too high,
                     // which is bad for memory, but the opposite is bad for performance (which is worse)
-                    List<Move> moveListByPillarPartDuo = new ArrayList<Move>(
+                    List<EmployeeMultipleChangeMove> moveListByPillarPartDuo = new ArrayList<>(
                             leftAssignmentSequenceList.size() + rightAssignmentSequenceList.size());
                     int lastDayIndex = pillarPartAssignmentSequence.getLastDayIndex();
                     Employee otherEmployee;
@@ -133,7 +126,7 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
                                 pillarPartAssignmentSequence.getShiftAssignmentList(),
                                 otherEmployee));
                     }
-                    moveList.add(new CompositeMove(moveListByPillarPartDuo));
+                    moveList.add(CompositeMove.buildMove(moveListByPillarPartDuo));
                 }
             }
         }
@@ -141,7 +134,7 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
     }
 
     /**
-     * TODO DRY with {@link EmployeeWorkSequence}
+     * TODO DRY with {@link EmployeeWorkSequence}.
      */
     private static class AssignmentSequence {
 
@@ -152,7 +145,7 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
 
         private AssignmentSequence(Employee employee, ShiftAssignment shiftAssignment) {
             this.employee = employee;
-            shiftAssignmentList = new ArrayList<ShiftAssignment>();
+            shiftAssignmentList = new ArrayList<>();
             shiftAssignmentList.add(shiftAssignment);
             firstDayIndex = shiftAssignment.getShiftDateDayIndex();
             lastDayIndex = firstDayIndex;
@@ -221,6 +214,7 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
             }
         }
 
+        @Override
         public boolean hasNext() {
             return leftHasNext || rightHasNext;
         }
@@ -242,6 +236,7 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
             }
         }
 
+        @Override
         public AssignmentSequence next() {
             lastNextWasLeft = nextIsLeft();
             // Buffer the nextLeft or nextRight
@@ -286,6 +281,7 @@ public class ShiftAssignmentPillarPartSwapMoveFactory implements MoveListFactory
             return returnLeft;
         }
 
+        @Override
         public void remove() {
             throw new UnsupportedOperationException("The optional operation remove() is not supported.");
         }

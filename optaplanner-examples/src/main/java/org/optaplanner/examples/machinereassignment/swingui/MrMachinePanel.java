@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.GroupLayout;
@@ -35,26 +36,25 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
-import org.optaplanner.examples.common.swingui.TangoColorFactory;
 import org.optaplanner.examples.machinereassignment.domain.MrMachine;
 import org.optaplanner.examples.machinereassignment.domain.MrMachineCapacity;
 import org.optaplanner.examples.machinereassignment.domain.MrProcessAssignment;
 import org.optaplanner.examples.machinereassignment.domain.MrResource;
+import org.optaplanner.swing.impl.SwingUtils;
+import org.optaplanner.swing.impl.TangoColorFactory;
 
 public class MrMachinePanel extends JPanel {
 
     private final MachineReassignmentPanel machineReassignmentPanel;
     private List<MrResource> resourceList;
     private MrMachine machine;
-    private List<MrProcessAssignment> processAssignmentList = new ArrayList<MrProcessAssignment>();
+    private List<MrProcessAssignment> processAssignmentList = new ArrayList<>();
 
     private JLabel machineLabel;
-    private JButton deleteButton;
     private JPanel resourceListPanel = null;
     private Map<MrResource, JTextField> resourceFieldMap;
     private JLabel numberOfProcessesLabel;
     private JButton detailsButton;
-
 
     public MrMachinePanel(MachineReassignmentPanel machineReassignmentPanel, List<MrResource> resourceList,
             MrMachine machine) {
@@ -90,11 +90,10 @@ public class MrMachinePanel extends JPanel {
         machineLabel.setEnabled(false);
         labelAndDeletePanel.add(machineLabel, BorderLayout.CENTER);
         if (machine != null) {
-            deleteButton = new JButton(new AbstractAction("X") {
-                public void actionPerformed(ActionEvent e) {
-                    machineReassignmentPanel.deleteMachine(machine);
-                }
-            });
+            JButton deleteButton = SwingUtils.makeSmallButton(new JButton("X"));
+            deleteButton.setToolTipText("Delete");
+            deleteButton.addActionListener(e -> machineReassignmentPanel.deleteMachine(machine));
+            deleteButton.setToolTipText("Delete");
             labelAndDeletePanel.add(deleteButton, BorderLayout.EAST);
         }
         add(labelAndDeletePanel, BorderLayout.WEST);
@@ -105,6 +104,7 @@ public class MrMachinePanel extends JPanel {
         numberOfProcessesLabel.setEnabled(false);
         numberAndDetailsPanel.add(numberOfProcessesLabel, BorderLayout.WEST);
         detailsButton = new JButton(new AbstractAction("Details") {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 MrProcessAssignmentListDialog processAssignmentListDialog = new MrProcessAssignmentListDialog();
                 processAssignmentListDialog.setLocationRelativeTo(getRootPane());
@@ -121,10 +121,10 @@ public class MrMachinePanel extends JPanel {
             remove(resourceListPanel);
         }
         resourceListPanel = new JPanel(new GridLayout(1, resourceList.size()));
-        resourceFieldMap = new LinkedHashMap<MrResource, JTextField>(resourceList.size());
+        resourceFieldMap = new LinkedHashMap<>(resourceList.size());
         for (MrResource resource : resourceList) {
             long maximumCapacity = machine == null ? 0L : machine.getMachineCapacity(resource).getMaximumCapacity();
-            JTextField resourceField  = new JTextField("0 / " + maximumCapacity);
+            JTextField resourceField = new JTextField("0 / " + maximumCapacity);
             resourceFieldMap.put(resource, resourceField);
             resourceField.setEditable(false);
             resourceField.setEnabled(false);
@@ -133,15 +133,15 @@ public class MrMachinePanel extends JPanel {
         add(resourceListPanel, BorderLayout.CENTER);
     }
 
-    public void addMrProcessAssignment(MrProcessAssignment processAssignment) {
+    public void addProcessAssignment(MrProcessAssignment processAssignment) {
         processAssignmentList.add(processAssignment);
     }
 
-    public void removeMrProcessAssignment(MrProcessAssignment processAssignment) {
+    public void removeProcessAssignment(MrProcessAssignment processAssignment) {
         processAssignmentList.remove(processAssignment);
     }
 
-    public void clearMrProcessAssignments() {
+    public void clearProcessAssignments() {
         processAssignmentList.clear();
     }
 
@@ -169,8 +169,8 @@ public class MrMachinePanel extends JPanel {
                 usedTotal += processAssignment.getProcess().getProcessRequirement(resource).getUsage();
             }
             resourceField.setText(usedTotal + " / " + maximumCapacity);
-            resourceField.setForeground(usedTotal > maximumCapacity? TangoColorFactory.SCARLET_3 :
-                    (usedTotal > safetyCapacity ? TangoColorFactory.ORANGE_3 : Color.BLACK));
+            resourceField.setForeground(usedTotal > maximumCapacity ? TangoColorFactory.SCARLET_3
+                    : (usedTotal > safetyCapacity ? TangoColorFactory.ORANGE_3 : Color.BLACK));
             resourceField.setEnabled(used);
         }
         numberOfProcessesLabel.setText(processAssignmentList.size() + " processes ");
@@ -198,7 +198,7 @@ public class MrMachinePanel extends JPanel {
             int colorIndex = 0;
             for (MrProcessAssignment processAssignment : processAssignmentList) {
                 JLabel processAssignmentLabel = new JLabel(processAssignment.getLabel());
-                processAssignmentLabel.setForeground(TangoColorFactory.SEQUENCE_1[colorIndex]);
+                processAssignmentLabel.setForeground(TangoColorFactory.SEQUENCE_1.get(colorIndex));
                 assignmentsPanel.add(processAssignmentLabel);
 
                 for (MrResource resource : resourceList) {
@@ -208,11 +208,11 @@ public class MrMachinePanel extends JPanel {
                     assignmentsPanel.add(resourceField);
                 }
 
-                colorIndex = (colorIndex + 1) % TangoColorFactory.SEQUENCE_1.length;
+                colorIndex = (colorIndex + 1) % TangoColorFactory.SEQUENCE_1.size();
             }
             return assignmentsPanel;
         }
 
     }
-    
+
 }

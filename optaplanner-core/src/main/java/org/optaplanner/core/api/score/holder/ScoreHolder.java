@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,47 +16,29 @@
 
 package org.optaplanner.core.api.score.holder;
 
-import java.util.Collection;
-
-import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.rule.RuleContext;
+import org.optaplanner.core.api.domain.constraintweight.ConstraintWeight;
 import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.api.score.constraint.ConstraintMatch;
-import org.optaplanner.core.api.score.constraint.ConstraintMatchTotal;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.score.director.drools.DroolsScoreDirector;
-import org.optaplanner.core.impl.solution.Solution;
 
 /**
- * This class is injected as a global by {@link DroolsScoreDirector} into the Drools DRL.
- * Other {@link ScoreDirector} implementations do not use this class.
- * @see AbstractScoreHolder
+ * This is the base interface for all score holder implementations, used exclusively by Drools-based score calculators.
+ *
+ * @param <Score_> the {@link Score} type
  */
-public interface ScoreHolder {
+public interface ScoreHolder<Score_ extends Score<Score_>> {
 
     /**
-     * Extracts the {@link Score}, calculated by the {@link KieSession} for {@link DroolsScoreDirector}.
-     * </p>
-     * Should not be called directly, use {@link ScoreDirector#calculateScore()} instead.
-     * @return never null, the  {@link Score} of the working {@link Solution}
+     * Penalize a match by the {@link ConstraintWeight} negated.
+     *
+     * @param kcontext never null, the magic variable in DRL
      */
-    Score extractScore();
+    void penalize(RuleContext kcontext);
 
     /**
-     * Must be in sync with {@link ScoreDirector#isConstraintMatchEnabled()}
-     * for the {@link ScoreDirector} which contains this {@link ScoreHolder}.
-     * <p/>
-     * Defaults to true.
-     * @return false if the {@link ConstraintMatch}s and {@link ConstraintMatchTotal}s do not need to be collected
-     * which is a performance boost
-     * @see #getConstraintMatchTotals()
+     * Reward a match by the {@link ConstraintWeight}.
+     *
+     * @param kcontext never null, the magic variable in DRL
      */
-    boolean isConstraintMatchEnabled();
-
-    /**
-     * Explains the {@link Score} of {@link #extractScore()}.
-     * @return never null
-     * @throws RuntimeException if {@link #isConstraintMatchEnabled()} is false
-     */
-    Collection<ConstraintMatchTotal> getConstraintMatchTotals();
+    void reward(RuleContext kcontext);
 
 }

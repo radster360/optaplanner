@@ -1,17 +1,32 @@
+/*
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.optaplanner.core.impl.heuristic.selector.entity.decorator;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.entity.AbstractEntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public abstract class AbstractCachingEntitySelector extends AbstractEntitySelector implements SelectionCacheLifecycleListener {
 
@@ -28,12 +43,12 @@ public abstract class AbstractCachingEntitySelector extends AbstractEntitySelect
                     + ") has a childEntitySelector (" + childEntitySelector
                     + ") with neverEnding (" + childEntitySelector.isNeverEnding() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(childEntitySelector);
+        phaseLifecycleSupport.addEventListener(childEntitySelector);
         if (cacheType.isNotCached()) {
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
     }
 
     public EntitySelector getChildEntitySelector() {
@@ -49,7 +64,8 @@ public abstract class AbstractCachingEntitySelector extends AbstractEntitySelect
     // Worker methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
+    @Override
+    public void constructCache(SolverScope solverScope) {
         long childSize = childEntitySelector.getSize();
         if (childSize > (long) Integer.MAX_VALUE) {
             throw new IllegalStateException("The selector (" + this
@@ -57,28 +73,33 @@ public abstract class AbstractCachingEntitySelector extends AbstractEntitySelect
                     + ") with childSize (" + childSize
                     + ") which is higher than Integer.MAX_VALUE.");
         }
-        cachedEntityList = new ArrayList<Object>((int) childSize);
-        CollectionUtils.addAll(cachedEntityList, childEntitySelector.iterator());
-        logger.trace("    Created cachedEntityList with size ({}) in entitySelector({}).",
+        cachedEntityList = new ArrayList<>((int) childSize);
+        childEntitySelector.iterator().forEachRemaining(cachedEntityList::add);
+        logger.trace("    Created cachedEntityList: size ({}), entitySelector ({}).",
                 cachedEntityList.size(), this);
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         cachedEntityList = null;
     }
 
-    public PlanningEntityDescriptor getEntityDescriptor() {
+    @Override
+    public EntityDescriptor getEntityDescriptor() {
         return childEntitySelector.getEntityDescriptor();
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public long getSize() {
         return cachedEntityList.size();
     }
 
+    @Override
     public Iterator<Object> endingIterator() {
         return cachedEntityList.iterator();
     }

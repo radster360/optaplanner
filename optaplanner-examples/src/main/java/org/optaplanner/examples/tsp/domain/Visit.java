@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,32 +16,37 @@
 
 package org.optaplanner.examples.tsp.domain;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.optaplanner.core.api.domain.entity.PlanningEntity;
 import org.optaplanner.core.api.domain.variable.PlanningVariable;
+import org.optaplanner.core.api.domain.variable.PlanningVariableGraphType;
 import org.optaplanner.examples.common.domain.AbstractPersistable;
-import org.optaplanner.examples.tsp.domain.solver.LatitudeVisitDifficultyComparator;
+import org.optaplanner.examples.tsp.domain.location.Location;
+import org.optaplanner.examples.tsp.domain.solver.DomicileAngleVisitDifficultyWeightFactory;
+import org.optaplanner.examples.tsp.domain.solver.DomicileDistanceStandstillStrengthWeightFactory;
 
-@PlanningEntity(difficultyComparatorClass = LatitudeVisitDifficultyComparator.class)
+import com.thoughtworks.xstream.annotations.XStreamAlias;
+
+@PlanningEntity(difficultyWeightFactoryClass = DomicileAngleVisitDifficultyWeightFactory.class)
 @XStreamAlias("Visit")
 public class Visit extends AbstractPersistable implements Standstill {
 
-    private City city; // the destinationCity
-    
+    private Location location;
+
     // Planning variables: changes during planning, between score calculations.
     private Standstill previousStandstill;
 
-    public City getCity() {
-        return city;
+    @Override
+    public Location getLocation() {
+        return location;
     }
 
-    public void setCity(City city) {
-        this.city = city;
+    public void setLocation(Location location) {
+        this.location = location;
     }
 
-    @PlanningVariable(chained = true, valueRangeProviderRefs = {"domicileRange", "visitRange"})
+    @PlanningVariable(valueRangeProviderRefs = { "domicileRange", "visitRange" },
+            graphType = PlanningVariableGraphType.CHAINED,
+            strengthWeightFactoryClass = DomicileDistanceStandstillStrengthWeightFactory.class)
     public Standstill getPreviousStandstill() {
         return previousStandstill;
     }
@@ -54,53 +59,39 @@ public class Visit extends AbstractPersistable implements Standstill {
     // Complex methods
     // ************************************************************************
 
-    public int getDistanceToPreviousStandstill() {
+    /**
+     * @return a positive number, the distance multiplied by 1000 to avoid floating point arithmetic rounding errors
+     */
+    public long getDistanceFromPreviousStandstill() {
         if (previousStandstill == null) {
-            return 0;
+            return 0L;
         }
-        return getDistanceTo(previousStandstill);
-    }
-
-    public int getDistanceTo(Standstill standstill) {
-        return city.getDistance(standstill.getCity());
+        return getDistanceFrom(previousStandstill);
     }
 
     /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionHashCode()
+     * @param standstill never null
+     * @return a positive number, the distance multiplied by 1000 to avoid floating point arithmetic rounding errors
      */
-    public boolean solutionEquals(Object o) {
-        if (this == o) {
-            return true;
-        } else if (o instanceof Visit) {
-            Visit other = (Visit) o;
-            return new EqualsBuilder()
-                    .append(id, other.id)
-                    .append(city, other.city) // TODO performance leak: not needed?
-                    .append(previousStandstill, other.previousStandstill) // TODO performance leak: not needed?
-                    .isEquals();
-        } else {
-            return false;
-        }
+    public long getDistanceFrom(Standstill standstill) {
+        return standstill.getLocation().getDistanceTo(location);
     }
 
     /**
-     * The normal methods {@link #equals(Object)} and {@link #hashCode()} cannot be used because the rule engine already
-     * requires them (for performance in their original state).
-     * @see #solutionEquals(Object)
+     * @param standstill never null
+     * @return a positive number, the distance multiplied by 1000 to avoid floating point arithmetic rounding errors
      */
-    public int solutionHashCode() {
-        return new HashCodeBuilder()
-                .append(id)
-                .append(city) // TODO performance leak: not needed?
-                .append(previousStandstill) // TODO performance leak: not needed?
-                .toHashCode();
+    @Override
+    public long getDistanceTo(Standstill standstill) {
+        return location.getDistanceTo(standstill.getLocation());
     }
 
     @Override
     public String toString() {
-        return city + "(after " + (previousStandstill == null ? "null" : previousStandstill.getCity()) + ")";
+        if (location.getName() == null) {
+            return super.toString();
+        }
+        return location.getName();
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,60 +17,21 @@
 package org.optaplanner.examples.common.persistence;
 
 import java.io.File;
-import java.util.Arrays;
 
-import org.optaplanner.core.impl.solution.Solution;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
 import org.optaplanner.examples.common.app.LoggingMain;
-import org.optaplanner.examples.common.business.ProblemFileComparator;
 
-public abstract class AbstractSolutionExporter extends LoggingMain {
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public abstract class AbstractSolutionExporter<Solution_> extends LoggingMain {
 
-    private static final String DEFAULT_INPUT_FILE_SUFFIX = ".xml";
-    protected SolutionDao solutionDao;
+    public abstract String getOutputFileSuffix();
 
-    public AbstractSolutionExporter(SolutionDao solutionDao) {
-        this.solutionDao = solutionDao;
+    public abstract void writeSolution(Solution_ solution, File outputFile);
+
+    public static abstract class OutputBuilder extends LoggingMain {
+
     }
 
-    protected File getInputDir() {
-        return new File(solutionDao.getDataDir(), "solved");
-    }
-
-    protected File getOutputDir() {
-        return new File(solutionDao.getDataDir(), "output");
-    }
-
-    protected String getInputFileSuffix() {
-        return DEFAULT_INPUT_FILE_SUFFIX;
-    }
-
-    protected abstract String getOutputFileSuffix();
-
-    public void convertAll() {
-        File inputDir = getInputDir();
-        if (!inputDir.exists()) {
-            throw new IllegalStateException("The directory inputDir (" + inputDir.getAbsolutePath()
-                    + ") does not exist." +
-                    " The working directory should be set to the directory that contains the data directory." +
-                    " This is different in a git clone (optaplanner/optaplanner-examples)" +
-                    " and the release zip (examples).");
-        }
-        File outputDir = getOutputDir();
-        outputDir.mkdirs();
-        File[] inputFiles = inputDir.listFiles();
-        Arrays.sort(inputFiles, new ProblemFileComparator());
-        for (File inputFile : inputFiles) {
-            String inputFileName = inputFile.getName();
-            if (inputFileName.endsWith(getInputFileSuffix())) {
-                Solution solution = solutionDao.readSolution(inputFile);
-                String outputFileName = inputFileName.substring(0,
-                        inputFileName.length() - getInputFileSuffix().length())
-                        + getOutputFileSuffix();
-                File outputFile = new File(outputDir, outputFileName);
-                writeSolution(solution, outputFile);
-            }
-        }
-    }
-
-    public abstract void writeSolution(Solution solution, File outputFile);
 }

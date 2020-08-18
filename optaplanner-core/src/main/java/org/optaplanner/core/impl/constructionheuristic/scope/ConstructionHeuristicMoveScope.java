@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,81 +16,30 @@
 
 package org.optaplanner.core.impl.constructionheuristic.scope;
 
-import java.util.Random;
+import org.optaplanner.core.api.domain.solution.PlanningSolution;
+import org.optaplanner.core.impl.heuristic.move.Move;
+import org.optaplanner.core.impl.phase.scope.AbstractMoveScope;
 
-import org.optaplanner.core.api.score.Score;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solution.Solution;
+/**
+ * @param <Solution_> the solution type, the class with the {@link PlanningSolution} annotation
+ */
+public class ConstructionHeuristicMoveScope<Solution_> extends AbstractMoveScope<Solution_> {
 
-public class ConstructionHeuristicMoveScope {
+    private final ConstructionHeuristicStepScope<Solution_> stepScope;
 
-    private final ConstructionHeuristicStepScope stepScope;
-
-    private int moveIndex;
-    private Move move = null;
-    private Move undoMove = null;
-    private Score score = null;
-
-    public ConstructionHeuristicMoveScope(ConstructionHeuristicStepScope stepScope) {
+    public ConstructionHeuristicMoveScope(ConstructionHeuristicStepScope<Solution_> stepScope,
+            int moveIndex, Move<Solution_> move) {
+        super(moveIndex, move);
         this.stepScope = stepScope;
     }
 
-    public ConstructionHeuristicStepScope getStepScope() {
+    @Override
+    public ConstructionHeuristicStepScope<Solution_> getStepScope() {
         return stepScope;
-    }
-
-    public int getMoveIndex() {
-        return moveIndex;
-    }
-
-    public void setMoveIndex(int moveIndex) {
-        this.moveIndex = moveIndex;
-    }
-
-    public Move getMove() {
-        return move;
-    }
-
-    public void setMove(Move move) {
-        this.move = move;
-    }
-
-    public Move getUndoMove() {
-        return undoMove;
-    }
-
-    public void setUndoMove(Move undoMove) {
-        this.undoMove = undoMove;
-    }
-
-    public Score getScore() {
-        return score;
-    }
-
-    public void setScore(Score score) {
-        this.score = score;
     }
 
     // ************************************************************************
     // Calculated methods
     // ************************************************************************
-
-    public ScoreDirector getScoreDirector() {
-        return stepScope.getScoreDirector();
-    }
-
-    public Solution getWorkingSolution() {
-        return stepScope.getWorkingSolution();
-    }
-
-    public Random getWorkingRandom() {
-        return stepScope.getWorkingRandom();
-    }
-
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + "(" + moveIndex + ")";
-    }
 
 }

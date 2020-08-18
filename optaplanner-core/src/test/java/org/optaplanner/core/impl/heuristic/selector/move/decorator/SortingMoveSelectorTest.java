@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,26 @@
 
 package org.optaplanner.core.impl.heuristic.selector.move.decorator;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.assertAllCodesOfMoveSelector;
+import static org.optaplanner.core.impl.testdata.util.PlannerAssert.verifyPhaseLifecycle;
 
-import org.junit.Test;
+import java.util.Comparator;
+
+import org.junit.jupiter.api.Test;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.heuristic.move.DummyMove;
 import org.optaplanner.core.impl.heuristic.selector.SelectorTestUtils;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorter;
 import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.move.DummyMove;
-import org.optaplanner.core.impl.move.Move;
-import org.optaplanner.core.impl.phase.AbstractSolverPhaseScope;
-import org.optaplanner.core.impl.phase.step.AbstractStepScope;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-
-import static org.mockito.Mockito.*;
-import static org.optaplanner.core.impl.testdata.util.PlannerAssert.*;
+import org.optaplanner.core.impl.phase.scope.AbstractPhaseScope;
+import org.optaplanner.core.impl.phase.scope.AbstractStepScope;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
+import org.optaplanner.core.impl.testdata.domain.TestdataSolution;
 
 public class SortingMoveSelectorTest {
 
@@ -53,9 +54,9 @@ public class SortingMoveSelectorTest {
         runCacheType(SelectionCacheType.STEP, 5);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void cacheTypeJustInTime() {
-        runCacheType(SelectionCacheType.JUST_IN_TIME, 5);
+        assertThatIllegalArgumentException().isThrownBy(() -> runCacheType(SelectionCacheType.JUST_IN_TIME, 5));
     }
 
     public void runCacheType(SelectionCacheType cacheType, int timesCalled) {
@@ -63,88 +64,60 @@ public class SortingMoveSelectorTest {
                 new DummyMove("jan"), new DummyMove("feb"), new DummyMove("mar"),
                 new DummyMove("apr"), new DummyMove("may"), new DummyMove("jun"));
 
-        SelectionSorter<DummyMove> sorter = new SelectionSorter<DummyMove>() {
-            public void sort(ScoreDirector scoreDirector, List<DummyMove> selectionList) {
-                Collections.sort(selectionList, new Comparator<DummyMove>() {
-                    public int compare(DummyMove a, DummyMove b) {
-                        return a.getCode().compareTo(b.getCode());
-                    }
-                });
-            }
-        };
+        SelectionSorter<TestdataSolution, DummyMove> sorter = (scoreDirector, selectionList) -> selectionList
+                .sort(Comparator.comparing(DummyMove::getCode));
         MoveSelector moveSelector = new SortingMoveSelector(childMoveSelector, cacheType, sorter);
 
-        DefaultSolverScope solverScope = mock(DefaultSolverScope.class);
+        SolverScope solverScope = mock(SolverScope.class);
         moveSelector.solvingStarted(solverScope);
 
-        AbstractSolverPhaseScope phaseScopeA = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeA = mock(AbstractPhaseScope.class);
         when(phaseScopeA.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeA);
 
         AbstractStepScope stepScopeA1 = mock(AbstractStepScope.class);
         when(stepScopeA1.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA1);
-        runAsserts(moveSelector, cacheType);
+        assertAllCodesOfMoveSelector(moveSelector, "apr", "feb", "jan", "jun", "mar", "may");
         moveSelector.stepEnded(stepScopeA1);
 
         AbstractStepScope stepScopeA2 = mock(AbstractStepScope.class);
         when(stepScopeA2.getPhaseScope()).thenReturn(phaseScopeA);
         moveSelector.stepStarted(stepScopeA2);
-        runAsserts(moveSelector, cacheType);
+        assertAllCodesOfMoveSelector(moveSelector, "apr", "feb", "jan", "jun", "mar", "may");
         moveSelector.stepEnded(stepScopeA2);
 
         moveSelector.phaseEnded(phaseScopeA);
 
-        AbstractSolverPhaseScope phaseScopeB = mock(AbstractSolverPhaseScope.class);
+        AbstractPhaseScope phaseScopeB = mock(AbstractPhaseScope.class);
         when(phaseScopeB.getSolverScope()).thenReturn(solverScope);
         moveSelector.phaseStarted(phaseScopeB);
 
         AbstractStepScope stepScopeB1 = mock(AbstractStepScope.class);
         when(stepScopeB1.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB1);
-        runAsserts(moveSelector, cacheType);
+        assertAllCodesOfMoveSelector(moveSelector, "apr", "feb", "jan", "jun", "mar", "may");
         moveSelector.stepEnded(stepScopeB1);
 
         AbstractStepScope stepScopeB2 = mock(AbstractStepScope.class);
         when(stepScopeB2.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB2);
-        runAsserts(moveSelector, cacheType);
+        assertAllCodesOfMoveSelector(moveSelector, "apr", "feb", "jan", "jun", "mar", "may");
         moveSelector.stepEnded(stepScopeB2);
 
         AbstractStepScope stepScopeB3 = mock(AbstractStepScope.class);
         when(stepScopeB3.getPhaseScope()).thenReturn(phaseScopeB);
         moveSelector.stepStarted(stepScopeB3);
-        runAsserts(moveSelector, cacheType);
+        assertAllCodesOfMoveSelector(moveSelector, "apr", "feb", "jan", "jun", "mar", "may");
         moveSelector.stepEnded(stepScopeB3);
 
         moveSelector.phaseEnded(phaseScopeB);
 
         moveSelector.solvingEnded(solverScope);
 
-        verifySolverPhaseLifecycle(childMoveSelector, 1, 2, 5);
+        verifyPhaseLifecycle(childMoveSelector, 1, 2, 5);
         verify(childMoveSelector, times(timesCalled)).iterator();
         verify(childMoveSelector, times(timesCalled)).getSize();
-    }
-
-    private void runAsserts(MoveSelector moveSelector, SelectionCacheType cacheType) {
-        Iterator<Move> iterator = moveSelector.iterator();
-        assertNotNull(iterator);
-        assertTrue(iterator.hasNext());
-        assertCode("apr", iterator.next());
-        assertTrue(iterator.hasNext());
-        assertCode("feb", iterator.next());
-        assertTrue(iterator.hasNext());
-        assertCode("jan", iterator.next());
-        assertTrue(iterator.hasNext());
-        assertCode("jun", iterator.next());
-        assertTrue(iterator.hasNext());
-        assertCode("mar", iterator.next());
-        assertTrue(iterator.hasNext());
-        assertCode("may", iterator.next());
-        assertFalse(iterator.hasNext());
-        assertEquals(false, moveSelector.isContinuous());
-        assertEquals(false, moveSelector.isNeverEnding());
-        assertEquals(6L, moveSelector.getSize());
     }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 package org.optaplanner.core.impl.heuristic.selector.common.decorator;
 
+import org.optaplanner.core.api.score.director.ScoreDirector;
 import org.optaplanner.core.impl.heuristic.selector.IterableSelector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
 
-public class FairSelectorProbabilityWeightFactory implements SelectionProbabilityWeightFactory<IterableSelector> {
+public class FairSelectorProbabilityWeightFactory<Solution_>
+        implements SelectionProbabilityWeightFactory<Solution_, IterableSelector> {
 
-    public double createProbabilityWeight(ScoreDirector scoreDirector, IterableSelector selector) {
+    @Override
+    public double createProbabilityWeight(ScoreDirector<Solution_> scoreDirector, IterableSelector selector) {
         return (double) selector.getSize();
     }
 

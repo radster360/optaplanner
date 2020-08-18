@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,13 @@
 
 package org.optaplanner.examples.curriculumcourse.domain.solver;
 
-import org.apache.commons.lang.builder.CompareToBuilder;
+import static java.util.Collections.reverseOrder;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingInt;
+import static java.util.function.Function.identity;
+
+import java.util.Comparator;
+
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionSorterWeightFactory;
 import org.optaplanner.examples.curriculumcourse.domain.CourseSchedule;
 import org.optaplanner.examples.curriculumcourse.domain.Period;
@@ -24,7 +30,8 @@ import org.optaplanner.examples.curriculumcourse.domain.UnavailablePeriodPenalty
 
 public class PeriodStrengthWeightFactory implements SelectionSorterWeightFactory<CourseSchedule, Period> {
 
-    public Comparable createSorterWeight(CourseSchedule schedule, Period period) {
+    @Override
+    public PeriodStrengthWeight createSorterWeight(CourseSchedule schedule, Period period) {
         int unavailablePeriodPenaltyCount = 0;
         for (UnavailablePeriodPenalty penalty : schedule.getUnavailablePeriodPenaltyList()) {
             if (penalty.getPeriod().equals(period)) {
@@ -36,6 +43,15 @@ public class PeriodStrengthWeightFactory implements SelectionSorterWeightFactory
 
     public static class PeriodStrengthWeight implements Comparable<PeriodStrengthWeight> {
 
+        // The higher unavailablePeriodPenaltyCount, the weaker
+        private static final Comparator<PeriodStrengthWeight> BASE_COMPARATOR = reverseOrder(
+                comparingInt((PeriodStrengthWeight w) -> w.unavailablePeriodPenaltyCount));
+        private static final Comparator<Period> PERIOD_COMPARATOR = comparingInt((Period p) -> p.getDay().getDayIndex())
+                .thenComparingInt(p -> p.getTimeslot().getTimeslotIndex())
+                .thenComparingLong(Period::getId);
+        private static final Comparator<PeriodStrengthWeight> COMPARATOR = comparing(identity(), BASE_COMPARATOR)
+                .thenComparing(w -> w.period, PERIOD_COMPARATOR);
+
         private final Period period;
         private final int unavailablePeriodPenaltyCount;
 
@@ -44,16 +60,9 @@ public class PeriodStrengthWeightFactory implements SelectionSorterWeightFactory
             this.unavailablePeriodPenaltyCount = unavailablePeriodPenaltyCount;
         }
 
+        @Override
         public int compareTo(PeriodStrengthWeight other) {
-            return new CompareToBuilder()
-                    // The higher unavailablePeriodPenaltyCount, the weaker
-                    .append(other.unavailablePeriodPenaltyCount, unavailablePeriodPenaltyCount) // Descending
-                    .append(period.getDay().getDayIndex(), other.period.getDay().getDayIndex())
-                    .append(period.getTimeslot().getTimeslotIndex(), other.period.getTimeslot().getTimeslotIndex())
-                    .append(period.getId(), other.period.getId())
-                    .toComparison();
+            return COMPARATOR.compare(this, other);
         }
-
     }
-
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 JBoss Inc
+ * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,22 @@
 
 package org.optaplanner.benchmark.api;
 
+/**
+ * A planner benchmark that runs a number of single benchmarks.
+ * <p>
+ * Build by a {@link PlannerBenchmarkFactory}.
+ */
 public interface PlannerBenchmark {
 
+    /**
+     * Run all the single benchmarks and create an overview report.
+     */
     void benchmark();
+
+    /**
+     * Run all the single benchmarks, create an overview report
+     * and show it in the default browser.
+     */
+    void benchmarkAndShowReportInBrowser();
 
 }

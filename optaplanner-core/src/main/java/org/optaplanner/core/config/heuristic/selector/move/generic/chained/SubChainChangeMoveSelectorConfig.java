@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,39 +16,31 @@
 
 package org.optaplanner.core.config.heuristic.selector.move.generic.chained;
 
-import com.thoughtworks.xstream.annotations.XStreamAlias;
-import org.optaplanner.core.api.domain.value.ValueRangeProvider;
-import org.optaplanner.core.config.heuristic.policy.HeuristicConfigPolicy;
-import org.optaplanner.core.config.heuristic.selector.common.SelectionOrder;
+import javax.xml.bind.annotation.XmlElement;
+
 import org.optaplanner.core.config.heuristic.selector.move.MoveSelectorConfig;
 import org.optaplanner.core.config.heuristic.selector.value.ValueSelectorConfig;
 import org.optaplanner.core.config.heuristic.selector.value.chained.SubChainSelectorConfig;
 import org.optaplanner.core.config.util.ConfigUtils;
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
-import org.optaplanner.core.impl.heuristic.selector.move.MoveSelector;
-import org.optaplanner.core.impl.heuristic.selector.move.generic.chained.SubChainChangeMoveSelector;
-import org.optaplanner.core.impl.heuristic.selector.value.EntityIndependentValueSelector;
-import org.optaplanner.core.impl.heuristic.selector.value.ValueSelector;
-import org.optaplanner.core.impl.heuristic.selector.value.chained.SubChainSelector;
 
-@XStreamAlias("subChainChangeMoveSelector")
-public class SubChainChangeMoveSelectorConfig extends MoveSelectorConfig {
+public class SubChainChangeMoveSelectorConfig extends MoveSelectorConfig<SubChainChangeMoveSelectorConfig> {
 
-    private Class<?> planningEntityClass = null;
-    @XStreamAlias("subChainSelector")
+    public static final String XML_ELEMENT_NAME = "subChainChangeMoveSelector";
+
+    private Class<?> entityClass = null;
+    @XmlElement(name = "subChainSelector")
     private SubChainSelectorConfig subChainSelectorConfig = null;
-    @XStreamAlias("valueSelector")
+    @XmlElement(name = "valueSelector")
     private ValueSelectorConfig valueSelectorConfig = null;
 
     private Boolean selectReversingMoveToo = null;
 
-    public Class<?> getPlanningEntityClass() {
-        return planningEntityClass;
+    public Class<?> getEntityClass() {
+        return entityClass;
     }
 
-    public void setPlanningEntityClass(Class<?> planningEntityClass) {
-        this.planningEntityClass = planningEntityClass;
+    public void setEntityClass(Class<?> entityClass) {
+        this.entityClass = entityClass;
     }
 
     public SubChainSelectorConfig getSubChainSelectorConfig() {
@@ -75,49 +67,20 @@ public class SubChainChangeMoveSelectorConfig extends MoveSelectorConfig {
         this.selectReversingMoveToo = selectReversingMoveToo;
     }
 
-    // ************************************************************************
-    // Builder methods
-    // ************************************************************************
-
-    public MoveSelector buildBaseMoveSelector(HeuristicConfigPolicy configPolicy,
-            SelectionCacheType minimumCacheType, boolean randomSelection) {
-        PlanningEntityDescriptor entityDescriptor = deduceEntityDescriptor(
-                configPolicy.getSolutionDescriptor(), planningEntityClass);
-        SubChainSelectorConfig subChainSelectorConfig_ = subChainSelectorConfig == null ? new SubChainSelectorConfig()
-                : subChainSelectorConfig;
-        SubChainSelector subChainSelector = subChainSelectorConfig_.buildSubChainSelector(configPolicy,
-                entityDescriptor,
-                minimumCacheType, SelectionOrder.fromRandomSelectionBoolean(randomSelection));
-        ValueSelectorConfig valueSelectorConfig_ = valueSelectorConfig == null ? new ValueSelectorConfig()
-                : valueSelectorConfig;
-        ValueSelector valueSelector = valueSelectorConfig_.buildValueSelector(configPolicy,
-                entityDescriptor,
-                minimumCacheType, SelectionOrder.fromRandomSelectionBoolean(randomSelection));
-        if (!(valueSelector instanceof EntityIndependentValueSelector)) {
-            throw new IllegalArgumentException("The moveSelectorConfig (" + this
-                    + ") needs to be based on a EntityIndependentValueSelector (" + valueSelector + ")."
-                    + " Check your @" + ValueRangeProvider.class.getSimpleName() + " annotations.");
-        }
-        return new SubChainChangeMoveSelector(subChainSelector, (EntityIndependentValueSelector) valueSelector,
-                randomSelection, selectReversingMoveToo == null ? true : selectReversingMoveToo);
-    }
-
-    public void inherit(SubChainChangeMoveSelectorConfig inheritedConfig) {
+    @Override
+    public SubChainChangeMoveSelectorConfig inherit(SubChainChangeMoveSelectorConfig inheritedConfig) {
         super.inherit(inheritedConfig);
-        planningEntityClass = ConfigUtils.inheritOverwritableProperty(planningEntityClass,
-                inheritedConfig.getPlanningEntityClass());
-        if (subChainSelectorConfig == null) {
-            subChainSelectorConfig = inheritedConfig.getSubChainSelectorConfig();
-        } else if (inheritedConfig.getSubChainSelectorConfig() != null) {
-            subChainSelectorConfig.inherit(inheritedConfig.getSubChainSelectorConfig());
-        }
-        if (valueSelectorConfig == null) {
-            valueSelectorConfig = inheritedConfig.getValueSelectorConfig();
-        } else if (inheritedConfig.getValueSelectorConfig() != null) {
-            valueSelectorConfig.inherit(inheritedConfig.getValueSelectorConfig());
-        }
+        entityClass = ConfigUtils.inheritOverwritableProperty(entityClass, inheritedConfig.getEntityClass());
+        subChainSelectorConfig = ConfigUtils.inheritConfig(subChainSelectorConfig, inheritedConfig.getSubChainSelectorConfig());
+        valueSelectorConfig = ConfigUtils.inheritConfig(valueSelectorConfig, inheritedConfig.getValueSelectorConfig());
         selectReversingMoveToo = ConfigUtils.inheritOverwritableProperty(selectReversingMoveToo,
                 inheritedConfig.getSelectReversingMoveToo());
+        return this;
+    }
+
+    @Override
+    public SubChainChangeMoveSelectorConfig copyConfig() {
+        return new SubChainChangeMoveSelectorConfig().inherit(this);
     }
 
     @Override

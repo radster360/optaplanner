@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 JBoss Inc
+ * Copyright 2020 Red Hat, Inc. and/or its affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,16 +22,16 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-import org.optaplanner.core.impl.domain.entity.PlanningEntityDescriptor;
+import org.optaplanner.core.api.score.director.ScoreDirector;
+import org.optaplanner.core.config.heuristic.selector.common.SelectionCacheType;
+import org.optaplanner.core.impl.domain.entity.descriptor.EntityDescriptor;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleBridge;
 import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheLifecycleListener;
-import org.optaplanner.core.impl.heuristic.selector.common.SelectionCacheType;
 import org.optaplanner.core.impl.heuristic.selector.common.decorator.SelectionProbabilityWeightFactory;
 import org.optaplanner.core.impl.heuristic.selector.entity.AbstractEntitySelector;
 import org.optaplanner.core.impl.heuristic.selector.entity.EntitySelector;
-import org.optaplanner.core.impl.score.director.ScoreDirector;
-import org.optaplanner.core.impl.solver.scope.DefaultSolverScope;
-import org.optaplanner.core.impl.util.RandomUtils;
+import org.optaplanner.core.impl.solver.random.RandomUtils;
+import org.optaplanner.core.impl.solver.scope.SolverScope;
 
 public class ProbabilityEntitySelector extends AbstractEntitySelector implements SelectionCacheLifecycleListener {
 
@@ -52,12 +52,12 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
                     + ") has a childEntitySelector (" + childEntitySelector
                     + ") with neverEnding (" + childEntitySelector.isNeverEnding() + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(childEntitySelector);
+        phaseLifecycleSupport.addEventListener(childEntitySelector);
         if (cacheType.isNotCached()) {
             throw new IllegalArgumentException("The selector (" + this
                     + ") does not support the cacheType (" + cacheType + ").");
         }
-        solverPhaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
+        phaseLifecycleSupport.addEventListener(new SelectionCacheLifecycleBridge(cacheType, this));
     }
 
     @Override
@@ -69,8 +69,9 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
     // Worker methods
     // ************************************************************************
 
-    public void constructCache(DefaultSolverScope solverScope) {
-        cachedEntityMap = new TreeMap<Double, Object>();
+    @Override
+    public void constructCache(SolverScope solverScope) {
+        cachedEntityMap = new TreeMap<>();
         ScoreDirector scoreDirector = solverScope.getScoreDirector();
         double probabilityWeightOffset = 0L;
         for (Object entity : childEntitySelector) {
@@ -82,32 +83,40 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
         probabilityWeightTotal = probabilityWeightOffset;
     }
 
-    public void disposeCache(DefaultSolverScope solverScope) {
+    @Override
+    public void disposeCache(SolverScope solverScope) {
         probabilityWeightTotal = -1.0;
     }
 
-    public PlanningEntityDescriptor getEntityDescriptor() {
+    @Override
+    public EntityDescriptor getEntityDescriptor() {
         return childEntitySelector.getEntityDescriptor();
     }
 
-    public boolean isContinuous() {
-        return false;
+    @Override
+    public boolean isCountable() {
+        return true;
     }
 
+    @Override
     public boolean isNeverEnding() {
         return true;
     }
 
+    @Override
     public long getSize() {
         return cachedEntityMap.size();
     }
 
+    @Override
     public Iterator<Object> iterator() {
         return new Iterator<Object>() {
+            @Override
             public boolean hasNext() {
                 return true;
             }
 
+            @Override
             public Object next() {
                 double randomOffset = RandomUtils.nextDouble(workingRandom, probabilityWeightTotal);
                 Map.Entry<Double, Object> entry = cachedEntityMap.floorEntry(randomOffset);
@@ -115,22 +124,26 @@ public class ProbabilityEntitySelector extends AbstractEntitySelector implements
                 return entry.getValue();
             }
 
+            @Override
             public void remove() {
                 throw new UnsupportedOperationException("The optional operation remove() is not supported.");
             }
         };
     }
 
+    @Override
     public ListIterator<Object> listIterator() {
         throw new IllegalStateException("The selector (" + this
                 + ") does not support a ListIterator with randomSelection (true).");
     }
 
+    @Override
     public ListIterator<Object> listIterator(int index) {
         throw new IllegalStateException("The selector (" + this
                 + ") does not support a ListIterator with randomSelection (true).");
     }
 
+    @Override
     public Iterator<Object> endingIterator() {
         return childEntitySelector.endingIterator();
     }
